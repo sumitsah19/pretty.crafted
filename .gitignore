@@ -1,0 +1,59 @@
+# Maven build output
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Maven wrapper jar (large binary — download on demand)
+.mvn/wrapper/maven-wrapper.jar
+
+# Environment / secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+*.secret
+secrets/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse / STS
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+# VS Code
+.vscode/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Uploaded user files (runtime-generated, not source)
+uploads/
+
+# Compiled class files
+*.class

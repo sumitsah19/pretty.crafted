@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Order Confirmed</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9f9f9; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .header { background: #1a1a2e; color: #fff; padding: 32px 40px; }
+    .header h1 { margin: 0; font-size: 24px; }
+    .header p { margin: 4px 0 0; opacity: .8; font-size: 14px; }
+    .body { padding: 32px 40px; }
+    .body p { color: #444; line-height: 1.6; }
+    table { width: 100%; border-collapse: collapse; margin: 24px 0; }
+    th { background: #f0f0f0; text-align: left; padding: 10px 12px; font-size: 13px; color: #666; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 14px; color: #333; }
+    .total-row td { font-weight: bold; border-bottom: none; font-size: 15px; }
+    .badge { display: inline-block; background: #e8f5e9; color: #2e7d32; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+    .footer { background: #f5f5f5; padding: 20px 40px; text-align: center; font-size: 12px; color: #999; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>PrettyCrafted Giftbox</h1>
+    <p>Your order has been placed successfully!</p>
+  </div>
+  <div class="body">
+    <p>Hi <strong th:text="${name}">Customer</strong>,</p>
+    <p>Thank you for your order. Here's a summary:</p>
+
+    <p>
+      Order ID: <strong th:text="'#' + ${orderId}">123</strong> &nbsp;
+      <span class="badge" th:text="${status}">PENDING</span>
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Qty</th>
+          <th>Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="item : ${items}">
+          <td th:text="${item.itemName}">Product</td>
+          <td th:text="${item.quantity}">1</td>
+          <td th:text="'₹' + ${item.lineTotal}">0</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td colspan="2">Total</td>
+          <td th:text="'₹' + ${total}">0</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <p><strong>Shipping to:</strong> <span th:text="${shippingAddress}">Address</span></p>
+    <p>We'll notify you once your order is shipped.</p>
+  </div>
+  <div class="footer">
+    &copy; PrettyCrafted &mdash; prettycrafted.in
+  </div>
+</div>
+</body>
+</html>
