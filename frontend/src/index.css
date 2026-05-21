@@ -1,0 +1,102 @@
+/* Fonts are loaded via <link> in index.html for fastest loading */
+
+body {
+  overflow-x: clip;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cream: #FAF7F2;
+  --terracotta: #C4704A;
+  --terracotta-dark: #A85A38;
+  --sage: #7A9A6B;
+  --warm-beige: #EDE4D8;
+  --warm-mid: #D9CBBF;
+  --dark: #2C1A0E;
+  --mid: #6B4F3A;
+  --light-text: #9C7A63;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; overflow-x: hidden; width: 100%; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #FAF7F2;
+  color: #2C1A0E;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+#root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #EDE4D8; }
+::-webkit-scrollbar-thumb { background: #C4704A; border-radius: 99px; }
+
+button, a { -webkit-tap-highlight-color: transparent; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(44,26,14,0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes skShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes bounceIn {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+@keyframes confetti0 { to { transform: rotate(0deg) translateY(-80px) scale(0); opacity: 0; } }
+@keyframes confetti1 { to { transform: rotate(120deg) translateY(-80px) scale(0); opacity: 0; } }
+@keyframes confetti2 { to { transform: rotate(240deg) translateY(-80px) scale(0); opacity: 0; } }
+
+.animate-fade-up { animation: fadeUp 0.6s ease forwards; }
+.float-anim { animation: float 4s ease-in-out infinite; }
+.animate-slide-right { animation: slideInRight 0.3s ease forwards; }
+.animate-slide-down { animation: slideDown 0.25s ease forwards; }
+.animate-spin-slow { animation: spin 0.7s linear infinite; }
+.animate-bounce-in { animation: bounceIn 0.6s ease forwards; }
+
+/* OccasionPage-specific animations */
+@keyframes ocFloat   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+@keyframes ocFade    { from{opacity:0} to{opacity:1} }
+@keyframes ocUp      { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+@keyframes ocShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
