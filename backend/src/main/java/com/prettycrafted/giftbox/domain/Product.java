@@ -47,17 +47,17 @@ public class Product {
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
-    @Column(name = "popularity_score", nullable = false)
+    @Column(name = "popularity_score", columnDefinition = "INT NOT NULL DEFAULT 0")
     @Builder.Default
     private Integer popularityScore = 0;
 
     /** Target audience: "her", "him", "kids", or "all" */
-    @Column(name = "recipient", length = 10, nullable = false)
+    @Column(name = "recipient", columnDefinition = "VARCHAR(10) NOT NULL DEFAULT 'all'")
     @Builder.Default
     private String recipient = "all";
 
     /** Display badge: "Bestseller", "New", or "" */
-    @Column(name = "tag", length = 30, nullable = false)
+    @Column(name = "tag", columnDefinition = "VARCHAR(30) NOT NULL DEFAULT ''")
     @Builder.Default
     private String tag = "";
 }

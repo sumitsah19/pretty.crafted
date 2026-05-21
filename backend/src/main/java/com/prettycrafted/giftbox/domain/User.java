@@ -40,19 +40,19 @@ public class User {
     private String phone;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
+    @Column(nullable = false, length = 16, columnDefinition = "VARCHAR(16) NOT NULL DEFAULT 'USER'")
     @Builder.Default
     private Role role = Role.USER;
 
-    @Column(name = "token_version", nullable = false)
+    @Column(name = "token_version", columnDefinition = "INT NOT NULL DEFAULT 0")
     @Builder.Default
     private int tokenVersion = 0;
 
-    @Column(name = "email_verified", nullable = false)
+    @Column(name = "email_verified", columnDefinition = "BIT(1) NOT NULL DEFAULT 0")
     @Builder.Default
     private boolean emailVerified = false;
 
-    @Column(name = "email_notifications", nullable = false)
+    @Column(name = "email_notifications", columnDefinition = "BIT(1) NOT NULL DEFAULT 1")
     @Builder.Default
     private boolean emailNotifications = true;
 

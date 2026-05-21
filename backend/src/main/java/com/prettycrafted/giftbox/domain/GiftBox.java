@@ -44,7 +44,7 @@ public class GiftBox {
     private BoxSize size;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "wrap_type", nullable = false, length = 16)
+    @Column(name = "wrap_type", columnDefinition = "VARCHAR(16) NOT NULL DEFAULT 'STANDARD'")
     @Builder.Default
     private WrapType wrapType = WrapType.STANDARD;
 
@@ -57,7 +57,7 @@ public class GiftBox {
     @Column(name = "wrap_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal wrapPrice;
 
-    @Column(name = "products_total", nullable = false, precision = 10, scale = 2)
+    @Column(name = "products_total", columnDefinition = "DECIMAL(10,2) NOT NULL DEFAULT 0.00")
     @Builder.Default
     private BigDecimal productsTotal = BigDecimal.ZERO;
 
@@ -65,7 +65,7 @@ public class GiftBox {
     private BigDecimal totalPrice;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
+    @Column(columnDefinition = "VARCHAR(16) NOT NULL DEFAULT 'DRAFT'")
     @Builder.Default
     private GiftBoxStatus status = GiftBoxStatus.DRAFT;
 
