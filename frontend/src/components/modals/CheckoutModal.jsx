@@ -18,7 +18,6 @@ export default function CheckoutModal() {
   const { items } = useSelector(selectCart)
   const isLoggedIn = useSelector(selectIsLoggedIn)
   const [step, setStep] = useState(1)
-  const [orderNum] = useState(() => Math.floor(Math.random() * 900000 + 100000))
   const [addr, setAddr] = useState({ name: '', phone: '', line1: '', line2: '', city: '', state: '', zip: '', country: 'India' })
   const [delivery, setDelivery] = useState('standard')
   const [deliveryDate, setDeliveryDate] = useState('')
@@ -27,6 +26,8 @@ export default function CheckoutModal() {
   const [placing, setPlacing] = useState(false)
   const [placed, setPlaced] = useState(false)
   const [orderError, setOrderError] = useState('')
+  const [serverOrderId, setServerOrderId] = useState(null)
+  const [upiId, setUpiId] = useState('')
 
   const subtotal = items.reduce((s, i) => s + i.product.price * i.qty, 0)
   const deliveryFee = delivery === 'express' ? 9.99 : delivery === 'sameday' ? 19.99 : (subtotal >= 60 ? 0 : 5.99)
@@ -37,7 +38,16 @@ export default function CheckoutModal() {
   const fmtCard = (v) => v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
   const fmtExpiry = (v) => { const d = v.replace(/\D/g, '').slice(0, 4); return d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d }
   const addrValid = addr.name && addr.phone && addr.line1 && addr.city && addr.zip
-  const payValid = payMethod !== 'card' || (card.number.replace(/\s/g, '').length === 16 && card.name && card.expiry.length === 5 && card.cvv.length >= 3)
+  const isExpiryValid = (expiry) => {
+    if (expiry.length !== 5) return false
+    const [mm, yy] = expiry.split('/')
+    const month = parseInt(mm, 10)
+    const year = 2000 + parseInt(yy, 10)
+    if (month < 1 || month > 12) return false
+    const now = new Date()
+    return year > now.getFullYear() || (year === now.getFullYear() && month >= now.getMonth() + 1)
+  }
+  const payValid = payMethod !== 'card' || (card.number.replace(/\s/g, '').length === 16 && card.name && isExpiryValid(card.expiry) && card.cvv.length >= 3)
 
   const inputSt = { width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: 13, border: '1.5px solid #EDE4D8', background: '#FDFAF7', color: '#2C1A0E', outline: 'none', fontFamily: "'DM Sans',sans-serif", transition: 'border-color 0.2s' }
   const focus = (e) => e.target.style.borderColor = TC
@@ -55,11 +65,16 @@ export default function CheckoutModal() {
     setOrderError('')
 
     try {
-      // Step 1: Sync local cart to server cart so the backend can build the order.
-      // Clear first to avoid duplicates, then add each item.
+      // Step 1: Sync local cart to server atomically.
+      // Clear server cart, then add all items. If any add fails, rollback by clearing again.
       await cartApi.clear()
-      for (const item of items) {
-        await cartApi.add(item.product.id, item.qty)
+      try {
+        for (const item of items) {
+          await cartApi.add(item.product.id, item.qty)
+        }
+      } catch (syncErr) {
+        await cartApi.clear().catch(() => {})
+        throw new Error('Failed to sync your cart. Please try again.')
       }
 
       // Step 2: Build the payload the backend expects.
@@ -69,20 +84,20 @@ export default function CheckoutModal() {
         addr.city, addr.state, addr.zip, addr.country,
       ].filter(Boolean).join(', ')
 
-      // Map frontend payment method keys to backend enum values
       const backendPaymentMethod = payMethod === 'cod' ? 'COD' : 'RAZORPAY'
 
-      await ordersApi.create({
+      const res = await ordersApi.create({
         shippingAddress,
         contactPhone: addr.phone,
         paymentMethod: backendPaymentMethod,
       })
 
+      setServerOrderId(res.data?.id || res.data?.orderNumber || null)
       setPlacing(false)
       setPlaced(true)
     } catch (err) {
       setPlacing(false)
-      setOrderError(err.response?.data?.message || 'Failed to place order. Please try again.')
+      setOrderError(err.message || err.response?.data?.message || 'Failed to place order. Please try again.')
     }
   }
 
@@ -156,7 +171,7 @@ export default function CheckoutModal() {
                     <div style={{ fontSize: 14, fontWeight: 700, color: '#2C1A0E' }}>{opt.label}</div>
                     <div style={{ fontSize: 12, color: '#9C7A63' }}>{opt.eta}</div>
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: opt.price === 0 ? '#7A9A6B' : TC }}>{subtotal >= 60 && opt.key === 'standard' ? 'FREE' : `$${opt.price.toFixed(2)}`}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: opt.price === 0 ? '#7A9A6B' : TC }}>{subtotal >= 60 && opt.key === 'standard' ? 'FREE' : `₹${opt.price.toFixed(2)}`}</div>
                 </label>
               ))}
               <div style={{ marginTop: 6 }}>
@@ -170,11 +185,14 @@ export default function CheckoutModal() {
           {step === 3 && !placed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Payment Method</div>
-              {[{ key: 'card', icon: '💳', label: 'Credit / Debit Card' }, { key: 'upi', icon: '📱', label: 'UPI' }, { key: 'paypal', icon: '🅿️', label: 'PayPal' }, { key: 'cod', icon: '💵', label: 'Cash on Delivery' }].map((m) => (
+              {[{ key: 'card', icon: '💳', label: 'Credit / Debit Card', note: 'via Razorpay' }, { key: 'upi', icon: '📱', label: 'UPI' }, { key: 'paypal', icon: '🅿️', label: 'PayPal', note: 'via Razorpay' }, { key: 'cod', icon: '💵', label: 'Cash on Delivery' }].map((m) => (
                 <label key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 16px', borderRadius: 14, border: `1.5px solid ${payMethod === m.key ? TC : '#EDE4D8'}`, background: payMethod === m.key ? '#FDF5F0' : 'white', cursor: 'pointer', transition: 'all 0.2s' }}>
                   <input type="radio" checked={payMethod === m.key} onChange={() => setPayMethod(m.key)} style={{ accentColor: TC, width: 16, height: 16 }} />
                   <span style={{ fontSize: 20 }}>{m.icon}</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#2C1A0E' }}>{m.label}</span>
+                  <div>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#2C1A0E' }}>{m.label}</span>
+                    {m.note && <div style={{ fontSize: 10, color: '#9C7A63', marginTop: 1 }}>{m.note}</div>}
+                  </div>
                 </label>
               ))}
               {payMethod === 'card' && (
@@ -202,7 +220,7 @@ export default function CheckoutModal() {
               {payMethod === 'upi' && (
                 <div style={{ padding: '16px', background: 'white', borderRadius: 16, border: '1px solid #EDE4D8' }}>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 5 }}>UPI ID</label>
-                  <input placeholder="yourname@upi" style={inputSt} onFocus={focus} onBlur={blur} />
+                  <input value={upiId} onChange={(e) => setUpiId(e.target.value)} placeholder="yourname@upi" style={inputSt} onFocus={focus} onBlur={blur} />
                 </div>
               )}
             </div>
@@ -220,7 +238,7 @@ export default function CheckoutModal() {
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{item.product.name}</div>
                       <div style={{ fontSize: 11, color: '#9C7A63' }}>Qty: {item.qty}</div>
                     </div>
-                    <div style={{ fontWeight: 700, color: TC, fontSize: 14 }}>${(item.product.price * item.qty).toFixed(2)}</div>
+                    <div style={{ fontWeight: 700, color: TC, fontSize: 14 }}>₹{(item.product.price * item.qty).toFixed(2)}</div>
                   </div>
                 ))}
               </div>
@@ -230,7 +248,7 @@ export default function CheckoutModal() {
               </div>
               <div style={{ padding: '12px 16px', background: '#F5EEE6', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: 12, color: '#6B4F3A' }}>Order Total</div>
-                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: TC }}>${total.toFixed(2)}</div>
+                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: TC }}>₹{total.toFixed(2)}</div>
               </div>
             </div>
           )}
@@ -249,7 +267,7 @@ export default function CheckoutModal() {
               <div style={{ background: '#F5EEE6', borderRadius: 16, padding: '16px 20px', marginBottom: 20, fontSize: 13, color: '#6B4F3A', lineHeight: 2, textAlign: 'left' }}>
                 <div>📦 {DELIVERY_OPTIONS.find((o) => o.key === delivery)?.label}</div>
                 <div>⏱ Estimated: <b>{deliveryDate || DELIVERY_OPTIONS.find((o) => o.key === delivery)?.eta}</b></div>
-                <div>🔖 Order <b style={{ color: TC }}>#{orderNum}</b></div>
+                {serverOrderId && <div>🔖 Order <b style={{ color: TC }}>#{serverOrderId}</b></div>}
               </div>
               <button onClick={handleSuccess} style={{ width: '100%', padding: '14px', borderRadius: 99, border: 'none', background: `linear-gradient(135deg,${TC},#A85A38)`, color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>Continue Shopping →</button>
             </div>
@@ -276,7 +294,7 @@ export default function CheckoutModal() {
               ) : (
                 <button onClick={placeOrder} disabled={placing || !payValid}
                   style={{ flex: 2, padding: '13px', borderRadius: 99, border: 'none', background: placing || !payValid ? '#EDE4D8' : `linear-gradient(135deg, ${TC}, #A85A38)`, color: placing || !payValid ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: placing || !payValid ? 'default' : 'pointer', minHeight: 48, boxShadow: placing || !payValid ? 'none' : '0 6px 20px rgba(196,112,74,0.35)' }}>
-                  {placing ? 'Placing Order...' : `Place Order — $${total.toFixed(2)}`}
+                  {placing ? 'Placing Order...' : `Place Order — ₹${total.toFixed(2)}`}
                 </button>
               )}
             </div>

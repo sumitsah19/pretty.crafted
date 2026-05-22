@@ -122,7 +122,7 @@ export default function GiftBoxModal() {
                         onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#EDE4D8'; e.currentTarget.style.boxShadow = 'none' }}>
                         <span style={{ fontSize: 32 }}>{p.emoji}</span>
                         <div style={{ fontWeight: 600, color: '#2C1A0E', fontSize: 12, lineHeight: 1.3 }}>{p.name}</div>
-                        <div style={{ color: TC, fontSize: 12, fontWeight: 700 }}>${p.price}</div>
+                        <div style={{ color: TC, fontSize: 12, fontWeight: 700 }}>₹{p.price}</div>
                         <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 500 }}>tap or drag</div>
                       </div>
                     ))}
@@ -140,7 +140,7 @@ export default function GiftBoxModal() {
                         <button key={key} onClick={() => setBoxSize(key)} style={{ padding: isMobile ? '10px 6px' : '12px 8px', borderRadius: 14, cursor: 'pointer', border: boxSize === key ? `2px solid ${TC}` : '2px solid #EDE4D8', background: boxSize === key ? '#FDF6F1' : 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, transition: 'all 0.2s' }}>
                           <div style={{ fontSize: isMobile ? 22 : 26 }}>{key === 'small' ? '🎁' : key === 'medium' ? '📦' : '🧰'}</div>
                           <div style={{ fontSize: 12, fontWeight: 700, color: boxSize === key ? TC : '#2C1A0E' }}>{s.label}</div>
-                          <div style={{ fontSize: 10, color: '#9C7A63' }}>{s.slots} items · +${s.price}</div>
+                          <div style={{ fontSize: 10, color: '#9C7A63' }}>{s.slots} items · +₹{s.price}</div>
                         </button>
                       ))}
                     </div>
@@ -149,7 +149,7 @@ export default function GiftBoxModal() {
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontSize: 13, color: '#6B4F3A' }}><b style={{ color: TC }}>{filled}</b>/{BOX_SLOTS} items</div>
-                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700 }}>Total: <span style={{ color: TC }}>${total}</span></div>
+                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700 }}>Total: <span style={{ color: TC }}>₹{total}</span></div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
@@ -170,7 +170,7 @@ export default function GiftBoxModal() {
                             <>
                               <span style={{ fontSize: isMobile ? 22 : 28 }}>{item.emoji}</span>
                               <div style={{ fontSize: 9, fontWeight: 600, color: '#2C1A0E', textAlign: 'center', padding: '0 4px', lineHeight: 1.2 }}>{item.name}</div>
-                              <div style={{ fontSize: 9, color: '#9C7A63' }}>${item.price}</div>
+                              <div style={{ fontSize: 9, color: '#9C7A63' }}>₹{item.price}</div>
                               <button onClick={() => removeSlot(idx)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(44,26,14,0.12)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B4F3A' }}>×</button>
                             </>
                           ) : (
@@ -200,7 +200,7 @@ export default function GiftBoxModal() {
                     <div style={{ fontSize: 56, marginBottom: 12 }}>{previewProduct.emoji}</div>
                     <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{previewProduct.category}</div>
                     <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 17, fontWeight: 700, marginBottom: 8, lineHeight: 1.3 }}>{previewProduct.name}</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: TC, marginBottom: 20 }}>${previewProduct.price}</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: TC, marginBottom: 20 }}>₹{previewProduct.price}</div>
                     <button onClick={() => handleAddToBox(previewProduct)} disabled={filled >= BOX_SLOTS}
                       style={{ width: '100%', padding: '14px', borderRadius: 99, border: 'none', background: addedFlash ? '#7A9A6B' : filled >= BOX_SLOTS ? '#EDE4D8' : TC, color: filled >= BOX_SLOTS ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', transition: 'background 0.3s', minHeight: 48 }}>
                       {addedFlash ? 'Added ✓' : filled >= BOX_SLOTS ? 'Box is Full' : 'Add to Box 🎁'}
@@ -251,7 +251,7 @@ export default function GiftBoxModal() {
                     <div key={i} style={{ background: item.bg || '#EDE4D8', borderRadius: 12, padding: '10px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                       <span style={{ fontSize: 22 }}>{item.emoji}</span>
                       <div style={{ fontSize: 10, fontWeight: 600, textAlign: 'center', color: '#2C1A0E', lineHeight: 1.2 }}>{item.name}</div>
-                      <div style={{ fontSize: 10, color: '#6B4F3A' }}>${item.price}</div>
+                      <div style={{ fontSize: 10, color: '#6B4F3A' }}>₹{item.price}</div>
                     </div>
                   ))}
                 </div>
@@ -265,7 +265,7 @@ export default function GiftBoxModal() {
               <div style={{ background: '#F5EEE6', borderRadius: 16, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', maxWidth: 520, gap: 12, flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ fontSize: 12, color: '#9C7A63' }}>Box total ({filled} items)</div>
-                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: TC }}>${total}</div>
+                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: TC }}>₹{total}</div>
                 </div>
                 <button onClick={addBoxToCart} style={{ padding: '14px 28px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 4px 16px rgba(196,112,74,0.35)', minHeight: 48, flex: isMobile ? 1 : 'none' }}>Add to Cart 🛒</button>
               </div>

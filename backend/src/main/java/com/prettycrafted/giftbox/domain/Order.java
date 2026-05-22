@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.BatchSize;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -37,6 +38,7 @@ public class Order {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
+    @BatchSize(size = 20)
     private User user;
 
     @Enumerated(EnumType.STRING)
@@ -65,6 +67,7 @@ public class Order {
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 20)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();
 

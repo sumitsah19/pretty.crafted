@@ -124,7 +124,7 @@ export default function ProductDetailModal({ product }) {
       <div style={{ padding: '10px 12px' }}>
         <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 13, fontWeight: 600, color: '#2C1A0E', marginBottom: 5, lineHeight: 1.3 }}>{p.name}</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontWeight: 700, color: TC, fontSize: 14 }}>${p.price}</span>
+          <span style={{ fontWeight: 700, color: TC, fontSize: 14 }}>₹{p.price}</span>
           <button onClick={e => { e.stopPropagation(); dispatch(addLocal(p)) }} style={{ padding: '4px 10px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Add</button>
         </div>
       </div>
@@ -204,8 +204,8 @@ export default function ProductDetailModal({ product }) {
 
             {/* Price */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 20 }}>
-              <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 32, fontWeight: 700, color: TC }}>${product.price}</span>
-              {product.originalPrice && <span style={{ fontSize: 16, color: '#B8A090', textDecoration: 'line-through' }}>${product.originalPrice}</span>}
+              <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 32, fontWeight: 700, color: TC }}>₹{product.price}</span>
+              {product.originalPrice && <span style={{ fontSize: 16, color: '#B8A090', textDecoration: 'line-through' }}>₹{product.originalPrice}</span>}
               {product.originalPrice && <span style={{ fontSize: 12, background: '#EAF2E8', color: '#2A7A3B', padding: '2px 8px', borderRadius: 99, fontWeight: 700 }}>Save {Math.round((1 - product.price / product.originalPrice) * 100)}%</span>}
             </div>
 

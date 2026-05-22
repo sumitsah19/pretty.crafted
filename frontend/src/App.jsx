@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { fetchMe, selectUser, resendVerification } from './store/slices/authSlice'
+import { fetchMe, logout, selectUser, resendVerification } from './store/slices/authSlice'
 import { fetchProducts } from './store/slices/productsSlice'
 import { selectUI, selectCartOpen, selectWishlistOpen } from './store/slices/uiSlice'
 import { useWindowWidth } from './hooks/useWindowWidth'
@@ -46,6 +46,12 @@ export default function App() {
   useEffect(() => {
     dispatch(fetchMe())
     dispatch(fetchProducts())
+  }, [dispatch])
+
+  useEffect(() => {
+    const handleForceLogout = () => dispatch(logout())
+    window.addEventListener('pc:logout', handleForceLogout)
+    return () => window.removeEventListener('pc:logout', handleForceLogout)
   }, [dispatch])
 
   const scrollTo = (id) => {

@@ -52,11 +52,6 @@ export const giftBoxApi = {
   list:   ()        => api.get('/gift-boxes'),
 }
 
-// ── OCCASIONS ────────────────────────────────────────────────────
-export const occasionsApi = {
-  list: () => api.get('/occasions'),
-}
-
 // ── CATEGORIES ───────────────────────────────────────────────────
 export const categoriesApi = {
   list:   ()          => api.get('/categories'),

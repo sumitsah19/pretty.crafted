@@ -10,6 +10,7 @@ import com.prettycrafted.giftbox.repository.UserRepository;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,9 @@ public class DataSeeder implements CommandLineRunner {
     private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${app.seed.admin-password:}")
+    private String adminPassword;
+
     @Override
     @Transactional
     public void run(String... args) {
@@ -34,13 +38,17 @@ public class DataSeeder implements CommandLineRunner {
     private void seedAdmin() {
         String adminEmail = "admin@prettycrafted.local";
         if (userRepo.existsByEmail(adminEmail)) return;
+        if (adminPassword == null || adminPassword.isBlank()) {
+            log.warn("SEED_ADMIN_PASSWORD is not set — skipping admin seed. Set the env var and restart.");
+            return;
+        }
         userRepo.save(User.builder()
             .email(adminEmail)
-            .passwordHash(passwordEncoder.encode("admin1234"))
+            .passwordHash(passwordEncoder.encode(adminPassword))
             .name("Pretty Crafted Admin")
             .role(Role.ADMIN)
             .build());
-        log.info("Seeded admin user: {} / admin1234", adminEmail);
+        log.info("Seeded admin user: {}", adminEmail);
     }
 
     private void seedCatalog() {

@@ -13,27 +13,8 @@ const BG = '#F7F3EE'
 const SAGE = '#7A9A6B'
 
 // ─── MOCK DATA ─────────────────────────────────────────────────────
-const ORDERS = [
-  { id: '#PC-2841', customer: 'Amara Osei',      occasion: 'Birthday',     items: 3, total: 98,  status: 'delivered',  date: 'May 14' },
-  { id: '#PC-2840', customer: 'Priya Nair',       occasion: "Mother's Day", items: 5, total: 164, status: 'shipped',    date: 'May 14' },
-  { id: '#PC-2839', customer: 'James Whitfield',  occasion: 'Anniversary',  items: 2, total: 76,  status: 'processing', date: 'May 13' },
-  { id: '#PC-2838', customer: 'Sofia Bertrand',   occasion: 'Wedding',      items: 4, total: 212, status: 'shipped',    date: 'May 13' },
-  { id: '#PC-2837', customer: 'Lena Kirchner',    occasion: 'Birthday',     items: 1, total: 42,  status: 'delivered',  date: 'May 12' },
-  { id: '#PC-2836', customer: 'Marcus Tan',       occasion: 'For Him',      items: 3, total: 94,  status: 'delivered',  date: 'May 12' },
-  { id: '#PC-2835', customer: 'Chloe Dupont',     occasion: 'Friendship',   items: 2, total: 54,  status: 'processing', date: 'May 11' },
-  { id: '#PC-2834', customer: 'Rohan Mehta',      occasion: 'Graduation',   items: 1, total: 38,  status: 'delivered',  date: 'May 11' },
-]
-
-const PRODUCTS_ADMIN = [
-  { id: 1, name: 'Wildflower Soy Candle',    cat: 'Candles',     price: 28, stock: 47, occasions: ['Birthday', 'Mothers'],            tag: 'Bestseller', featured: true  },
-  { id: 2, name: 'Pressed Botanicals Ring',  cat: 'Jewelry',     price: 42, stock: 12, occasions: ['Anniversary', 'Wedding'],          tag: 'New',        featured: false },
-  { id: 3, name: 'Stoneware Coffee Mug',     cat: 'Ceramics',    price: 28, stock: 34, occasions: ['Birthday', 'For Him'],             tag: 'Bestseller', featured: true  },
-  { id: 4, name: 'Linen Watercolor Print',   cat: 'Art',         price: 48, stock: 8,  occasions: ['Wedding'],                         tag: '',           featured: false },
-  { id: 5, name: 'Rose Clay Face Mask Set',  cat: 'Skincare',    price: 22, stock: 56, occasions: ['Mothers', 'Valentines'],           tag: 'New',        featured: true  },
-  { id: 6, name: 'Leather-bound Journal',    cat: 'Stationery',  price: 38, stock: 21, occasions: ['Graduation'],                      tag: '',           featured: false },
-  { id: 7, name: 'Wildberry Jam Set',        cat: 'Gourmet',     price: 32, stock: 39, occasions: ['Christmas', 'Birthday'],           tag: 'Bestseller', featured: true  },
-  { id: 8, name: 'Mini Terrarium Kit',       cat: 'Plants',      price: 45, stock: 15, occasions: ['Baby', 'Kids'],                    tag: 'New',        featured: false },
-]
+// Dashboard, Products, Orders views use real APIs.
+// Customers, Occasions, Marketing use mock data — no backend endpoints exist yet.
 
 const OCCASION_STATS = [
   { name: "Mother's Day", rev: 4820, orders: 48, trend: +18, icon: '💐', color: '#F0D5DC' },
@@ -66,8 +47,6 @@ const USER_ORDERS = {
     { id: '#PC-2802', date: 'May 2',  items: ['Leather Journal', 'Honey Set'],                       total: 76,  status: 'delivered' },
   ],
 }
-
-const WEEKLY_REV = [28, 44, 36, 52, 48, 62, 58, 74, 68, 86, 72, 94, 88, 102, 96, 112, 108, 124, 118, 136, 128, 144, 138, 152, 146, 158, 164]
 
 const NAV_ITEMS = [
   { id: 'dashboard', icon: '◈', label: 'Dashboard'  },
@@ -246,6 +225,7 @@ function DashboardView() {
   const [stats, setStats] = useState(null)
   const [recentOrders, setRecentOrders] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     Promise.all([
@@ -254,7 +234,9 @@ function DashboardView() {
     ]).then(([statsRes, ordersRes]) => {
       setStats(statsRes.data)
       setRecentOrders(ordersRes.data?.content || [])
-    }).catch(() => {}).finally(() => setLoading(false))
+    }).catch((err) => {
+      setError(err.response?.data?.message || 'Failed to load dashboard data')
+    }).finally(() => setLoading(false))
   }, [])
 
   const fmt = (n) => n != null ? Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'
@@ -267,6 +249,7 @@ function DashboardView() {
   return (
     <div>
       <SectionHeader title="Overview" sub="Pretty.Crafted store — live data" />
+      {error && <div style={{ background: '#FEE2E2', borderRadius: 12, padding: '12px 16px', color: '#C44A4A', fontSize: 13, marginBottom: 20 }}>⚠️ {error}</div>}
 
       {/* KPI cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 16, marginBottom: 32 }}>
@@ -348,7 +331,9 @@ function ProductsView({ onToast }) {
     ]).then(([pRes, cRes]) => {
       setProducts(pRes.data?.content || pRes.data || [])
       setCategories(cRes.data || [])
-    }).catch(() => {}).finally(() => setLoading(false))
+    }).catch((err) => {
+      onToast(err.response?.data?.message || 'Failed to load products')
+    }).finally(() => setLoading(false))
   }, [])
 
   const filtered = products.filter(p =>
@@ -871,8 +856,8 @@ function CustomersView({ onToast }) {
         {[
           { label: 'Total Customers',    value: CUSTOMERS.length, icon: '👥', trend: '+12%' },
           { label: 'Active This Month',  value: CUSTOMERS.filter(c => c.status === 'active').length, icon: '⚡', trend: '+8%' },
-          { label: 'Total Revenue',      value: '$' + CUSTOMERS.reduce((s, c) => s + c.spent, 0).toLocaleString(), icon: '💰', trend: '+18%' },
-          { label: 'Avg. Order Value',   value: '$' + Math.round(CUSTOMERS.reduce((s, c) => s + c.spent, 0) / CUSTOMERS.reduce((s, c) => s + c.orders, 0)), icon: '📊', trend: '+5%' },
+          { label: 'Total Revenue',      value: '₹' + CUSTOMERS.reduce((s, c) => s + c.spent, 0).toLocaleString(), icon: '💰', trend: '+18%' },
+          { label: 'Avg. Order Value',   value: '₹' + Math.round(CUSTOMERS.reduce((s, c) => s + c.spent, 0) / CUSTOMERS.reduce((s, c) => s + c.orders, 0)), icon: '📊', trend: '+5%' },
         ].map(s => (
           <div key={s.label} style={{ background: 'white', borderRadius: 18, padding: '18px 20px', border: `1px solid ${BEIGE}`, boxShadow: '0 2px 8px rgba(44,26,14,0.04)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>

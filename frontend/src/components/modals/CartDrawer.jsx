@@ -55,7 +55,7 @@ export default function CartDrawer() {
         {/* Free shipping bar */}
         {items.length > 0 && subtotal < FREE_SHIPPING_AT && (
           <div style={{ padding: '12px 24px', background: '#F5EEE6', flexShrink: 0 }}>
-            <div style={{ fontSize: 12, color: '#6B4F3A', marginBottom: 6, fontWeight: 500 }}>Add <b style={{ color: TC }}>${(FREE_SHIPPING_AT - subtotal).toFixed(0)}</b> more for free shipping 🚚</div>
+            <div style={{ fontSize: 12, color: '#6B4F3A', marginBottom: 6, fontWeight: 500 }}>Add <b style={{ color: TC }}>₹{(FREE_SHIPPING_AT - subtotal).toFixed(0)}</b> more for free shipping 🚚</div>
             <div style={{ height: 6, background: '#EDE4D8', borderRadius: 99, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${progress}%`, background: TC, borderRadius: 99, transition: 'width 0.4s ease' }} />
             </div>
@@ -88,7 +88,7 @@ export default function CartDrawer() {
                         <span style={{ fontSize: 13, fontWeight: 700, color: '#2C1A0E', minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
                         <button onClick={() => dispatch(updateLocal({ idx, qty: item.qty + 1 }))} style={{ width: 30, height: 30, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                       </div>
-                      <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>${(item.product.price * item.qty).toFixed(2)}</div>
+                      <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>₹{(item.product.price * item.qty).toFixed(2)}</div>
                     </div>
                     <button onClick={() => saveForLater(idx)} style={{ marginTop: 7, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#9C7A63', padding: 0, fontWeight: 600 }}>Save for later</button>
                   </div>
@@ -107,7 +107,7 @@ export default function CartDrawer() {
                     <div style={{ width: 44, height: 44, borderRadius: 10, background: p.bg || '#EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>{p.emoji}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#2C1A0E' }}>{p.name}</div>
-                      <div style={{ fontSize: 12, color: TC, fontWeight: 700 }}>${p.price}</div>
+                      <div style={{ fontSize: 12, color: TC, fontWeight: 700 }}>₹{p.price}</div>
                     </div>
                     <button onClick={() => moveToCart(p)} style={{ padding: '6px 12px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Move to Cart</button>
                   </div>
@@ -126,7 +126,7 @@ export default function CartDrawer() {
                     <div style={{ padding: '8px 10px' }}>
                       <div style={{ fontSize: 11, fontWeight: 600, color: '#2C1A0E', lineHeight: 1.3, marginBottom: 6 }}>{p.name}</div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: TC }}>${p.price}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: TC }}>₹{p.price}</span>
                         <button onClick={() => dispatch(addLocal(p))} style={{ padding: '4px 8px', borderRadius: 99, border: 'none', background: '#F5EEE6', color: TC, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>+ Add</button>
                       </div>
                     </div>
@@ -147,7 +147,7 @@ export default function CartDrawer() {
                 <div style={{ fontSize: 11, color: '#9C7A63' }}>Kraft paper, ribbon bow & handwritten card</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: giftWrap ? TC : '#9C7A63' }}>+$4</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: giftWrap ? TC : '#9C7A63' }}>+₹4</span>
                 <div style={{ width: 40, height: 22, borderRadius: 99, background: giftWrap ? TC : '#EDE4D8', position: 'relative', transition: 'background 0.3s', flexShrink: 0 }}>
                   <div style={{ width: 16, height: 16, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: giftWrap ? 21 : 3, transition: 'left 0.3s', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }} />
                 </div>
@@ -165,19 +165,19 @@ export default function CartDrawer() {
             {promoError && <div style={{ fontSize: 12, color: '#C44A4A', marginBottom: 10, marginTop: -8 }}>{promoError}</div>}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-              <Row label="Subtotal" value={`$${subtotal.toFixed(2)}`} />
-              {discount > 0 && <Row label="Discount (15%)" value={`−$${discount.toFixed(2)}`} color="#7A9A6B" />}
-              {giftWrap && <Row label="Gift Wrapping" value="+$4.00" />}
-              <Row label="Shipping" value={shipping === 0 ? 'FREE' : `$${shipping.toFixed(2)}`} color={shipping === 0 ? '#7A9A6B' : undefined} />
+              <Row label="Subtotal" value={`₹${subtotal.toFixed(2)}`} />
+              {discount > 0 && <Row label="Discount (15%)" value={`−₹${discount.toFixed(2)}`} color="#7A9A6B" />}
+              {giftWrap && <Row label="Gift Wrapping" value="+₹4.00" />}
+              <Row label="Shipping" value={shipping === 0 ? 'FREE' : `₹${shipping.toFixed(2)}`} color={shipping === 0 ? '#7A9A6B' : undefined} />
               <div style={{ height: 1, background: '#EDE4D8', margin: '4px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700 }}>
-                <span>Total</span><span style={{ color: TC }}>${total.toFixed(2)}</span>
+                <span>Total</span><span style={{ color: TC }}>₹{total.toFixed(2)}</span>
               </div>
             </div>
 
             <button onClick={() => { dispatch(closeCart()); dispatch(openCheckout()) }}
               style={{ width: '100%', padding: '15px', borderRadius: 99, border: 'none', background: `linear-gradient(135deg, ${TC}, #A85A38)`, color: 'white', fontWeight: 700, fontSize: 16, cursor: 'pointer', boxShadow: '0 6px 20px rgba(196,112,74,0.35)', minHeight: 52 }}>
-              Checkout — ${total.toFixed(2)} →
+              Checkout — ₹{total.toFixed(2)} →
             </button>
             <div style={{ textAlign: 'center', fontSize: 11, color: '#C5B5A5', marginTop: 10 }}>🔒 Secure checkout · Free returns</div>
           </div>

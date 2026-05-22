@@ -47,7 +47,7 @@ export default function WishlistDrawer() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{p.category}</div>
                     <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 14, fontWeight: 600, color: '#2C1A0E', lineHeight: 1.3, marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                    <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>${p.price}</div>
+                    <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>₹{p.price}</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
                     <button onClick={() => { dispatch(addLocal(p)); dispatch(closeWishlist()) }} style={{ padding: '7px 14px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Add to Cart</button>

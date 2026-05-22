@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { selectProducts, selectProductsLoading } from '../store/slices/productsSlice'
 import { selectWishlistIds, toggleWishlist } from '../store/slices/wishlistSlice'
 import { addLocal } from '../store/slices/cartSlice'
-import { selectUI, selectCartOpen, selectWishlistOpen, openBoxBuilder, openOccasions, openSearch, openUserAccount, openLogin, setActiveProduct, setActiveOccasion, setPersonalizationProduct } from '../store/slices/uiSlice'
+import { selectUI, selectCartOpen, selectWishlistOpen, openBoxBuilder, openOccasions, openSearch, openUserAccount, openLogin, openWishlist, setActiveProduct, setActiveOccasion, setPersonalizationProduct } from '../store/slices/uiSlice'
 import { selectIsLoggedIn, selectUser } from '../store/slices/authSlice'
 import { useWindowWidth } from '../hooks/useWindowWidth'
 import Hero from '../components/Hero'
@@ -261,29 +261,15 @@ export default function HomePage() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(3,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 12 : 20 }}>
           {loading ? Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />) :
-            recommended.map((p, i) => (
-              <div key={p.id}
-                style={{ background: 'white', borderRadius: 20, overflow: 'hidden', border: '1px solid #EDE4D8', cursor: 'pointer', transition: 'transform 0.3s, box-shadow 0.3s', animation: `fadeUp 0.5s ease ${i * 0.08}s backwards` }}
+            recommended.map((p) => (
+              <ProductCard
+                key={p.id}
+                product={p}
                 onClick={() => dispatch(setActiveProduct(p))}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(44,26,14,0.12)' }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none' }}>
-                <div style={{ height: isMobile ? 140 : 170, background: p.bg||'#EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 52 : 64, position: 'relative', overflow: 'hidden' }}>
-                  {p.tag && <span style={{ position: 'absolute', top: 10, left: 10, zIndex: 2, background: p.tag === 'New' ? '#7A9A6B' : TC, color: 'white', fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 99 }}>{p.tag}</span>}
-                  <button onClick={e => { e.stopPropagation(); dispatch(toggleWishlist(p.id)) }} style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {wishlistIds.includes(p.id) ? '❤️' : '🤍'}
-                  </button>
-                  <button onClick={e => { e.stopPropagation(); dispatch(setPersonalizationProduct(p)) }} style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 2, background: 'rgba(255,255,255,0.9)', border: 'none', borderRadius: 99, padding: '4px 10px', fontSize: 10, fontWeight: 700, color: TC, cursor: 'pointer' }}>✦ Personalize</button>
-                  <span>{p.emoji}</span>
-                </div>
-                <div style={{ padding: isMobile ? '12px 14px' : '16px 18px' }}>
-                  <div style={{ fontSize: 9, color: '#9C7A63', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>{p.category}</div>
-                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 13 : 15, fontWeight: 600, color: '#2C1A0E', marginBottom: 10, lineHeight: 1.3 }}>{p.name}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: 700, color: TC, fontSize: isMobile ? 14 : 16 }}>${p.price}</span>
-                    <button onClick={e => { e.stopPropagation(); handleAddToCart(p) }} style={{ padding: '6px 13px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Add</button>
-                  </div>
-                </div>
-              </div>
+                onAddToCart={handleAddToCart}
+                wishlisted={wishlistIds.includes(p.id)}
+                onWishlist={(id) => dispatch(toggleWishlist(id))}
+              />
             ))}
         </div>
       </section>

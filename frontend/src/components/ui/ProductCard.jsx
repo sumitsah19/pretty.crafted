@@ -76,7 +76,7 @@ export default function ProductCard({ product, onAddToCart, onClick, wishlisted,
         <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{product.category}</div>
         <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 14, fontWeight: 600, lineHeight: 1.3, marginBottom: 8 }}>{product.name}</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>${product.price}</div>
+          <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>₹{product.price}</div>
           <button onClick={handleAdd} style={{
             padding: '7px 14px', borderRadius: 99, border: 'none',
             background: added ? '#7A9A6B' : '#F5EEE6',

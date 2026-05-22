@@ -151,7 +151,7 @@ export default function SearchModal() {
                       {p.tag && <span style={{ fontSize: 10, background: p.tag === 'New' ? '#7A9A6B' : TC, color: 'white', padding: '2px 8px', borderRadius: 99, fontWeight: 700, marginTop: 4, display: 'inline-block' }}>{p.tag}</span>}
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontWeight: 700, color: TC, fontSize: 16, marginBottom: 4 }}>${p.price}</div>
+                      <div style={{ fontWeight: 700, color: TC, fontSize: 16, marginBottom: 4 }}>₹{p.price}</div>
                       <button onClick={(e) => { e.stopPropagation(); dispatch(addLocal(p)) }} style={{ padding: '5px 12px', borderRadius: 99, border: 'none', background: '#F5EEE6', color: TC, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Add</button>
                     </div>
                   </div>

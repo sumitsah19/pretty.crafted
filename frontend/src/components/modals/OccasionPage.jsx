@@ -120,8 +120,8 @@ function OcCard({ p, onPreview, wishlist, onWishlist, tc, isMobile, onAddToCart 
         </div>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
           <div>
-            <span style={{ fontWeight:700, fontSize: isMobile ? 14 : 16, color:tc }}>${p.price}</span>
-            {p.originalPrice && <span style={{ fontSize:10, color:'#B8A090', textDecoration:'line-through', marginLeft:4 }}>${p.originalPrice}</span>}
+            <span style={{ fontWeight:700, fontSize: isMobile ? 14 : 16, color:tc }}>₹{p.price}</span>
+            {p.originalPrice && <span style={{ fontSize:10, color:'#B8A090', textDecoration:'line-through', marginLeft:4 }}>₹{p.originalPrice}</span>}
           </div>
           <button onClick={handleAdd} style={{ padding: isMobile ? '6px 11px' : '7px 14px', borderRadius:99, border:'none', background: added ? '#7A9A6B' : tc, color:'white', fontSize:10, fontWeight:700, cursor:'pointer', transition:'background 0.3s', flexShrink:0 }}>
             {added ? '✓ Added' : '+ Add'}
@@ -169,8 +169,8 @@ function OcQuickView({ p, onClose, onAddToCart, tc, isMobile }) {
               <span style={{ fontSize:12, color:'#9C7A63' }}>{p.rating} · {p.rc} reviews</span>
             </div>
             <div style={{ display:'flex', alignItems:'baseline', gap:10, marginBottom:18 }}>
-              <span style={{ fontFamily:"'Playfair Display',serif", fontSize:28, fontWeight:700, color:tc }}>${p.price}</span>
-              {p.originalPrice && <span style={{ fontSize:14, color:'#B8A090', textDecoration:'line-through' }}>${p.originalPrice}</span>}
+              <span style={{ fontFamily:"'Playfair Display',serif", fontSize:28, fontWeight:700, color:tc }}>₹{p.price}</span>
+              {p.originalPrice && <span style={{ fontSize:14, color:'#B8A090', textDecoration:'line-through' }}>₹{p.originalPrice}</span>}
             </div>
             {p.hc && <div style={{ fontSize:12, color:'#6B4F3A', background:'#F5EEE6', borderRadius:10, padding:'8px 14px', marginBottom:20, display:'inline-flex', gap:6, alignItems:'center' }}>🤲 Individually handcrafted</div>}
             <div style={{ fontSize:13, color:'#6B4F3A', lineHeight:1.65, marginBottom:22 }}>
@@ -355,7 +355,7 @@ export default function OccasionPage({ occasion }) {
               </select>
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
-              <span style={{ fontSize:9, fontWeight:700, color:'#9C7A63', textTransform:'uppercase', letterSpacing:'0.1em' }}>Max Price: ${priceMax}</span>
+              <span style={{ fontSize:9, fontWeight:700, color:'#9C7A63', textTransform:'uppercase', letterSpacing:'0.1em' }}>Max Price: ₹{priceMax}</span>
               <input type="range" min={15} max={100} value={priceMax} onChange={e => setPriceMax(Number(e.target.value))} style={{ accentColor:TC, width:130, cursor:'pointer' }} />
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
@@ -434,7 +434,7 @@ export default function OccasionPage({ occasion }) {
                   <span style={{ fontSize:24 }}>{p.emoji}</span>
                   <div>
                     <div style={{ fontSize:12, fontWeight:600, color:'#2C1A0E' }}>{p.name}</div>
-                    <div style={{ fontSize:11, color:TC, fontWeight:700 }}>${p.price}</div>
+                    <div style={{ fontSize:11, color:TC, fontWeight:700 }}>₹{p.price}</div>
                   </div>
                 </div>
               ))}
