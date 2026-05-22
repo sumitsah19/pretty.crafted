@@ -34,7 +34,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
         response.setStatus(429);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.getWriter().write("{\"error\":\"Too many requests. Please try again later.\"}");
+        response.getWriter().write("{\"code\":\"rate_limited\",\"message\":\"Too many requests. Please try again in a minute.\"}");
+        response.setHeader("Retry-After", "60");
         return false;
     }
 

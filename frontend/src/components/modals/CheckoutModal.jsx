@@ -1,17 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { selectCart, clearCart } from '../../store/slices/cartSlice'
 import { closeCheckout, openLogin } from '../../store/slices/uiSlice'
 import { selectIsLoggedIn } from '../../store/slices/authSlice'
 import { ordersApi, cartApi } from '../../api/services'
+import { analytics } from '../../analytics'
 
 const TC = '#C4704A'
-const STEPS = ['Address', 'Delivery', 'Payment', 'Review']
-const DELIVERY_OPTIONS = [
-  { key: 'standard', label: 'Standard Delivery', eta: '3–5 business days', price: 5.99, icon: '🚚' },
-  { key: 'express',  label: 'Express Delivery',  eta: '1–2 business days', price: 9.99,  icon: '⚡' },
-  { key: 'sameday', label: 'Same-Day Delivery',  eta: 'Today by 8 PM',     price: 19.99, icon: '🏎️' },
-]
+const STEPS = ['Address', 'Payment', 'Review']
 
 export default function CheckoutModal() {
   const dispatch = useDispatch()
@@ -19,8 +15,6 @@ export default function CheckoutModal() {
   const isLoggedIn = useSelector(selectIsLoggedIn)
   const [step, setStep] = useState(1)
   const [addr, setAddr] = useState({ name: '', phone: '', line1: '', line2: '', city: '', state: '', zip: '', country: 'India' })
-  const [delivery, setDelivery] = useState('standard')
-  const [deliveryDate, setDeliveryDate] = useState('')
   const [payMethod, setPayMethod] = useState('card')
   const [card, setCard] = useState({ number: '', name: '', expiry: '', cvv: '' })
   const [placing, setPlacing] = useState(false)
@@ -29,9 +23,10 @@ export default function CheckoutModal() {
   const [serverOrderId, setServerOrderId] = useState(null)
   const [upiId, setUpiId] = useState('')
 
-  const subtotal = items.reduce((s, i) => s + i.product.price * i.qty, 0)
-  const deliveryFee = delivery === 'express' ? 9.99 : delivery === 'sameday' ? 19.99 : (subtotal >= 60 ? 0 : 5.99)
-  const total = subtotal + deliveryFee
+  useEffect(() => { analytics.checkoutStart() }, [])
+  useEffect(() => { analytics.checkoutStep(step) }, [step])
+
+  const total = items.reduce((s, i) => s + i.product.price * i.qty, 0)
 
   const setA = (k, v) => setAddr((p) => ({ ...p, [k]: v }))
   const setC = (k, v) => setCard((p) => ({ ...p, [k]: v }))
@@ -54,7 +49,6 @@ export default function CheckoutModal() {
   const blur = (e) => e.target.style.borderColor = '#EDE4D8'
 
   const placeOrder = async () => {
-    // Backend order endpoint requires authentication
     if (!isLoggedIn) {
       dispatch(closeCheckout())
       dispatch(openLogin())
@@ -65,20 +59,16 @@ export default function CheckoutModal() {
     setOrderError('')
 
     try {
-      // Step 1: Sync local cart to server atomically.
-      // Clear server cart, then add all items. If any add fails, rollback by clearing again.
       await cartApi.clear()
       try {
         for (const item of items) {
           await cartApi.add(item.product.id, item.qty)
         }
-      } catch (syncErr) {
+      } catch {
         await cartApi.clear().catch(() => {})
         throw new Error('Failed to sync your cart. Please try again.')
       }
 
-      // Step 2: Build the payload the backend expects.
-      // PlaceOrderRequest: { shippingAddress, contactPhone, paymentMethod: "RAZORPAY"|"COD" }
       const shippingAddress = [
         addr.name, addr.line1, addr.line2,
         addr.city, addr.state, addr.zip, addr.country,
@@ -92,7 +82,9 @@ export default function CheckoutModal() {
         paymentMethod: backendPaymentMethod,
       })
 
-      setServerOrderId(res.data?.id || res.data?.orderNumber || null)
+      const orderId = res.data?.id || res.data?.orderNumber || null
+      setServerOrderId(orderId)
+      analytics.orderPlaced(orderId, total)
       setPlacing(false)
       setPlaced(true)
     } catch (err) {
@@ -109,6 +101,7 @@ export default function CheckoutModal() {
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && dispatch(closeCheckout())}>
       <div style={{ background: '#FAF7F2', borderRadius: 24, width: '100%', maxWidth: 520, maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(44,26,14,0.25)' }} className="animate-fade-up">
+
         {/* Header */}
         <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid #EDE4D8', flexShrink: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: placed ? 0 : 16 }}>
@@ -132,6 +125,7 @@ export default function CheckoutModal() {
 
         {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px' }}>
+
           {/* STEP 1: ADDRESS */}
           {step === 1 && !placed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -159,30 +153,8 @@ export default function CheckoutModal() {
             </div>
           )}
 
-          {/* STEP 2: DELIVERY */}
+          {/* STEP 2: PAYMENT */}
           {step === 2 && !placed && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Delivery Options</div>
-              {DELIVERY_OPTIONS.map((opt) => (
-                <label key={opt.key} onClick={() => setDelivery(opt.key)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${delivery === opt.key ? TC : '#EDE4D8'}`, background: delivery === opt.key ? '#FDF5F0' : 'white', cursor: 'pointer', transition: 'all 0.2s' }}>
-                  <input type="radio" checked={delivery === opt.key} onChange={() => setDelivery(opt.key)} style={{ accentColor: TC }} />
-                  <span style={{ fontSize: 22 }}>{opt.icon}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#2C1A0E' }}>{opt.label}</div>
-                    <div style={{ fontSize: 12, color: '#9C7A63' }}>{opt.eta}</div>
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: opt.price === 0 ? '#7A9A6B' : TC }}>{subtotal >= 60 && opt.key === 'standard' ? 'FREE' : `₹${opt.price.toFixed(2)}`}</div>
-                </label>
-              ))}
-              <div style={{ marginTop: 6 }}>
-                <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 6 }}>Preferred Delivery Date (optional)</label>
-                <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} min={new Date(Date.now() + 86400000).toISOString().split('T')[0]} style={{ ...inputSt, cursor: 'pointer' }} onFocus={focus} onBlur={blur} />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: PAYMENT */}
-          {step === 3 && !placed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Payment Method</div>
               {[{ key: 'card', icon: '💳', label: 'Credit / Debit Card', note: 'via Razorpay' }, { key: 'upi', icon: '📱', label: 'UPI' }, { key: 'paypal', icon: '🅿️', label: 'PayPal', note: 'via Razorpay' }, { key: 'cod', icon: '💵', label: 'Cash on Delivery' }].map((m) => (
@@ -226,8 +198,8 @@ export default function CheckoutModal() {
             </div>
           )}
 
-          {/* STEP 4: REVIEW */}
-          {step === 4 && !placed && (
+          {/* STEP 3: REVIEW */}
+          {step === 3 && !placed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Review Your Order</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -265,9 +237,8 @@ export default function CheckoutModal() {
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Order Placed!</div>
               <div style={{ color: '#9C7A63', fontSize: 14, lineHeight: 1.7, marginBottom: 20 }}>Thank you, <b style={{ color: '#2C1A0E' }}>{addr.name}</b>!<br />Your handcrafted gifts are on their way.</div>
               <div style={{ background: '#F5EEE6', borderRadius: 16, padding: '16px 20px', marginBottom: 20, fontSize: 13, color: '#6B4F3A', lineHeight: 2, textAlign: 'left' }}>
-                <div>📦 {DELIVERY_OPTIONS.find((o) => o.key === delivery)?.label}</div>
-                <div>⏱ Estimated: <b>{deliveryDate || DELIVERY_OPTIONS.find((o) => o.key === delivery)?.eta}</b></div>
                 {serverOrderId && <div>🔖 Order <b style={{ color: TC }}>#{serverOrderId}</b></div>}
+                <div>📦 Delivering to: <b>{addr.city}, {addr.country}</b></div>
               </div>
               <button onClick={handleSuccess} style={{ width: '100%', padding: '14px', borderRadius: 99, border: 'none', background: `linear-gradient(135deg,${TC},#A85A38)`, color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>Continue Shopping →</button>
             </div>
@@ -286,10 +257,10 @@ export default function CheckoutModal() {
               {step > 1 && (
                 <button onClick={() => setStep((s) => s - 1)} style={{ flex: 1, padding: '13px', borderRadius: 99, border: '1.5px solid #EDE4D8', background: 'none', color: '#6B4F3A', fontWeight: 600, cursor: 'pointer', fontSize: 14, minHeight: 48 }}>← Back</button>
               )}
-              {step < 4 ? (
+              {step < 3 ? (
                 <button onClick={() => setStep((s) => s + 1)} disabled={step === 1 && !addrValid}
                   style={{ flex: 2, padding: '13px', borderRadius: 99, border: 'none', background: (step === 1 ? addrValid : true) ? TC : '#EDE4D8', color: (step === 1 ? addrValid : true) ? 'white' : '#9C7A63', fontWeight: 700, fontSize: 14, cursor: (step === 1 ? addrValid : true) ? 'pointer' : 'default', minHeight: 48 }}>
-                  {step === 1 ? 'Choose Delivery →' : step === 2 ? 'Continue to Payment →' : 'Review Order →'}
+                  {step === 1 ? 'Continue to Payment →' : 'Review Order →'}
                 </button>
               ) : (
                 <button onClick={placeOrder} disabled={placing || !payValid}

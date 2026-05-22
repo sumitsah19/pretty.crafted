@@ -12,22 +12,25 @@ const cartSlice = createSlice({
   reducers: {
     addLocal(state, action) {
       const product = action.payload
-      const existing = state.items.findIndex((i) => i.product.id === product.id)
-      if (existing >= 0) {
-        state.items[existing].qty += 1
+      const existing = state.items.find((i) => i.product.id === product.id)
+      if (existing) {
+        existing.qty += 1
       } else {
         state.items.push({ product, qty: 1 })
       }
       saveLocal(state.items)
     },
     updateLocal(state, action) {
-      const { idx, qty } = action.payload
+      const { productId, qty } = action.payload
+      const idx = state.items.findIndex((i) => i.product.id === productId)
+      if (idx === -1) return
       if (qty <= 0) state.items.splice(idx, 1)
       else state.items[idx].qty = qty
       saveLocal(state.items)
     },
     removeLocal(state, action) {
-      state.items.splice(action.payload, 1)
+      const productId = action.payload
+      state.items = state.items.filter((i) => i.product.id !== productId)
       saveLocal(state.items)
     },
     clearCart(state) {

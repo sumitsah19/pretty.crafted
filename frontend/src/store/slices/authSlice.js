@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { authApi } from '../../api/services'
 import { setToken, clearToken } from '../../api/tokenStore'
+import { analytics, identify, reset } from '../../analytics'
 
 export const logoutThunk = createAsyncThunk('auth/logout', async () => {
   // Tell the backend to clear its HttpOnly cookie; ignore errors (cookie cleared either way)
@@ -97,19 +98,30 @@ const authSlice = createSlice({
       .addCase(logoutThunk.fulfilled, (state) => {
         state.user = null
         state.token = null
+        analytics.logout(); reset()
       })
       .addCase(logoutThunk.rejected, (state) => {
         state.user = null
         state.token = null
+        analytics.logout(); reset()
       })
       .addCase(login.pending, pending)
-      .addCase(login.fulfilled, (state, action) => { fulfilled(state, action); state.authChecked = true })
+      .addCase(login.fulfilled, (state, action) => {
+        fulfilled(state, action); state.authChecked = true
+        if (action.payload.user) { analytics.login('email'); identify(action.payload.user.id, { email: action.payload.user.email }) }
+      })
       .addCase(login.rejected, rejected)
       .addCase(register.pending, pending)
-      .addCase(register.fulfilled, (state, action) => { fulfilled(state, action); state.authChecked = true })
+      .addCase(register.fulfilled, (state, action) => {
+        fulfilled(state, action); state.authChecked = true
+        if (action.payload.user) { analytics.signup('email'); identify(action.payload.user.id, { email: action.payload.user.email }) }
+      })
       .addCase(register.rejected, rejected)
       .addCase(googleLogin.pending, pending)
-      .addCase(googleLogin.fulfilled, (state, action) => { fulfilled(state, action); state.authChecked = true })
+      .addCase(googleLogin.fulfilled, (state, action) => {
+        fulfilled(state, action); state.authChecked = true
+        if (action.payload.user) { analytics.login('google'); identify(action.payload.user.id, { email: action.payload.user.email }) }
+      })
       .addCase(googleLogin.rejected, rejected)
       .addCase(fetchMe.pending, pending)
       .addCase(fetchMe.fulfilled, (state, action) => {

@@ -67,7 +67,7 @@ export default function ProductCard({ product, onAddToCart, onClick, wishlisted,
           </button>
         )}
         {product.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease', transform: hovered ? 'scale(1.06)' : 'scale(1)' }} />
+          <img src={product.imageUrl} alt={product.name} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease', transform: hovered ? 'scale(1.06)' : 'scale(1)' }} />
         ) : (
           <span style={{ fontSize: 64, transition: 'transform 0.4s ease', transform: hovered ? 'scale(1.1)' : 'scale(1)' }}>{product.emoji}</span>
         )}

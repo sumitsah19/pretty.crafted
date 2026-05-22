@@ -53,7 +53,8 @@ public class EmailService {
         ctx.setVariable("unsubscribeUrl", buildUnsubscribeUrl(user));
 
         String html = templateEngine.process("order-confirmation", ctx);
-        sendHtml(user.getEmail(), "Your PrettyCrafted order #" + order.getId(), html);
+        sendHtml(user.getEmail(), "Your PrettyCrafted order #" + order.getId(), html,
+            "order-confirm-" + order.getId());
     }
 
     @Async
@@ -71,7 +72,8 @@ public class EmailService {
         ctx.setVariable("unsubscribeUrl", buildUnsubscribeUrl(user));
 
         String html = templateEngine.process("order-confirmation", ctx);
-        sendHtml(user.getEmail(), "Payment confirmed for order #" + order.getId(), html);
+        sendHtml(user.getEmail(), "Payment confirmed for order #" + order.getId(), html,
+            "payment-confirm-" + order.getId());
     }
 
     @Async
@@ -85,7 +87,8 @@ public class EmailService {
         ctx.setVariable("name", user.getName());
         ctx.setVariable("verifyUrl", verifyUrl);
         String html = templateEngine.process("email-verification", ctx);
-        sendHtml(user.getEmail(), "Verify your PrettyCrafted email address", html);
+        sendHtml(user.getEmail(), "Verify your PrettyCrafted email address", html,
+            "verify-" + user.getId() + "-" + token.substring(0, 8));
     }
 
     @Async
@@ -96,7 +99,8 @@ public class EmailService {
         ctx.setVariable("token", token);
 
         String html = templateEngine.process("password-reset", ctx);
-        sendHtml(user.getEmail(), "Reset your PrettyCrafted password", html);
+        sendHtml(user.getEmail(), "Reset your PrettyCrafted password", html,
+            "reset-" + user.getId() + "-" + token.substring(0, 8));
     }
 
     /**
@@ -126,13 +130,15 @@ public class EmailService {
         }
     }
 
-    private void sendHtml(String to, String subject, String html) {
+    /**
+     * @param messageId deterministic ID for this email (e.g. "order-confirm-123") — mail
+     *                  servers use it to deduplicate retries. Must be unique per logical send.
+     */
+    private void sendHtml(String to, String subject, String html, String messageId) {
         if (mailUsername == null || mailUsername.isBlank()) {
-            // SMTP not configured — log email to console for local development
             log.warn("MAIL_USERNAME not set. Email NOT sent. Dev preview below:");
             log.warn("  TO:      {}", to);
             log.warn("  SUBJECT: {}", subject);
-            // Strip tags for a readable console preview
             log.warn("  BODY:    {}", html.replaceAll("<[^>]+>", "").replaceAll("\\s+", " ").trim());
             return;
         }
@@ -143,7 +149,9 @@ public class EmailService {
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(html, true);
+            msg.setHeader("Message-ID", "<" + messageId + "@prettycrafted.in>");
             mailSender.send(msg);
+            log.info("Email sent: subject='{}' to='{}' msgId='{}'", subject, to, messageId);
         } catch (MessagingException e) {
             log.error("Failed to send email to {}: {}", to, e.getMessage());
         }

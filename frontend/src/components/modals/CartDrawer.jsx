@@ -26,9 +26,10 @@ export default function CartDrawer() {
 
   const suggestions = products.filter((p) => p.tag === 'Bestseller' && !items.find((i) => i.product.id === p.id)).slice(0, 3)
 
-  const saveForLater = (idx) => {
-    setSavedItems((prev) => [...prev, items[idx].product])
-    dispatch(removeLocal(idx))
+  const saveForLater = (productId) => {
+    const item = items.find((i) => i.product.id === productId)
+    if (item) setSavedItems((prev) => [...prev, item.product])
+    dispatch(removeLocal(productId))
   }
   const moveToCart = (p) => {
     setSavedItems((prev) => prev.filter((x) => x.id !== p.id))
@@ -76,23 +77,23 @@ export default function CartDrawer() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {items.map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '14px', background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(44,26,14,0.06)' }}>
+              {items.map((item) => (
+                <div key={item.product.id} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '14px', background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(44,26,14,0.06)' }}>
                   <div style={{ width: 60, height: 60, borderRadius: 12, background: item.product.bg || '#EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>{item.product.emoji}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>{item.product.category}</div>
                     <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 14, fontWeight: 600, lineHeight: 1.3, marginBottom: 8 }}>{item.product.name}</div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: '#F5EEE6', borderRadius: 99, overflow: 'hidden' }}>
-                        <button onClick={() => dispatch(updateLocal({ idx, qty: item.qty - 1 }))} style={{ width: 30, height: 30, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                        <button onClick={() => dispatch(updateLocal({ productId: item.product.id, qty: item.qty - 1 }))} style={{ width: 30, height: 30, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
                         <span style={{ fontSize: 13, fontWeight: 700, color: '#2C1A0E', minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
-                        <button onClick={() => dispatch(updateLocal({ idx, qty: item.qty + 1 }))} style={{ width: 30, height: 30, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                        <button onClick={() => dispatch(updateLocal({ productId: item.product.id, qty: item.qty + 1 }))} style={{ width: 30, height: 30, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                       </div>
                       <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>₹{(item.product.price * item.qty).toFixed(2)}</div>
                     </div>
-                    <button onClick={() => saveForLater(idx)} style={{ marginTop: 7, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#9C7A63', padding: 0, fontWeight: 600 }}>Save for later</button>
+                    <button onClick={() => saveForLater(item.product.id)} style={{ marginTop: 7, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#9C7A63', padding: 0, fontWeight: 600 }}>Save for later</button>
                   </div>
-                  <button onClick={() => dispatch(removeLocal(idx))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C5B5A5', fontSize: 18, padding: 4, flexShrink: 0, marginTop: -2, lineHeight: 1 }}>×</button>
+                  <button onClick={() => dispatch(removeLocal(item.product.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C5B5A5', fontSize: 18, padding: 4, flexShrink: 0, marginTop: -2, lineHeight: 1 }}>×</button>
                 </div>
               ))}
             </div>

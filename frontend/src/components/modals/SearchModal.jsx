@@ -4,6 +4,7 @@ import { closeSearch, setActiveProduct } from '../../store/slices/uiSlice'
 import { addLocal } from '../../store/slices/cartSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
 import { useDebounce } from '../../hooks/useDebounce'
+import { analytics } from '../../analytics'
 
 const TC = '#C4704A'
 const RECENT_KEY = 'pc_searches'
@@ -56,7 +57,7 @@ export default function SearchModal() {
     setLoading(false)
   }, [debouncedQ, category, sortBy, products])
 
-  // Save to recent searches separately so it doesn't affect the filter effect
+  // Save to recent searches and fire analytics event
   useEffect(() => {
     if (!debouncedQ.trim()) return
     setRecentSearches((prev) => {
@@ -64,6 +65,7 @@ export default function SearchModal() {
       try { localStorage.setItem(RECENT_KEY, JSON.stringify(saved)) } catch {}
       return saved
     })
+    analytics.search(debouncedQ, results.length)
   }, [debouncedQ])
 
   const categories = ['All', ...Array.from(new Set(products.map((p) => p.category)))]

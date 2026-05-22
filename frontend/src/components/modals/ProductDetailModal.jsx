@@ -6,6 +6,7 @@ import { toggleWishlist } from '../../store/slices/wishlistSlice'
 import { selectWishlistIds } from '../../store/slices/wishlistSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
+import { analytics } from '../../analytics'
 
 const TC = '#C4704A'
 
@@ -46,6 +47,8 @@ export default function ProductDetailModal({ product }) {
   const ww = useWindowWidth()
   const isMobile = ww < 768
   const isWishlisted = wishlistIds.includes(product.id)
+
+  useEffect(() => { analytics.productView(product) }, [product])
 
   const [qty, setQty] = useState(1)
   const [activeImage, setActiveImage] = useState(0)

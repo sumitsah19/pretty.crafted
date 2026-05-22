@@ -5,12 +5,15 @@ import { fetchMe, logout, selectUser, resendVerification } from './store/slices/
 import { fetchProducts } from './store/slices/productsSlice'
 import { selectUI, selectCartOpen, selectWishlistOpen } from './store/slices/uiSlice'
 import { useWindowWidth } from './hooks/useWindowWidth'
+import { useOnlineStatus } from './hooks/useOnlineStatus'
 import ErrorBoundary from './components/ErrorBoundary'
 
 import Nav from './components/Nav'
 import HomePage from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
+import TermsPage from './pages/TermsPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminProtectedRoute from './components/AdminProtectedRoute'
 
@@ -37,6 +40,7 @@ export default function App() {
   const wishlistOpen = useSelector(selectWishlistOpen)
   const ww = useWindowWidth()
   const isMobile = ww < 640
+  const isOnline = useOnlineStatus()
   const { pathname } = useLocation()
   const isAdmin = pathname.startsWith('/admin')
   const isVerifyEmail = pathname === '/verify-email'
@@ -88,6 +92,13 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div style={{ minHeight: '100vh', background: '#FAF7F2', paddingBottom: isMobile ? 64 : 0 }}>
+
+        {/* Offline banner */}
+        {!isOnline && (
+          <div style={{ background: '#1F2937', color: 'white', textAlign: 'center', padding: '10px 20px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <span>📡</span> You're offline — browsing cached content. Some features may be unavailable.
+          </div>
+        )}
 
         {/* Announcement banner */}
         <div style={{ background: TC, color: 'white', textAlign: 'center', padding: isMobile ? '9px 16px' : '10px 20px', fontSize: isMobile ? 12 : 13, fontWeight: 500 }}>
@@ -148,23 +159,35 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
         </Routes>
 
-        {/* Modals — each wrapped in its own Suspense so one loading modal
-            never blocks another from rendering */}
-        <Suspense fallback={null}>
-          {ui.activeOccasion && <OccasionPage occasion={ui.activeOccasion} />}
-          {ui.showLogin && <LoginModal />}
-          {cartOpen && <CartDrawer />}
-          {ui.showCheckout && <CheckoutModal />}
-          {ui.showBoxBuilder && <GiftBoxModal />}
-          {ui.showSearch && <SearchModal />}
-          {wishlistOpen && <WishlistDrawer />}
-          {ui.showOccasions && <OccasionsModal />}
-          {ui.activeProduct && <ProductDetailModal product={ui.activeProduct} />}
-          {ui.personalizationProduct && <PersonalizationModal />}
-          {ui.showUserAccount && <UserAccountModal />}
-        </Suspense>
+        <footer style={{ borderTop: '1px solid #EDE4D8', padding: '24px', textAlign: 'center', fontSize: 12, color: '#9C7A63' }}>
+          <span>© 2026 Pretty.Crafted · </span>
+          <a href="/privacy" style={{ color: '#9C7A63', textDecoration: 'underline', marginRight: 12 }}>Privacy Policy</a>
+          <a href="/terms"   style={{ color: '#9C7A63', textDecoration: 'underline' }}>Terms of Service</a>
+        </footer>
+
+        {/* Modals — each in its own Suspense+ErrorBoundary so one crash
+            or load failure never takes down the whole storefront */}
+        {[
+          [ui.activeOccasion,         <OccasionPage occasion={ui.activeOccasion} />],
+          [ui.showLogin,              <LoginModal />],
+          [cartOpen,                  <CartDrawer />],
+          [ui.showCheckout,           <CheckoutModal />],
+          [ui.showBoxBuilder,         <GiftBoxModal />],
+          [ui.showSearch,             <SearchModal />],
+          [wishlistOpen,              <WishlistDrawer />],
+          [ui.showOccasions,          <OccasionsModal />],
+          [ui.activeProduct,          <ProductDetailModal product={ui.activeProduct} />],
+          [ui.personalizationProduct, <PersonalizationModal />],
+          [ui.showUserAccount,        <UserAccountModal />],
+        ].map(([show, modal], i) => show ? (
+          <ErrorBoundary key={i} inline>
+            <Suspense fallback={null}>{modal}</Suspense>
+          </ErrorBoundary>
+        ) : null)}
 
       </div>
     </ErrorBoundary>

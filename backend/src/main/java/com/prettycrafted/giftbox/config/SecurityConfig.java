@@ -56,7 +56,8 @@ public class SecurityConfig {
                 auth.requestMatchers("/api/auth/register", "/api/auth/login",
                                      "/api/auth/google", "/api/auth/logout",
                                      "/api/auth/forgot-password", "/api/auth/reset-password",
-                                     "/api/auth/unsubscribe", "/api/auth/verify-email").permitAll()
+                                     "/api/auth/unsubscribe", "/api/auth/verify-email",
+                                     "/api/payments/webhook").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/products/**", "/api/categories/**").hasRole("ADMIN")
                     .requestMatchers(HttpMethod.PUT, "/api/products/**", "/api/categories/**").hasRole("ADMIN")
