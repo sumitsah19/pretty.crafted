@@ -95,9 +95,6 @@ export default function HomePage() {
   const featuredOcc = OCCASIONS.find(o => o.featured) || OCCASIONS[1]
   const restOcc = OCCASIONS.filter(o => !o.featured)
 
-  // Any modal open? (for mobile nav visibility)
-  const anyModalOpen = ui.showLogin || cartOpen || ui.showCheckout || ui.showBoxBuilder || ui.showSearch || wishlistOpen || ui.showOccasions || !!ui.activeProduct || ui.showUserAccount || !!ui.activeOccasion || !!ui.personalizationProduct
-
   return (
     <>
       <Hero onScrollTo={scrollTo} />
@@ -392,38 +389,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ── MOBILE BOTTOM NAV ─────────────────────────────── */}
-      {isMobile && !anyModalOpen && (
-        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 180, background: 'rgba(250,247,242,0.97)', backdropFilter: 'blur(16px)', borderTop: '1px solid #EDE4D8', display: 'flex', alignItems: 'stretch', boxShadow: '0 -4px 24px rgba(44,26,14,0.08)' }}>
-          {[
-            { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>, label: 'Home', action: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-            { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>, label: 'Search', action: () => dispatch(openSearch()) },
-            { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>, label: 'Occasions', action: () => dispatch(openOccasions()) },
-            {
-              icon: (
-                <div style={{ position: 'relative' }}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill={wishlistIds.length > 0 ? TC : 'none'} stroke={TC} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                  {wishlistIds.length > 0 && <span style={{ position: 'absolute', top: -4, right: -6, background: TC, color: 'white', borderRadius: '50%', width: 14, height: 14, fontSize: 8, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{wishlistIds.length}</span>}
-                </div>
-              ), label: 'Wishlist', action: () => dispatch(openWishlist())
-            },
-            {
-              icon: isLoggedIn && user ? <div style={{ width: 24, height: 24, borderRadius: '50%', background: TC, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 11, fontWeight: 700 }}>{user.name?.charAt(0).toUpperCase()}</div>
-                : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-              label: isLoggedIn ? 'Account' : 'Sign In',
-              action: () => isLoggedIn ? dispatch(openUserAccount()) : dispatch(openLogin())
-            },
-          ].map((item, i) => (
-            <button key={i} onClick={item.action}
-              style={{ flex: 1, padding: '10px 4px 12px', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, color: '#6B4F3A', WebkitTapHighlightColor: 'transparent' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#F5EEE6'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-              <span style={{ color: i === 3 && wishlistIds.length > 0 ? TC : '#6B4F3A' }}>{item.icon}</span>
-              <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.04em' }}>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
     </>
   )
 }

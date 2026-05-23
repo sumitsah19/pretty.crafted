@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { clearActiveProduct, setActiveProduct, setPersonalizationProduct } from '../../store/slices/uiSlice'
+import { clearActiveProduct, setActiveProduct, openCart } from '../../store/slices/uiSlice'
 import { addLocal } from '../../store/slices/cartSlice'
 import { toggleWishlist } from '../../store/slices/wishlistSlice'
 import { selectWishlistIds } from '../../store/slices/wishlistSlice'
@@ -123,7 +123,9 @@ export default function ProductDetailModal({ product }) {
       style={{ flexShrink: 0, width: isMobile ? 150 : 188, cursor: 'pointer', borderRadius: 16, overflow: 'hidden', background: 'white', border: '1px solid #EDE4D8', transition: 'transform 0.2s, box-shadow 0.2s', scrollSnapAlign: 'start' }}
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(44,26,14,0.1)' }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none' }}>
-      <div style={{ height: isMobile ? 110 : 140, background: p.bg||'#EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 40 : 52 }}>{p.emoji}</div>
+      <div style={{ height: isMobile ? 110 : 140, background: p.bg||'#EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          {p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+        </div>
       <div style={{ padding: '10px 12px' }}>
         <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 13, fontWeight: 600, color: '#2C1A0E', marginBottom: 5, lineHeight: 1.3 }}>{p.name}</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -168,9 +170,18 @@ export default function ProductDetailModal({ product }) {
                 <span style={{ background: '#2C1A0E', color: 'white', fontSize: 10, fontWeight: 700, padding: '5px 10px', borderRadius: 99, letterSpacing: '0.06em', textTransform: 'uppercase' }}>✦ Handmade</span>
                 {product.tag && <span style={{ background: TC, color: 'white', fontSize: 10, fontWeight: 700, padding: '5px 10px', borderRadius: 99, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{product.tag}</span>}
               </div>
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 140 : 180, transform: zoom.active ? `scale(1.5) translate(${(50 - zoom.x) * 0.4}%, ${(50 - zoom.y) * 0.4}%)` : 'scale(1)', transition: zoom.active ? 'transform 0.1s linear' : 'transform 0.3s ease', transformOrigin: `${zoom.x}% ${zoom.y}%` }}>
-                {gallery[activeImage].emoji}
-              </div>
+              {/* Wishlist heart — top-right of gallery image */}
+              <button onClick={() => dispatch(toggleWishlist(product.id))}
+                style={{ position: 'absolute', top: 10, right: 10, zIndex: 3, background: 'rgba(255,255,255,0.92)', border: 'none', borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(44,26,14,0.12)', transition: 'transform 0.2s' }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill={isWishlisted ? TC : 'none'} stroke={TC} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              </button>
+              {gallery[activeImage].imageUrl ? (
+                <img src={gallery[activeImage].imageUrl} alt={gallery[activeImage].name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: zoom.active ? `scale(1.5) translate(${(50 - zoom.x) * 0.4}%, ${(50 - zoom.y) * 0.4}%)` : 'scale(1)', transition: zoom.active ? 'transform 0.1s linear' : 'transform 0.3s ease', transformOrigin: `${zoom.x}% ${zoom.y}%` }} />
+              ) : null}
               {!isMobile && <div style={{ position: 'absolute', bottom: 12, right: 14, fontSize: 11, color: 'rgba(44,26,14,0.4)', fontWeight: 600 }}>Hover to zoom</div>}
               {isMobile && (
                 <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
@@ -184,8 +195,8 @@ export default function ProductDetailModal({ product }) {
               <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
                 {gallery.map((p, i) => (
                   <button key={i} onClick={() => setActiveImage(i)}
-                    style={{ width: 72, height: 72, borderRadius: 12, background: p.bg||'#EDE4D8', border: `2px solid ${i === activeImage ? TC : '#EDE4D8'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, transition: 'border-color 0.2s', overflow: 'hidden', flexShrink: 0 }}>
-                    {p.emoji}
+                    style={{ width: 72, height: 72, borderRadius: 12, background: p.bg||'#EDE4D8', border: `2px solid ${i === activeImage ? TC : '#EDE4D8'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'border-color 0.2s', overflow: 'hidden', flexShrink: 0 }}>
+                    {p.imageUrl && <img src={p.imageUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                   </button>
                 ))}
               </div>
@@ -215,27 +226,19 @@ export default function ProductDetailModal({ product }) {
             {/* Handcrafted badge */}
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#F5EEE6', borderRadius: 99, padding: '7px 14px', fontSize: 12, color: '#6B4F3A', fontWeight: 600, marginBottom: 22 }}>🤲 Individually handcrafted · Each one unique</div>
 
-            {/* Qty + Add to Cart */}
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+            {/* Qty + Add to Cart + Buy Now */}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', background: '#F5EEE6', borderRadius: 99, flexShrink: 0 }}>
-                <button onClick={() => setQty(q => Math.max(1, q - 1))} style={{ width: 42, height: 48, border: 'none', background: 'none', cursor: 'pointer', fontSize: 20, color: '#6B4F3A' }}>−</button>
-                <span style={{ fontSize: 16, fontWeight: 700, minWidth: 28, textAlign: 'center' }}>{qty}</span>
-                <button onClick={() => setQty(q => q + 1)} style={{ width: 42, height: 48, border: 'none', background: 'none', cursor: 'pointer', fontSize: 20, color: '#6B4F3A' }}>+</button>
+                <button onClick={() => setQty(q => Math.max(1, q - 1))} style={{ width: 38, height: 46, border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: '#6B4F3A' }}>−</button>
+                <span style={{ fontSize: 15, fontWeight: 700, minWidth: 26, textAlign: 'center' }}>{qty}</span>
+                <button onClick={() => setQty(q => q + 1)} style={{ width: 38, height: 46, border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: '#6B4F3A' }}>+</button>
               </div>
-              <button onClick={handleAdd} style={{ flex: 1, padding: '14px 20px', borderRadius: 99, border: 'none', background: addedFlash ? '#7A9A6B' : TC, color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', transition: 'background 0.3s', minHeight: 52 }}>
-                {addedFlash ? '✓ Added to Cart!' : '🛒 Add to Cart'}
+              <button onClick={handleAdd} style={{ flex: 1, padding: '13px 16px', borderRadius: 99, border: 'none', background: addedFlash ? '#7A9A6B' : TC, color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'background 0.3s', minHeight: 46 }}>
+                {addedFlash ? '✓ Added!' : 'Add to Cart'}
               </button>
-            </div>
-
-            {/* Personalize + Wishlist */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
-              <button onClick={() => dispatch(setPersonalizationProduct(product))}
-                style={{ flex: 1, padding: '12px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                ✦ Personalize
-              </button>
-              <button onClick={() => dispatch(toggleWishlist(product.id))}
-                style={{ width: 48, height: 48, borderRadius: '50%', border: `1.5px solid ${isWishlisted ? TC : '#EDE4D8'}`, background: isWishlisted ? '#FDF6F1' : 'white', cursor: 'pointer', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s' }}>
-                {isWishlisted ? '❤️' : '🤍'}
+              <button onClick={() => { for (let i = 0; i < qty; i++) dispatch(addLocal(product)); dispatch(clearActiveProduct()); dispatch(openCart()) }}
+                style={{ flex: 1, padding: '13px 16px', borderRadius: 99, border: 'none', background: `linear-gradient(135deg, ${TC}, #A85A38)`, color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', minHeight: 46, boxShadow: '0 4px 12px rgba(196,112,74,0.35)' }}>
+                Buy Now
               </button>
             </div>
 

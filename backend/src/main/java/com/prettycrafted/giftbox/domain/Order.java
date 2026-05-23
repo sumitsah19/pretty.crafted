@@ -38,7 +38,6 @@ public class Order {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    @BatchSize(size = 20)
     private User user;
 
     @Enumerated(EnumType.STRING)

@@ -163,12 +163,6 @@ export default function App() {
           <Route path="/terms" element={<TermsPage />} />
         </Routes>
 
-        <footer style={{ borderTop: '1px solid #EDE4D8', padding: '24px', textAlign: 'center', fontSize: 12, color: '#9C7A63' }}>
-          <span>© 2026 Pretty.Crafted · </span>
-          <a href="/privacy" style={{ color: '#9C7A63', textDecoration: 'underline', marginRight: 12 }}>Privacy Policy</a>
-          <a href="/terms"   style={{ color: '#9C7A63', textDecoration: 'underline' }}>Terms of Service</a>
-        </footer>
-
         {/* Modals — each in its own Suspense+ErrorBoundary so one crash
             or load failure never takes down the whole storefront */}
         {[

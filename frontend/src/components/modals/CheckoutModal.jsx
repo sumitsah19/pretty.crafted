@@ -7,7 +7,13 @@ import { ordersApi, cartApi } from '../../api/services'
 import { analytics } from '../../analytics'
 
 const TC = '#C4704A'
-const STEPS = ['Address', 'Payment', 'Review']
+const STEPS = ['Address', 'Delivery', 'Payment', 'Review']
+
+const DELIVERY_OPTIONS = [
+  { key: 'standard', label: 'Standard Delivery', eta: '3–5 business days', price: 0,     note: 'Free for all orders' },
+  { key: 'express',  label: 'Express Delivery',  eta: '1–2 business days', price: 99,   note: 'Arrives faster' },
+  { key: 'sameday',  label: 'Same-Day Delivery', eta: 'Today by 8 PM',     price: 199,  note: 'Select cities only' },
+]
 
 export default function CheckoutModal() {
   const dispatch = useDispatch()
@@ -22,11 +28,15 @@ export default function CheckoutModal() {
   const [orderError, setOrderError] = useState('')
   const [serverOrderId, setServerOrderId] = useState(null)
   const [upiId, setUpiId] = useState('')
+  const [delivery, setDelivery] = useState('standard')
+  const [deliveryDate, setDeliveryDate] = useState('')
 
   useEffect(() => { analytics.checkoutStart() }, [])
   useEffect(() => { analytics.checkoutStep(step) }, [step])
 
-  const total = items.reduce((s, i) => s + i.product.price * i.qty, 0)
+  const subtotalItems = items.reduce((s, i) => s + i.product.price * i.qty, 0)
+  const deliveryFee = DELIVERY_OPTIONS.find(d => d.key === delivery)?.price || 0
+  const total = subtotalItems + deliveryFee
 
   const setA = (k, v) => setAddr((p) => ({ ...p, [k]: v }))
   const setC = (k, v) => setCard((p) => ({ ...p, [k]: v }))
@@ -153,8 +163,29 @@ export default function CheckoutModal() {
             </div>
           )}
 
-          {/* STEP 2: PAYMENT */}
+          {/* STEP 2: DELIVERY */}
           {step === 2 && !placed && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Delivery Options</div>
+              {DELIVERY_OPTIONS.map((opt) => (
+                <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${delivery === opt.key ? TC : '#EDE4D8'}`, background: delivery === opt.key ? '#FDF5F0' : 'white', cursor: 'pointer', transition: 'all 0.2s' }}>
+                  <input type="radio" checked={delivery === opt.key} onChange={() => setDelivery(opt.key)} style={{ accentColor: TC, width: 16, height: 16, flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#2C1A0E' }}>{opt.label}</div>
+                    <div style={{ fontSize: 12, color: '#9C7A63', marginTop: 2 }}>{opt.eta} · {opt.note}</div>
+                  </div>
+                  <div style={{ fontWeight: 700, color: TC, fontSize: 14, flexShrink: 0 }}>{opt.price === 0 ? 'Free' : `₹${opt.price}`}</div>
+                </label>
+              ))}
+              <div style={{ marginTop: 4 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 5 }}>Preferred Delivery Date (optional)</label>
+                <input type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} min={new Date().toISOString().split('T')[0]} style={inputSt} onFocus={focus} onBlur={blur} />
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: PAYMENT */}
+          {step === 3 && !placed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Payment Method</div>
               {[{ key: 'card', icon: '💳', label: 'Credit / Debit Card', note: 'via Razorpay' }, { key: 'upi', icon: '📱', label: 'UPI' }, { key: 'paypal', icon: '🅿️', label: 'PayPal', note: 'via Razorpay' }, { key: 'cod', icon: '💵', label: 'Cash on Delivery' }].map((m) => (
@@ -198,14 +229,16 @@ export default function CheckoutModal() {
             </div>
           )}
 
-          {/* STEP 3: REVIEW */}
-          {step === 3 && !placed && (
+          {/* STEP 4: REVIEW */}
+          {step === 4 && !placed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Review Your Order</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {items.map((item, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'white', borderRadius: 12, border: '1px solid #EDE4D8' }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 10, background: item.product.bg || '#EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>{item.product.emoji}</div>
+                    <div style={{ width: 44, height: 44, borderRadius: 10, background: item.product.bg || '#EDE4D8', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {item.product.imageUrl ? <img src={item.product.imageUrl} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
+                    </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{item.product.name}</div>
                       <div style={{ fontSize: 11, color: '#9C7A63' }}>Qty: {item.qty}</div>
@@ -215,12 +248,21 @@ export default function CheckoutModal() {
                 ))}
               </div>
               <div style={{ padding: '14px 16px', background: 'white', borderRadius: 14, border: '1px solid #EDE4D8' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#9C7A63', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>📦 Delivering to</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#9C7A63', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Delivering to</div>
                 <div style={{ fontSize: 13, color: '#2C1A0E', lineHeight: 1.7 }}>{addr.name}<br />{addr.line1}{addr.line2 ? ', ' + addr.line2 : ''}<br />{addr.city}{addr.state ? ', ' + addr.state : ''} {addr.zip}, {addr.country}</div>
               </div>
-              <div style={{ padding: '12px 16px', background: '#F5EEE6', borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 12, color: '#6B4F3A' }}>Order Total</div>
-                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: TC }}>₹{total.toFixed(2)}</div>
+              <div style={{ padding: '12px 16px', background: 'white', borderRadius: 12, border: '1px solid #EDE4D8' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#9C7A63', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Delivery</div>
+                <div style={{ fontSize: 13, color: '#2C1A0E', fontWeight: 600 }}>{DELIVERY_OPTIONS.find(d => d.key === delivery)?.label} — {DELIVERY_OPTIONS.find(d => d.key === delivery)?.eta}</div>
+                {deliveryDate && <div style={{ fontSize: 12, color: '#9C7A63', marginTop: 3 }}>Preferred date: {deliveryDate}</div>}
+              </div>
+              <div style={{ padding: '12px 16px', background: '#F5EEE6', borderRadius: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13, color: '#6B4F3A' }}><span>Subtotal</span><span>₹{subtotalItems.toFixed(2)}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13, color: '#6B4F3A' }}><span>Delivery</span><span>{deliveryFee === 0 ? 'Free' : `₹${deliveryFee}`}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #EDE4D8', paddingTop: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#2C1A0E' }}>Total</div>
+                  <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: TC }}>₹{total.toFixed(2)}</div>
+                </div>
               </div>
             </div>
           )}

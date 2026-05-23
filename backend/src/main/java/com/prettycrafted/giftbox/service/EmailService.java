@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import io.sentry.Sentry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -103,6 +104,17 @@ public class EmailService {
             "reset-" + user.getId() + "-" + token.substring(0, 8));
     }
 
+    @Async
+    public void sendOtpEmail(User user, String otp) {
+        Context ctx = new Context();
+        ctx.setVariable("name", user.getName());
+        ctx.setVariable("otp", otp);
+
+        String html = templateEngine.process("otp-email", ctx);
+        sendHtml(user.getEmail(), "Your PrettyCrafted login code: " + otp, html,
+            "otp-" + user.getId() + "-" + otp);
+    }
+
     /**
      * Generates a stateless HMAC-SHA256 unsubscribe token so users can
      * opt out via a link without needing to be logged in.
@@ -154,6 +166,7 @@ public class EmailService {
             log.info("Email sent: subject='{}' to='{}' msgId='{}'", subject, to, messageId);
         } catch (MessagingException e) {
             log.error("Failed to send email to {}: {}", to, e.getMessage());
+            Sentry.captureException(e);
         }
     }
 }
