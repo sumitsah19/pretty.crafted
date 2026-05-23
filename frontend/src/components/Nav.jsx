@@ -121,9 +121,13 @@ export default function Nav({ onScrollTo }) {
                 alt="Pretty.Crafted — Handcrafted Gifts"
                 style={{ height: isMobile ? 44 : 52, width: 'auto', objectFit: 'contain' }}
                 onError={e => {
-                  // Fallback to text logo if image not found
-                  e.currentTarget.style.display = 'none'
-                  e.currentTarget.nextSibling.style.display = 'block'
+                  // Fallback to SVG logo, then text if neither loads
+                  if (e.currentTarget.src.includes('logo.png')) {
+                    e.currentTarget.src = '/logo.svg'
+                  } else {
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextSibling.style.display = 'block'
+                  }
                 }}
               />
               <span style={{ display: 'none', fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#2C1A0E', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
