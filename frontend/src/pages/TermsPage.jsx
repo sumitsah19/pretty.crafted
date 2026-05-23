@@ -1,8 +1,16 @@
+import SEO from '../components/SEO'
+
 const TC = '#C4704A'
 const DARK = '#2C1A0E'
 
 export default function TermsPage() {
   return (
+    <>
+    <SEO
+      title="Terms of Service"
+      description="Review the Pretty.Crafted terms of service governing the use of our handcrafted gift shopping platform, orders, returns, and payments."
+      url="/terms"
+    />
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '60px 24px 80px', fontFamily: "'DM Sans', sans-serif", color: DARK, lineHeight: 1.8 }}>
       <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 12 }}>Legal</div>
       <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 700, marginBottom: 8, lineHeight: 1.2 }}>Terms of Service</h1>
@@ -52,6 +60,7 @@ export default function TermsPage() {
         <p>Questions? Email us at <a href="mailto:support@prettycrafted.in" style={{ color: TC }}>support@prettycrafted.in</a>.</p>
       </Section>
     </div>
+    </>
   )
 }
 

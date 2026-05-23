@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { clearActiveProduct, setActiveProduct, openCart } from '../../store/slices/uiSlice'
+import SEO from '../SEO'
 import { addLocal } from '../../store/slices/cartSlice'
 import { toggleWishlist } from '../../store/slices/wishlistSlice'
 import { selectWishlistIds } from '../../store/slices/wishlistSlice'
@@ -137,6 +138,13 @@ export default function ProductDetailModal({ product }) {
   )
 
   return (
+    <>
+    <SEO
+      title={product.name}
+      description={`${product.name} — ${product.category}. Handcrafted by independent artisans. ₹${product.price}. Shop at Pretty.Crafted.`}
+      product={product}
+      type="product"
+    />
     <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && dispatch(clearActiveProduct())}
       style={{ alignItems: 'flex-start', padding: isMobile ? 0 : 20, overflowY: 'auto' }}>
       <div style={{ background: '#FAF7F2', width: '100%', maxWidth: 1080, borderRadius: isMobile ? 0 : 24, boxShadow: '0 32px 80px rgba(44,26,14,0.25)', overflow: 'hidden', marginTop: isMobile ? 0 : 20, marginBottom: isMobile ? 0 : 20, minHeight: isMobile ? '100vh' : 'auto' }}
@@ -385,5 +393,6 @@ export default function ProductDetailModal({ product }) {
         )}
       </div>
     </div>
+    </>
   )
 }

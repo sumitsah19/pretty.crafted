@@ -1,8 +1,16 @@
+import SEO from '../components/SEO'
+
 const TC = '#C4704A'
 const DARK = '#2C1A0E'
 
 export default function PrivacyPolicyPage() {
   return (
+    <>
+    <SEO
+      title="Privacy Policy"
+      description="Read the Pretty.Crafted privacy policy to understand how we collect, use, and protect your personal information when you shop with us."
+      url="/privacy"
+    />
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '60px 24px 80px', fontFamily: "'DM Sans', sans-serif", color: DARK, lineHeight: 1.8 }}>
       <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 12 }}>Legal</div>
       <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: 36, fontWeight: 700, marginBottom: 8, lineHeight: 1.2 }}>Privacy Policy</h1>
@@ -51,6 +59,7 @@ export default function PrivacyPolicyPage() {
         <p>Questions about this policy? Contact us at <a href="mailto:privacy@prettycrafted.in" style={{ color: TC }}>privacy@prettycrafted.in</a>.</p>
       </Section>
     </div>
+    </>
   )
 }
 

@@ -115,8 +115,20 @@ export default function Nav({ onScrollTo }) {
 
             {/* CENTER — Logo */}
             <div onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#2C1A0E', letterSpacing: '-0.02em', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-              Pretty<span style={{ color: TC }}>.</span>Crafted
+              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img
+                src="/logo.png"
+                alt="Pretty.Crafted — Handcrafted Gifts"
+                style={{ height: isMobile ? 44 : 52, width: 'auto', objectFit: 'contain' }}
+                onError={e => {
+                  // Fallback to text logo if image not found
+                  e.currentTarget.style.display = 'none'
+                  e.currentTarget.nextSibling.style.display = 'block'
+                }}
+              />
+              <span style={{ display: 'none', fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#2C1A0E', letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
+                Pretty<span style={{ color: TC }}>.</span>Crafted
+              </span>
             </div>
 
             {/* RIGHT — icon actions */}

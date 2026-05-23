@@ -9,6 +9,7 @@ import { useOnlineStatus } from './hooks/useOnlineStatus'
 import ErrorBoundary from './components/ErrorBoundary'
 
 import Nav from './components/Nav'
+import SEO from './components/SEO'
 import HomePage from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
@@ -63,10 +64,46 @@ export default function App() {
     if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' })
   }
 
+  // ── Route → SEO mapping ─────────────────────────────────────────
+  const routeSEO = {
+    '/': {
+      title: 'Handcrafted Gifts with Heart',
+      description: 'Shop unique handcrafted gift boxes for every occasion — birthdays, anniversaries, weddings, and more. Each gift is made with love by independent artisans.',
+      keywords: 'handcrafted gifts India, personalized gift boxes, artisan gifts, birthday gifts, anniversary gifts, prettycrafted',
+      url: '/',
+    },
+    '/privacy': {
+      title: 'Privacy Policy',
+      description: 'Read the Pretty.Crafted privacy policy to understand how we collect, use, and protect your personal information.',
+      url: '/privacy',
+      noIndex: false,
+    },
+    '/terms': {
+      title: 'Terms of Service',
+      description: 'Review the Pretty.Crafted terms of service governing the use of our handcrafted gift shopping platform.',
+      url: '/terms',
+      noIndex: false,
+    },
+    '/account': {
+      title: 'My Account',
+      description: 'Manage your Pretty.Crafted account, view your order history, and update your profile details.',
+      url: '/account',
+      noIndex: true,
+    },
+    '/orders': {
+      title: 'My Orders',
+      description: 'Track and view your Pretty.Crafted gift orders.',
+      url: '/orders',
+      noIndex: true,
+    },
+  }
+  const currentSEO = routeSEO[pathname] || routeSEO['/']
+
   // Verify-email page is standalone — no nav or storefront shell
   if (isVerifyEmail) {
     return (
       <ErrorBoundary>
+        <SEO title="Verify Your Email" url="/verify-email" noIndex />
         <Routes>
           <Route path="/verify-email" element={<VerifyEmailPage />} />
         </Routes>
@@ -78,6 +115,7 @@ export default function App() {
   if (isAdmin) {
     return (
       <ErrorBoundary>
+        <SEO title="Admin Dashboard" url="/admin" noIndex />
         <Routes>
           <Route path="/admin" element={
             <AdminProtectedRoute>
@@ -91,6 +129,8 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      {/* Route-level SEO — updates on every navigation */}
+      <SEO {...currentSEO} />
       <div style={{ minHeight: '100vh', background: '#FAF7F2', paddingBottom: isMobile ? 64 : 0 }}>
 
         {/* Offline banner */}
