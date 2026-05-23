@@ -55,6 +55,10 @@ logs/
 # ── Uploaded/generated runtime files ─────────────────────────────
 uploads/
 
+# ── Test / debug controllers — local only, never commit ──────────
+backend/src/main/java/com/prettycrafted/giftbox/controller/EmailTestController.java
+backend/src/main/java/com/prettycrafted/giftbox/controller/SentryTestController.java
+
 # ── Root-level clutter (not part of source) ──────────────────────
 /target/
 /node_modules/
