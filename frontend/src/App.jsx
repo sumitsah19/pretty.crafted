@@ -13,6 +13,7 @@ import SEO from './components/SEO'
 import HomePage from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import TermsPage from './pages/TermsPage'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -106,6 +107,18 @@ export default function App() {
         <SEO title="Verify Your Email" url="/verify-email" noIndex />
         <Routes>
           <Route path="/verify-email" element={<VerifyEmailPage />} />
+        </Routes>
+      </ErrorBoundary>
+    )
+  }
+
+  // Reset-password page is standalone — user arrives from email link, not logged in
+  if (pathname === '/reset-password') {
+    return (
+      <ErrorBoundary>
+        <SEO title="Reset Your Password" url="/reset-password" noIndex />
+        <Routes>
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Routes>
       </ErrorBoundary>
     )
