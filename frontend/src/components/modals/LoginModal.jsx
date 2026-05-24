@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { login, register, googleLogin, clearError } from '../../store/slices/authSlice'
 import { closeLogin } from '../../store/slices/uiSlice'
+import { authApi } from '../../api/services'
 
 const TC = '#C4704A'
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
@@ -19,6 +20,12 @@ export default function LoginModal() {
   const [googleReady, setGoogleReady] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [googleError, setGoogleError] = useState('')
+
+  // ── Forgot password state ──────────────────────────────────────
+  const [view, setView] = useState('main') // 'main' | 'forgot' | 'forgotSent'
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotError, setForgotError] = useState('')
 
   const hiddenGoogleBtn = useRef(null)
 
@@ -101,6 +108,29 @@ export default function LoginModal() {
     dispatch(clearError())
   }
 
+  const openForgot = () => {
+    setForgotEmail(email) // pre-fill with whatever was typed in the login form
+    setForgotError('')
+    setView('forgot')
+    dispatch(clearError())
+  }
+
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault()
+    if (!forgotEmail.trim()) return
+    setForgotLoading(true)
+    setForgotError('')
+    try {
+      await authApi.forgotPassword(forgotEmail.trim())
+      setView('forgotSent')
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.response?.data || 'Something went wrong. Please try again.'
+      setForgotError(typeof msg === 'string' ? msg : 'Something went wrong. Please try again.')
+    } finally {
+      setForgotLoading(false)
+    }
+  }
+
   const inputStyle = {
     width: '100%', padding: '13px 16px', borderRadius: 12, fontSize: 14,
     border: '1.5px solid #EDE4D8', background: '#FDFAF7', color: '#2C1A0E',
@@ -116,21 +146,80 @@ export default function LoginModal() {
           <button onClick={() => dispatch(closeLogin())} aria-label="Close" style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', fontSize: 16, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           <div style={{ fontSize: 36, marginBottom: 6 }}>🎁</div>
           <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: 'white' }}>Pretty<span style={{ opacity: 0.75 }}>.</span>Crafted</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 4 }}>Your gifting account</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 4 }}>
+            {view === 'forgot' || view === 'forgotSent' ? 'Reset your password' : 'Your gifting account'}
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid #EDE4D8' }}>
-          {[['login', 'Sign In'], ['signup', 'Create Account']].map(([t, label]) => (
-            <button key={t} onClick={() => switchTab(t)}
-              style={{ flex: 1, padding: '14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, transition: 'all 0.2s', color: tab === t ? TC : '#9C7A63', borderBottom: tab === t ? `2px solid ${TC}` : '2px solid transparent', marginBottom: -1 }}>
-              {label}
+        {/* ── FORGOT PASSWORD VIEW ── */}
+        {view === 'forgot' && (
+          <div style={{ padding: '28px 32px 32px' }}>
+            <button type="button" onClick={() => setView('main')}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#9C7A63', fontSize: 13, fontWeight: 600, padding: 0, marginBottom: 20, fontFamily: "'DM Sans',sans-serif" }}>
+              ← Back to Sign In
             </button>
-          ))}
-        </div>
+            <p style={{ fontSize: 14, color: '#6B4F3A', marginBottom: 20, lineHeight: 1.5 }}>
+              Enter your email address and we'll send you a link to reset your password.
+            </p>
+            <form onSubmit={handleForgotSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 6 }}>Email Address</label>
+                <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="you@email.com" required autoFocus style={inputStyle}
+                  onFocus={(e) => e.target.style.borderColor = TC} onBlur={(e) => e.target.style.borderColor = '#EDE4D8'} />
+              </div>
+              {forgotError && (
+                <div style={{ background: '#FEE2E2', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#C44A4A' }}>
+                  {forgotError}
+                </div>
+              )}
+              <button type="submit" disabled={forgotLoading}
+                style={{ padding: '14px', borderRadius: 99, border: 'none', background: forgotLoading ? '#EDE4D8' : TC, color: forgotLoading ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: forgotLoading ? 'default' : 'pointer', transition: 'all 0.2s', minHeight: 50 }}>
+                {forgotLoading ? 'Sending...' : 'Send Reset Link →'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* ── FORGOT PASSWORD SENT VIEW ── */}
+        {view === 'forgotSent' && (
+          <div style={{ padding: '28px 32px 32px', textAlign: 'center' }}>
+            <div style={{ fontSize: 56, marginBottom: 16 }}>📬</div>
+            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: '#2C1A0E', marginBottom: 10 }}>
+              Check your inbox!
+            </div>
+            <p style={{ fontSize: 14, color: '#6B4F3A', lineHeight: 1.6, marginBottom: 24 }}>
+              We've sent a password reset link to <strong>{forgotEmail}</strong>.
+              The link expires in 1 hour.
+            </p>
+            <p style={{ fontSize: 12, color: '#9C7A63', marginBottom: 24 }}>
+              Didn't get the email? Check your spam folder, or{' '}
+              <button type="button" onClick={() => { setView('forgot'); setForgotError('') }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: TC, fontSize: 12, padding: 0, fontFamily: "'DM Sans',sans-serif", textDecoration: 'underline' }}>
+                try again
+              </button>.
+            </p>
+            <button type="button" onClick={() => setView('main')}
+              style={{ padding: '12px 32px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'none', color: TC, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+              Back to Sign In
+            </button>
+          </div>
+        )}
+
+        {/* ── TABS (hidden when in forgot flow) ── */}
+        {view === 'main' && (
+          <div style={{ display: 'flex', borderBottom: '1px solid #EDE4D8' }}>
+            {[['login', 'Sign In'], ['signup', 'Create Account']].map(([t, label]) => (
+              <button key={t} onClick={() => switchTab(t)}
+                style={{ flex: 1, padding: '14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, transition: 'all 0.2s', color: tab === t ? TC : '#9C7A63', borderBottom: tab === t ? `2px solid ${TC}` : '2px solid transparent', marginBottom: -1 }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Form */}
-        <div style={{ padding: '28px 32px 32px' }}>
+        {view === 'main' && <div style={{ padding: '28px 32px 32px' }}>
           {done ? (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
@@ -157,7 +246,10 @@ export default function LoginModal() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#6B4F3A' }}>Password</label>
                   {tab === 'login' && (
-                    <a href="#" style={{ fontSize: 12, color: TC, textDecoration: 'none' }}>Forgot password?</a>
+                    <button type="button" onClick={openForgot}
+                      style={{ fontSize: 12, color: TC, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: "'DM Sans',sans-serif", textDecoration: 'underline' }}>
+                      Forgot password?
+                    </button>
                   )}
                 </div>
                 <div style={{ position: 'relative' }}>
@@ -222,7 +314,7 @@ export default function LoginModal() {
               )}
             </form>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   )
