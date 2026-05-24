@@ -2,42 +2,49 @@ package com.prettycrafted.giftbox.service;
 
 import com.prettycrafted.giftbox.domain.Order;
 import com.prettycrafted.giftbox.domain.User;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
+import io.sentry.Sentry;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import io.sentry.Sentry;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import lombok.extern.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestClient;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class EmailService {
 
-    private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
+    private final RestClient resendClient;
 
-    @Value("${app.mail.from}")
+    @Value("${app.resend.api-key:}")
+    private String resendApiKey;
+
+    @Value("${app.mail.from:support@prettycrafted.com}")
     private String fromAddress;
 
-    @Value("${spring.mail.username:}")
-    private String mailUsername;
-
-    @Value("${app.frontend.url:http://localhost:3000}")
+    @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
 
     @Value("${app.jwt.secret}")
     private String jwtSecret;
+
+    public EmailService(TemplateEngine templateEngine) {
+        this.templateEngine = templateEngine;
+        this.resendClient = RestClient.create("https://api.resend.com");
+    }
+
+    // ── Async senders ──────────────────────────────────────────────────────────
 
     @Async
     public void sendOrderConfirmation(Order order) {
@@ -80,7 +87,7 @@ public class EmailService {
     @Async
     public void sendVerificationEmail(User user, String token) {
         String verifyUrl = frontendUrl + "/verify-email?token=" + token;
-        if (mailUsername == null || mailUsername.isBlank()) {
+        if (resendApiKey == null || resendApiKey.isBlank()) {
             log.warn(">>> DEV: Email verification link for {} <<<", user.getEmail());
             log.warn(">>> {}", verifyUrl);
         }
@@ -94,9 +101,9 @@ public class EmailService {
 
     @Async
     public void sendPasswordResetEmail(User user, String token) {
-        // Always send password-reset emails regardless of emailNotifications preference.
+        // Always sent regardless of emailNotifications preference.
         String resetUrl = frontendUrl + "/reset-password?token=" + token;
-        if (mailUsername == null || mailUsername.isBlank()) {
+        if (resendApiKey == null || resendApiKey.isBlank()) {
             log.warn(">>> DEV: Password reset link for {} <<<", user.getEmail());
             log.warn(">>> {}", resetUrl);
         }
@@ -104,7 +111,6 @@ public class EmailService {
         ctx.setVariable("name", user.getName());
         ctx.setVariable("token", token);
         ctx.setVariable("resetUrl", resetUrl);
-
         String html = templateEngine.process("password-reset", ctx);
         sendHtml(user.getEmail(), "Reset your Pretty.Crafted password", html,
             "reset-" + user.getId() + "-" + token.substring(0, 8));
@@ -115,16 +121,39 @@ public class EmailService {
         Context ctx = new Context();
         ctx.setVariable("name", user.getName());
         ctx.setVariable("otp", otp);
-
         String html = templateEngine.process("otp-email", ctx);
         sendHtml(user.getEmail(), "Your PrettyCrafted login code: " + otp, html,
             "otp-" + user.getId() + "-" + otp);
     }
 
+    // ── Synchronous test (used by AdminDashboardController) ───────────────────
+
     /**
-     * Generates a stateless HMAC-SHA256 unsubscribe token so users can
-     * opt out via a link without needing to be logged in.
-     * Format: /api/auth/unsubscribe?id={userId}&sig={hmac}
+     * Sends a plain test email synchronously.
+     * @return null on success, error message string on failure.
+     */
+    public String sendTestEmail(String to) {
+        if (resendApiKey == null || resendApiKey.isBlank()) {
+            return "RESEND_API_KEY is not set — add it to Railway environment variables.";
+        }
+        try {
+            doSend(to,
+                "Pretty.Crafted — Email test ✓",
+                "<p>This is a test email from your Pretty.Crafted backend via <strong>Resend API</strong>.</p>" +
+                "<p><strong>Email delivery is working correctly!</strong></p>" +
+                "<p>From: " + fromAddress + "</p>",
+                "test-" + System.currentTimeMillis());
+            return null; // success
+        } catch (Exception e) {
+            return e.getMessage();
+        }
+    }
+
+    // ── Unsubscribe helpers ───────────────────────────────────────────────────
+
+    /**
+     * Stateless HMAC-SHA256 unsubscribe token so users can opt out via email link
+     * without being logged in. Format: /api/auth/unsubscribe?id={userId}&sig={hmac}
      */
     public String buildUnsubscribeUrl(User user) {
         String sig = hmacSha256("unsub:" + user.getId(), jwtSecret);
@@ -136,6 +165,55 @@ public class EmailService {
         return expected.equals(sig);
     }
 
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Async-safe wrapper: logs in dev mode, captures to Sentry on failure.
+     */
+    private void sendHtml(String to, String subject, String html, String messageId) {
+        if (resendApiKey == null || resendApiKey.isBlank()) {
+            log.warn("RESEND_API_KEY not set — email NOT sent. Dev preview:");
+            log.warn("  TO:      {}", to);
+            log.warn("  SUBJECT: {}", subject);
+            log.warn("  BODY:    {}", html.replaceAll("<[^>]+>", "").replaceAll("\\s+", " ").trim());
+            return;
+        }
+        try {
+            doSend(to, subject, html, messageId);
+            log.info("Email sent via Resend: subject='{}' to='{}'", subject, to);
+        } catch (Exception e) {
+            log.error("Failed to send email to {}: {}", to, e.getMessage());
+            Sentry.captureException(e);
+        }
+    }
+
+    /**
+     * Calls the Resend POST /emails endpoint.
+     * Throws on any non-2xx response — caller decides how to handle.
+     */
+    private void doSend(String to, String subject, String html, String messageId) {
+        Map<String, Object> body = Map.of(
+            "from", fromAddress,
+            "to", List.of(to),
+            "subject", subject,
+            "html", html,
+            "headers", Map.of("X-Message-Id", messageId + "@prettycrafted.com")
+        );
+        try {
+            resendClient.post()
+                .uri("/emails")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + resendApiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity();
+        } catch (HttpStatusCodeException e) {
+            // Surface Resend's own error body (e.g. "Invalid API key", "Domain not verified")
+            throw new RuntimeException(
+                "Resend API " + e.getStatusCode() + ": " + e.getResponseBodyAsString(), e);
+        }
+    }
+
     private String hmacSha256(String data, String secret) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
@@ -145,34 +223,6 @@ public class EmailService {
         } catch (Exception e) {
             log.error("Failed to generate HMAC: {}", e.getMessage());
             return "";
-        }
-    }
-
-    /**
-     * @param messageId deterministic ID for this email (e.g. "order-confirm-123") — mail
-     *                  servers use it to deduplicate retries. Must be unique per logical send.
-     */
-    private void sendHtml(String to, String subject, String html, String messageId) {
-        if (mailUsername == null || mailUsername.isBlank()) {
-            log.warn("MAIL_USERNAME not set. Email NOT sent. Dev preview below:");
-            log.warn("  TO:      {}", to);
-            log.warn("  SUBJECT: {}", subject);
-            log.warn("  BODY:    {}", html.replaceAll("<[^>]+>", "").replaceAll("\\s+", " ").trim());
-            return;
-        }
-        try {
-            MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
-            helper.setFrom(fromAddress);
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(html, true);
-            msg.setHeader("Message-ID", "<" + messageId + "@prettycrafted.in>");
-            mailSender.send(msg);
-            log.info("Email sent: subject='{}' to='{}' msgId='{}'", subject, to, messageId);
-        } catch (MessagingException e) {
-            log.error("Failed to send email to {}: {}", to, e.getMessage());
-            Sentry.captureException(e);
         }
     }
 }
