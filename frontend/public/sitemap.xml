@@ -7,7 +7,7 @@
   <!-- Home -->
   <url>
     <loc>https://prettycrafted.com/</loc>
-    <lastmod>2026-05-23</lastmod>
+    <lastmod>2026-05-24</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -15,14 +15,14 @@
   <!-- Legal -->
   <url>
     <loc>https://prettycrafted.com/privacy</loc>
-    <lastmod>2026-05-23</lastmod>
+    <lastmod>2026-05-24</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
 
   <url>
     <loc>https://prettycrafted.com/terms</loc>
-    <lastmod>2026-05-23</lastmod>
+    <lastmod>2026-05-24</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
