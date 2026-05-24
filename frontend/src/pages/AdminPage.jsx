@@ -309,6 +309,70 @@ function DashboardView() {
           </table>
         </div>
       </div>
+
+      {/* ── SMTP Diagnostics ─────────────────────────────────────── */}
+      <SmtpTestPanel />
+    </div>
+  )
+}
+
+function SmtpTestPanel() {
+  const [to, setTo] = useState('')
+  const [result, setResult] = useState(null) // null | {status, message}
+  const [testing, setTesting] = useState(false)
+
+  const runTest = async () => {
+    if (!to.trim()) return
+    setTesting(true)
+    setResult(null)
+    try {
+      const res = await adminApi.testEmail(to.trim())
+      setResult(res.data)
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.response?.data || err?.message || 'Request failed'
+      setResult({ status: 'error', message: typeof msg === 'string' ? msg : JSON.stringify(msg) })
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  return (
+    <div style={{ background: 'white', borderRadius: 20, padding: '24px 28px', border: `1px solid ${BEIGE}`, marginTop: 32, boxShadow: '0 2px 12px rgba(44,26,14,0.05)' }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Diagnostics</div>
+        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700 }}>SMTP Email Test</div>
+        <div style={{ fontSize: 13, color: LIGHT, marginTop: 4 }}>Send a test email to confirm SMTP is working. Shows the exact error if it fails.</div>
+      </div>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <input
+          type="email"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && runTest()}
+          placeholder="Send test to: your@email.com"
+          style={{ flex: 1, minWidth: 220, padding: '11px 16px', borderRadius: 10, border: `1.5px solid ${BEIGE}`, fontSize: 14, fontFamily: "'DM Sans',sans-serif", color: DARK, background: CREAM, outline: 'none' }}
+          onFocus={(e) => e.target.style.borderColor = TC}
+          onBlur={(e) => e.target.style.borderColor = BEIGE}
+        />
+        <button
+          onClick={runTest}
+          disabled={testing || !to.trim()}
+          style={{ padding: '11px 24px', borderRadius: 10, border: 'none', background: testing ? BEIGE : TC, color: testing ? LIGHT : 'white', fontWeight: 700, fontSize: 14, cursor: testing ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+          {testing ? 'Sending…' : 'Send Test Email'}
+        </button>
+      </div>
+      {result && (
+        <div style={{ marginTop: 16, background: result.status === 'ok' ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${result.status === 'ok' ? '#86EFAC' : '#FECACA'}`, borderRadius: 12, padding: '14px 18px' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: result.status === 'ok' ? '#16A34A' : '#DC2626', marginBottom: result.message ? 4 : 0 }}>
+            {result.status === 'ok' ? '✅ SMTP Working!' : '❌ SMTP Failed'}
+          </div>
+          {result.message && (
+            <div style={{ fontSize: 13, color: result.status === 'ok' ? '#15803D' : '#B91C1C', wordBreak: 'break-word', fontFamily: result.status === 'ok' ? 'inherit' : 'monospace' }}>
+              {result.message}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

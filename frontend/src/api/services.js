@@ -66,6 +66,7 @@ export const adminApi = {
   updateStock:       (id, quantity)      => api.patch(`/admin/products/${id}/stock`, { quantity }),
   orders:            (params)            => api.get('/admin/orders', { params }),
   updateOrderStatus: (id, status)        => api.patch(`/admin/orders/${id}/status`, { status }),
+  testEmail:         (to)               => api.get('/admin/test-email', { params: { to } }),
 }
 
 // ── PRODUCTS (admin write) ────────────────────────────────────────
