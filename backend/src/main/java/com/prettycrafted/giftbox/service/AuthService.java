@@ -213,17 +213,7 @@ public class AuthService {
         return buildResponse(user);
     }
 
-    public UserDto promoteToAdmin(String email, String secret) {
-        if (adminPassword == null || adminPassword.isBlank() || !adminPassword.equals(secret)) {
-            throw new BadRequestException("Invalid secret");
-        }
-        User user = userRepo.findByEmail(email.trim().toLowerCase())
-            .orElseThrow(() -> new NotFoundException("No account found for " + email));
-        user.setRole(Role.ADMIN);
-        return UserDto.from(user);
-    }
-
-    public void unsubscribe(Long userId, String sig) {
+public void unsubscribe(Long userId, String sig) {
         if (!emailService.verifyUnsubscribeToken(userId, sig)) {
             throw new BadRequestException("Invalid unsubscribe link");
         }

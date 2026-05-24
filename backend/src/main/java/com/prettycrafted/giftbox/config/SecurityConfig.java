@@ -73,7 +73,6 @@ public class SecurityConfig {
                 "/api/auth/unsubscribe",
                 "/api/auth/verify-email",
                 "/api/auth/resend-verification",
-                "/api/auth/promote-admin",
                 // ── Other public endpoints ────────────────────────────
                 "/api/payments/webhook",
                 "/api/sentry-test",

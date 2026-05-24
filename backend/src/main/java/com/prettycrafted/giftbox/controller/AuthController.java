@@ -8,7 +8,6 @@ import com.prettycrafted.giftbox.dto.RegisterRequest;
 import com.prettycrafted.giftbox.dto.ResetPasswordRequest;
 import com.prettycrafted.giftbox.dto.UpdateProfileRequest;
 import com.prettycrafted.giftbox.dto.UserDto;
-import java.util.Map;
 import com.prettycrafted.giftbox.service.AuthService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -132,13 +131,4 @@ public class AuthController {
         service.unsubscribe(id, sig);
     }
 
-    /**
-     * One-time admin promotion — secured by SEED_ADMIN_PASSWORD as the secret.
-     * POST /api/auth/promote-admin
-     * Body: { "email": "user@gmail.com", "secret": "<SEED_ADMIN_PASSWORD>" }
-     */
-    @PostMapping("/promote-admin")
-    public UserDto promoteAdmin(@RequestBody Map<String, String> body) {
-        return service.promoteToAdmin(body.get("email"), body.get("secret"));
-    }
 }

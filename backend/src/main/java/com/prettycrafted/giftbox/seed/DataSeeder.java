@@ -28,27 +28,49 @@ public class DataSeeder implements CommandLineRunner {
     @Value("${app.seed.admin-password:}")
     private String adminPassword;
 
+    // Optional: set SEED_ADMIN_EMAIL in Railway to promote that account to ADMIN on startup.
+    // Safe — runs server-side only, no HTTP endpoint exposed.
+    @Value("${app.seed.admin-email:}")
+    private String adminEmail;
+
     @Override
     @Transactional
     public void run(String... args) {
         seedAdmin();
+        promoteAdminEmail();
         seedCatalog();
     }
 
     private void seedAdmin() {
-        String adminEmail = "admin@prettycrafted.local";
-        if (userRepo.existsByEmail(adminEmail)) return;
+        String fallbackEmail = "admin@prettycrafted.local";
+        if (userRepo.existsByEmail(fallbackEmail)) return;
         if (adminPassword == null || adminPassword.isBlank()) {
             log.warn("SEED_ADMIN_PASSWORD is not set — skipping admin seed. Set the env var and restart.");
             return;
         }
         userRepo.save(User.builder()
-            .email(adminEmail)
+            .email(fallbackEmail)
             .passwordHash(passwordEncoder.encode(adminPassword))
             .name("Pretty Crafted Admin")
             .role(Role.ADMIN)
             .build());
-        log.info("Seeded admin user: {}", adminEmail);
+        log.info("Seeded fallback admin user: {}", fallbackEmail);
+    }
+
+    /**
+     * If SEED_ADMIN_EMAIL is set in environment variables, promote that account to ADMIN.
+     * Runs on every startup — idempotent (no-op if already ADMIN or user not found yet).
+     * Requires no HTTP endpoint — only Railway env var access can trigger this.
+     */
+    private void promoteAdminEmail() {
+        if (adminEmail == null || adminEmail.isBlank()) return;
+        userRepo.findByEmail(adminEmail.trim().toLowerCase()).ifPresentOrElse(user -> {
+            if (user.getRole() != Role.ADMIN) {
+                user.setRole(Role.ADMIN);
+                userRepo.save(user);
+                log.info("Promoted {} to ADMIN via SEED_ADMIN_EMAIL", adminEmail);
+            }
+        }, () -> log.warn("SEED_ADMIN_EMAIL={} — account not found yet (sign in first, then restart)", adminEmail));
     }
 
     private void seedCatalog() {
