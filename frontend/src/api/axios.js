@@ -4,8 +4,17 @@ import { getToken, clearToken } from './tokenStore'
 const MAX_RETRIES = 3
 const RETRYABLE = new Set([408, 429, 502, 503, 504])
 
+// In dev:  VITE_API_BASE_URL is unset  → baseURL = '/api'  (Vite proxy → localhost:8080/api)
+// In prod: VITE_API_BASE_URL = 'https://api.prettycrafted.com'
+//          → auto-appends '/api' → 'https://api.prettycrafted.com/api'
+// Handles both 'https://api.prettycrafted.com' and 'https://api.prettycrafted.com/api'
+const _envUrl = import.meta.env.VITE_API_BASE_URL
+const baseURL = _envUrl
+  ? _envUrl.replace(/\/api\/?$/, '').replace(/\/$/, '') + '/api'
+  : '/api'
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 })
