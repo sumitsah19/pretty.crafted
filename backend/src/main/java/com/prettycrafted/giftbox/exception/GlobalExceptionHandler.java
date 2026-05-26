@@ -33,6 +33,13 @@ public class GlobalExceptionHandler {
             .body(new ApiError("conflict", ex.getMessage()));
     }
 
+    @ExceptionHandler(PaymentGatewayException.class)
+    public ResponseEntity<ApiError> handlePaymentGateway(PaymentGatewayException ex) {
+        log.warn("Payment gateway error [{}]: {}", ex.getCode(), ex.getMessage());
+        return ResponseEntity.status(ex.getStatus())
+            .body(new ApiError(ex.getCode(), ex.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()

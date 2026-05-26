@@ -8,6 +8,7 @@ import com.prettycrafted.giftbox.dto.RegisterRequest;
 import com.prettycrafted.giftbox.dto.ResetPasswordRequest;
 import com.prettycrafted.giftbox.exception.BadRequestException;
 import com.prettycrafted.giftbox.repository.PasswordResetTokenRepository;
+import com.prettycrafted.giftbox.repository.EmailVerificationTokenRepository;
 import com.prettycrafted.giftbox.repository.UserRepository;
 import java.time.Instant;
 import java.util.Optional;
@@ -27,6 +28,7 @@ class AuthServiceTest {
 
     @Mock UserRepository userRepo;
     @Mock PasswordResetTokenRepository resetTokenRepo;
+    @Mock EmailVerificationTokenRepository verificationTokenRepo;
     @Mock PasswordEncoder passwordEncoder;
     @Mock JwtService jwtService;
     @Mock EmailService emailService;

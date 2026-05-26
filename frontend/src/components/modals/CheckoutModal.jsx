@@ -8,12 +8,34 @@ import { analytics } from '../../analytics'
 
 const TC = '#C4704A'
 const STEPS = ['Address', 'Delivery', 'Payment', 'Review']
+const RAZORPAY_CHECKOUT_URL = 'https://checkout.razorpay.com/v1/checkout.js'
 
 const DELIVERY_OPTIONS = [
   { key: 'standard', label: 'Standard Delivery', eta: '3–5 business days', price: 0,     note: 'Free for all orders' },
   { key: 'express',  label: 'Express Delivery',  eta: '1–2 business days', price: 99,   note: 'Arrives faster' },
   { key: 'sameday',  label: 'Same-Day Delivery', eta: 'Today by 8 PM',     price: 199,  note: 'Select cities only' },
 ]
+
+let razorpayScriptPromise
+
+const loadRazorpayScript = () => {
+  if (window.Razorpay) return Promise.resolve()
+  if (razorpayScriptPromise) return razorpayScriptPromise
+
+  razorpayScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script')
+    script.src = RAZORPAY_CHECKOUT_URL
+    script.async = true
+    script.onload = resolve
+    script.onerror = () => {
+      razorpayScriptPromise = null
+      reject(new Error('Unable to load Razorpay checkout. Please check your connection and try again.'))
+    }
+    document.body.appendChild(script)
+  })
+
+  return razorpayScriptPromise
+}
 
 export default function CheckoutModal() {
   const dispatch = useDispatch()
@@ -92,14 +114,66 @@ export default function CheckoutModal() {
         paymentMethod: backendPaymentMethod,
       })
 
-      const orderId = res.data?.id || res.data?.orderNumber || null
+      const order = res.data?.order
+      const orderId = order?.id || res.data?.id || res.data?.orderNumber || null
       setServerOrderId(orderId)
+
+      if (backendPaymentMethod === 'RAZORPAY') {
+        if (!order?.razorpayOrderId || !res.data?.razorpayKeyId) {
+          throw new Error('Payment gateway did not return the required Razorpay details.')
+        }
+
+        await loadRazorpayScript()
+
+        await new Promise((resolve, reject) => {
+          const checkout = new window.Razorpay({
+            key: res.data.razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
+            amount: Math.round(Number(order.totalAmount || total) * 100),
+            currency: 'INR',
+            name: 'Pretty.Crafted',
+            description: `Order #${orderId}`,
+            order_id: order.razorpayOrderId,
+            prefill: {
+              name: addr.name,
+              contact: addr.phone,
+            },
+            notes: {
+              orderId: String(orderId),
+            },
+            theme: {
+              color: TC,
+            },
+            handler: async (response) => {
+              try {
+                await ordersApi.verifyPayment(orderId, {
+                  razorpayOrderId: response.razorpay_order_id,
+                  razorpayPaymentId: response.razorpay_payment_id,
+                  razorpaySignature: response.razorpay_signature,
+                })
+                resolve()
+              } catch (verifyErr) {
+                reject(verifyErr)
+              }
+            },
+            modal: {
+              ondismiss: () => reject(new Error('Payment was cancelled before completion.')),
+            },
+          })
+
+          checkout.on('payment.failed', (response) => {
+            reject(new Error(response.error?.description || 'Payment failed. Please try again.'))
+          })
+
+          checkout.open()
+        })
+      }
+
       analytics.orderPlaced(orderId, total)
       setPlacing(false)
       setPlaced(true)
     } catch (err) {
       setPlacing(false)
-      setOrderError(err.message || err.response?.data?.message || 'Failed to place order. Please try again.')
+      setOrderError(err.response?.data?.message || err.message || 'Failed to place order. Please try again.')
     }
   }
 

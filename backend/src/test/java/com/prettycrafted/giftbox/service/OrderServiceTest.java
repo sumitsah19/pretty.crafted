@@ -107,4 +107,19 @@ class OrderServiceTest {
         assertThrows(BadRequestException.class, () -> service.verifyPayment(1L, 10L, req));
         assertEquals(PaymentStatus.FAILED, order.getPaymentStatus());
     }
+
+    @Test
+    void verifyPayment_throwsWhenRazorpayOrderDoesNotMatch() {
+        Order order = Order.builder()
+            .id(10L).user(USER)
+            .status(OrderStatus.PENDING)
+            .paymentStatus(PaymentStatus.PENDING)
+            .razorpayOrderId("rzp_order")
+            .build();
+        when(orderRepo.findById(10L)).thenReturn(Optional.of(order));
+
+        var req = new VerifyPaymentRequest("different_order", "rzp_payment", "sig");
+        assertThrows(BadRequestException.class, () -> service.verifyPayment(1L, 10L, req));
+        verify(paymentService, never()).verifySignature(any(), any(), any());
+    }
 }

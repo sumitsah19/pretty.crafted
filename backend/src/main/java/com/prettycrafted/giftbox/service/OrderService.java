@@ -145,6 +145,12 @@ public class OrderService {
         if (order.getPaymentStatus() == PaymentStatus.SUCCESS) {
             throw new ConflictException("Payment already verified");
         }
+        if (order.getRazorpayOrderId() == null) {
+            throw new BadRequestException("Order was not created for Razorpay payment");
+        }
+        if (!order.getRazorpayOrderId().equals(req.razorpayOrderId())) {
+            throw new BadRequestException("Payment order id does not match this order");
+        }
         if (!paymentService.verifySignature(req.razorpayOrderId(), req.razorpayPaymentId(), req.razorpaySignature())) {
             order.setPaymentStatus(PaymentStatus.FAILED);
             throw new BadRequestException("Invalid payment signature");

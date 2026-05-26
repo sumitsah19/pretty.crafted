@@ -58,58 +58,40 @@ public class SecurityConfig {
     @Order(1)
     public SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
         http
-            .securityMatcher(
-                // ── Product & category reads ───────────────────────────
-                "/api/products/**",
-                "/api/categories/**",
-                "/api/public/**",
-                // ── Auth endpoints (no token needed) ─────────────────
-                "/api/auth/register",
-                "/api/auth/login",
-                "/api/auth/google",
-                "/api/auth/logout",
-                "/api/auth/forgot-password",
-                "/api/auth/reset-password",
-                "/api/auth/unsubscribe",
-                "/api/auth/verify-email",
-                // resend-verification intentionally excluded — needs JWT to identify the user
-                // (falls through to secured chain where @AuthenticationPrincipal is populated)
-                // ── Other public endpoints ────────────────────────────
-                "/api/payments/webhook",
-                "/api/sentry-test",
-                "/api/dev/**",
-                // ── OpenAPI / Swagger (only active when enabled) ──────
-                "/v3/api-docs/**",
-                "/swagger-ui/**",
-                "/swagger-ui.html",
-                // ── Static assets served by Spring Boot ──────────────
-                "/",
-                "/index.html",
-                "/favicon.ico",
-                "/favicon.svg",
-                "/logo.svg",
-                "/logo.png",
-                "/robots.txt",
-                "/sitemap.xml",
-                "/uploads/**",
-                "/assets/**",
-                "/*.css",
-                "/*.js",
-                "/*.html",
-                "/*.png",
-                "/*.jpg",
-                "/*.jpeg",
-                "/*.svg",
-                "/*.webp",
-                "/*.gif",
-                "/*.ico"
-            )
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> {})
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            // No oauth2ResourceServer here — JWT filter is NOT added.
-            // Any token in the request is simply ignored on these paths.
-            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+                .securityMatcher(
+                        // ── Product & category reads ───────────────────────────
+                        "/api/products/**",
+                        "/api/categories/**",
+                        "/api/public/**",
+                        // ── Auth endpoints (no token needed) ─────────────────
+                        "/api/auth/register",
+                        "/api/auth/login",
+                        "/api/auth/google",
+                        "/api/auth/logout",
+                        "/api/auth/forgot-password",
+                        "/api/auth/reset-password",
+                        "/api/auth/unsubscribe",
+                        "/api/auth/verify-email",
+                        // resend-verification intentionally excluded — needs JWT to identify the user
+                        // (falls through to secured chain where @AuthenticationPrincipal is populated)
+                        // ── Other public endpoints ────────────────────────────
+                        "/api/payments/webhook",
+                        "/api/create-order",
+                        "/api/verify-payment",
+                        "/api/sentry-test",
+                        "/api/dev/**",
+                        // ── OpenAPI / Swagger (only active when enabled) ──────
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/uploads/**")
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> {
+                })
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // No oauth2ResourceServer here — JWT filter is NOT added.
+                // Any token in the request is simply ignored on these paths.
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
         return http.build();
     }
@@ -125,28 +107,27 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain securedFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> {})
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Admin routes — ROLE_ADMIN required
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                // Product/category writes — ROLE_ADMIN required
-                .requestMatchers(HttpMethod.POST,   "/api/products/**", "/api/categories/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT,    "/api/products/**", "/api/categories/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PATCH,  "/api/products/**", "/api/categories/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/products/**", "/api/categories/**").hasRole("ADMIN")
-                // File uploads — ROLE_ADMIN required
-                .requestMatchers(HttpMethod.POST, "/api/uploads/**").hasRole("ADMIN")
-                // Everything else (cart, orders, account, etc.) — any authenticated user
-                .anyRequest().authenticated()
-            )
-            .oauth2ResourceServer(oauth -> oauth
-                .bearerTokenResolver(bearerTokenResolver())
-                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter()))
-            )
-            .httpBasic(b -> b.disable())
-            .formLogin(f -> f.disable());
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> {
+                })
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Admin routes — ROLE_ADMIN required
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // Product/category writes — ROLE_ADMIN required
+                        .requestMatchers(HttpMethod.POST, "/api/products/**", "/api/categories/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/products/**", "/api/categories/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/products/**", "/api/categories/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/**", "/api/categories/**").hasRole("ADMIN")
+                        // File uploads — ROLE_ADMIN required
+                        .requestMatchers(HttpMethod.POST, "/api/uploads/**").hasRole("ADMIN")
+                        // Everything else (cart, orders, account, etc.) — any authenticated user
+                        .anyRequest().authenticated())
+                .oauth2ResourceServer(oauth -> oauth
+                        .bearerTokenResolver(bearerTokenResolver())
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter())))
+                .httpBasic(b -> b.disable())
+                .formLogin(f -> f.disable());
 
         return http.build();
     }
@@ -165,17 +146,15 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder(
-        @Value("${app.jwt.secret}") String secret,
-        UserRepository userRepo
-    ) {
+            @Value("${app.jwt.secret}") String secret,
+            UserRepository userRepo) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder
-            .withSecretKey(secretKey(secret))
-            .macAlgorithm(MacAlgorithm.HS256)
-            .build();
+                .withSecretKey(secretKey(secret))
+                .macAlgorithm(MacAlgorithm.HS256)
+                .build();
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-            JwtValidators.createDefault(),
-            new TokenVersionValidator(userRepo)
-        ));
+                JwtValidators.createDefault(),
+                new TokenVersionValidator(userRepo)));
         return decoder;
     }
 
@@ -185,8 +164,8 @@ public class SecurityConfig {
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             String role = jwt.getClaimAsString("role");
             return role == null
-                ? List.of()
-                : List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                    ? List.of()
+                    : List.of(new SimpleGrantedAuthority("ROLE_" + role));
         });
         return converter;
     }
@@ -201,12 +180,14 @@ public class SecurityConfig {
         return request -> {
             // Authorization header takes precedence over cookie
             String token = headerResolver.resolve(request);
-            if (token != null) return token;
+            if (token != null)
+                return token;
             // Fall back to HttpOnly cookie
             Cookie[] cookies = request.getCookies();
             if (cookies != null) {
                 for (Cookie c : cookies) {
-                    if ("pc_token".equals(c.getName())) return c.getValue();
+                    if ("pc_token".equals(c.getName()))
+                        return c.getValue();
                 }
             }
             return null;
@@ -214,18 +195,18 @@ public class SecurityConfig {
     }
 
     /**
-     * CORS configuration — shared by both chains via the CorsConfigurationSource bean.
+     * CORS configuration — shared by both chains via the CorsConfigurationSource
+     * bean.
      *
      * Railway env var to set:
-     *   CORS_ALLOWED_ORIGINS=https://prettycrafted.com
+     * CORS_ALLOWED_ORIGINS=https://prettycrafted.com
      *
      * Multiple origins (comma-separated):
-     *   CORS_ALLOWED_ORIGINS=https://prettycrafted.com,https://www.prettycrafted.com
+     * CORS_ALLOWED_ORIGINS=https://prettycrafted.com,https://www.prettycrafted.com
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
-        @Value("${app.cors.allowed-origins}") String origins
-    ) {
+            @Value("${app.cors.allowed-origins}") String origins) {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(origins.split(",")));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
@@ -242,8 +223,7 @@ public class SecurityConfig {
 
     private SecretKey secretKey(String secret) {
         return new SecretKeySpec(
-            secret.getBytes(StandardCharsets.UTF_8),
-            "HmacSHA256"
-        );
+                secret.getBytes(StandardCharsets.UTF_8),
+                "HmacSHA256");
     }
 }
