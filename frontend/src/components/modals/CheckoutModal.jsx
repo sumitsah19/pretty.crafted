@@ -7,7 +7,7 @@ import { ordersApi, cartApi } from '../../api/services'
 import { analytics } from '../../analytics'
 
 const TC = '#C4704A'
-const STEPS = ['Address', 'Delivery', 'Payment', 'Review']
+const STEPS = ['Address', 'Payment', 'Review']
 const RAZORPAY_CHECKOUT_URL = 'https://checkout.razorpay.com/v1/checkout.js'
 
 const DELIVERY_OPTIONS = [
@@ -43,7 +43,7 @@ export default function CheckoutModal() {
   const isLoggedIn = useSelector(selectIsLoggedIn)
   const [step, setStep] = useState(1)
   const [addr, setAddr] = useState({ name: '', phone: '', line1: '', line2: '', city: '', state: '', zip: '', country: 'India' })
-  const [payMethod, setPayMethod] = useState('card')
+  const [payMethod, setPayMethod] = useState('online')
   const [card, setCard] = useState({ number: '', name: '', expiry: '', cvv: '' })
   const [placing, setPlacing] = useState(false)
   const [placed, setPlaced] = useState(false)
@@ -74,7 +74,7 @@ export default function CheckoutModal() {
     const now = new Date()
     return year > now.getFullYear() || (year === now.getFullYear() && month >= now.getMonth() + 1)
   }
-  const payValid = payMethod !== 'card' || (card.number.replace(/\s/g, '').length === 16 && card.name && isExpiryValid(card.expiry) && card.cvv.length >= 3)
+  const payValid = payMethod === 'cod' || payMethod === 'online'
 
   const inputSt = { width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: 13, border: '1.5px solid #EDE4D8', background: '#FDFAF7', color: '#2C1A0E', outline: 'none', fontFamily: "'DM Sans',sans-serif", transition: 'border-color 0.2s' }
   const focus = (e) => e.target.style.borderColor = TC
@@ -237,74 +237,37 @@ export default function CheckoutModal() {
             </div>
           )}
 
-          {/* STEP 2: DELIVERY */}
+          {/* STEP 2: PAYMENT (moved up) */}
           {step === 2 && !placed && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Delivery Options</div>
-              {DELIVERY_OPTIONS.map((opt) => (
-                <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${delivery === opt.key ? TC : '#EDE4D8'}`, background: delivery === opt.key ? '#FDF5F0' : 'white', cursor: 'pointer', transition: 'all 0.2s' }}>
-                  <input type="radio" checked={delivery === opt.key} onChange={() => setDelivery(opt.key)} style={{ accentColor: TC, width: 16, height: 16, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: '#2C1A0E' }}>{opt.label}</div>
-                    <div style={{ fontSize: 12, color: '#9C7A63', marginTop: 2 }}>{opt.eta} · {opt.note}</div>
-                  </div>
-                  <div style={{ fontWeight: 700, color: TC, fontSize: 14, flexShrink: 0 }}>{opt.price === 0 ? 'Free' : `₹${opt.price}`}</div>
-                </label>
-              ))}
-              <div style={{ marginTop: 4 }}>
-                <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 5 }}>Preferred Delivery Date (optional)</label>
-                <input type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} min={new Date().toISOString().split('T')[0]} style={inputSt} onFocus={focus} onBlur={blur} />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: PAYMENT */}
-          {step === 3 && !placed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Payment Method</div>
-              {[{ key: 'card', icon: '💳', label: 'Credit / Debit Card', note: 'via Razorpay' }, { key: 'upi', icon: '📱', label: 'UPI' }, { key: 'paypal', icon: '🅿️', label: 'PayPal', note: 'via Razorpay' }, { key: 'cod', icon: '💵', label: 'Cash on Delivery' }].map((m) => (
-                <label key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 16px', borderRadius: 14, border: `1.5px solid ${payMethod === m.key ? TC : '#EDE4D8'}`, background: payMethod === m.key ? '#FDF5F0' : 'white', cursor: 'pointer', transition: 'all 0.2s' }}>
-                  <input type="radio" checked={payMethod === m.key} onChange={() => setPayMethod(m.key)} style={{ accentColor: TC, width: 16, height: 16 }} />
-                  <span style={{ fontSize: 20 }}>{m.icon}</span>
-                  <div>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#2C1A0E' }}>{m.label}</span>
-                    {m.note && <div style={{ fontSize: 10, color: '#9C7A63', marginTop: 1 }}>{m.note}</div>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${payMethod === 'online' ? TC : '#EDE4D8'}`, background: payMethod === 'online' ? '#FDF5F0' : 'white', cursor: 'pointer' }}>
+                  <input type="radio" checked={payMethod === 'online'} onChange={() => setPayMethod('online')} style={{ accentColor: TC, width: 16, height: 16 }} />
+                  <span style={{ fontSize: 20 }}>💳</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#2C1A0E' }}>Cards / UPI</div>
+                    <div style={{ fontSize: 10, color: '#9C7A63', marginTop: 1 }}>via Razorpay</div>
                   </div>
                 </label>
-              ))}
-              {payMethod === 'card' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '16px', background: 'white', borderRadius: 16, border: '1px solid #EDE4D8' }}>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${payMethod === 'cod' ? TC : '#EDE4D8'}`, background: payMethod === 'cod' ? '#FDF5F0' : 'white', cursor: 'pointer' }}>
+                  <input type="radio" checked={payMethod === 'cod'} onChange={() => setPayMethod('cod')} style={{ accentColor: TC, width: 16, height: 16 }} />
+                  <span style={{ fontSize: 20 }}>💵</span>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 5 }}>Card Number</label>
-                    <input value={card.number} onChange={(e) => setC('number', fmtCard(e.target.value))} placeholder="1234 5678 9012 3456" maxLength={19} style={inputSt} onFocus={focus} onBlur={blur} />
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#2C1A0E' }}>Cash on Delivery</div>
                   </div>
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 5 }}>Name on Card</label>
-                    <input value={card.name} onChange={(e) => setC('name', e.target.value)} placeholder="Jane Doe" style={inputSt} onFocus={focus} onBlur={blur} />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 5 }}>Expiry</label>
-                      <input value={card.expiry} onChange={(e) => setC('expiry', fmtExpiry(e.target.value))} placeholder="MM/YY" maxLength={5} style={inputSt} onFocus={focus} onBlur={blur} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 5 }}>CVV</label>
-                      <input value={card.cvv} onChange={(e) => setC('cvv', e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="•••" maxLength={4} type="password" style={inputSt} onFocus={focus} onBlur={blur} />
-                    </div>
-                  </div>
-                </div>
-              )}
-              {payMethod === 'upi' && (
-                <div style={{ padding: '16px', background: 'white', borderRadius: 16, border: '1px solid #EDE4D8' }}>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 5 }}>UPI ID</label>
-                  <input value={upiId} onChange={(e) => setUpiId(e.target.value)} placeholder="yourname@upi" style={inputSt} onFocus={focus} onBlur={blur} />
-                </div>
-              )}
+                </label>
+              </div>
+
+              {/* no inline inputs or notices for online payments */}
             </div>
           )}
 
-          {/* STEP 4: REVIEW */}
-          {step === 4 && !placed && (
+          {/* previous Payment section moved above as step 2 */}
+
+          {/* STEP 3: REVIEW */}
+          {step === 3 && !placed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Review Your Order</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
