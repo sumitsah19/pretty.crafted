@@ -48,7 +48,7 @@ public class OrderService {
 
     public PlaceOrderResponse place(Long userId, PlaceOrderRequest req) {
         User user = userRepo.findById(userId)
-            .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
 
         List<CartItem> cartItems = cartRepo.findByUserId(userId);
         List<GiftBox> boxes = giftBoxRepo.findByUserIdAndStatus(userId, GiftBoxStatus.IN_CART);
@@ -68,13 +68,13 @@ public class OrderService {
         }
 
         Order order = Order.builder()
-            .user(user)
-            .status(OrderStatus.PENDING)
-            .paymentStatus(PaymentStatus.PENDING)
-            .totalAmount(BigDecimal.ZERO)
-            .shippingAddress(req.shippingAddress().trim())
-            .contactPhone(req.contactPhone().trim())
-            .build();
+                .user(user)
+                .status(OrderStatus.PENDING)
+                .paymentStatus(PaymentStatus.PENDING)
+                .totalAmount(BigDecimal.ZERO)
+                .shippingAddress(req.shippingAddress().trim())
+                .contactPhone(req.contactPhone().trim())
+                .build();
         order = orderRepo.save(order);
 
         BigDecimal total = BigDecimal.ZERO;
@@ -84,61 +84,90 @@ public class OrderService {
             BigDecimal unit = p.getPrice();
             BigDecimal line = unit.multiply(BigDecimal.valueOf(ci.getQuantity()));
             order.getItems().add(OrderItem.builder()
-                .order(order)
-                .product(p)
-                .itemName(p.getName())
-                .quantity(ci.getQuantity())
-                .unitPrice(unit)
-                .lineTotal(line)
-                .build());
+                    .order(order)
+                    .product(p)
+                    .itemName(p.getName())
+                    .quantity(ci.getQuantity())
+                    .unitPrice(unit)
+                    .lineTotal(line)
+                    .build());
             total = total.add(line);
         }
 
         for (GiftBox box : boxes) {
             String name = box.getSize().name() + " Gift Box (" + box.getItems().size() + " items)";
             order.getItems().add(OrderItem.builder()
-                .order(order)
-                .giftBox(box)
-                .itemName(name)
-                .quantity(1)
-                .unitPrice(box.getTotalPrice())
-                .lineTotal(box.getTotalPrice())
-                .build());
+                    .order(order)
+                    .giftBox(box)
+                    .itemName(name)
+                    .quantity(1)
+                    .unitPrice(box.getTotalPrice())
+                    .lineTotal(box.getTotalPrice())
+                    .build());
             total = total.add(box.getTotalPrice());
             box.setStatus(GiftBoxStatus.ORDERED);
         }
 
-        // Atomically decrement stock; if any product has insufficient stock, throw immediately
-        for (Map.Entry<Long, Integer> e : stockNeeded.entrySet()) {
-            int updated = productRepo.decrementStock(e.getKey(), e.getValue());
-            if (updated == 0) {
+        // For online payments (Razorpay) we DO NOT decrement stock or clear the cart
+        // here.
+        // We still verify availability to fail fast, but actual stock decrement and
+        // cart
+        // clearing happens only after payment is verified (see verifyPayment and
+        // webhook).
+        boolean isRazorpay = "RAZORPAY".equalsIgnoreCase(req.paymentMethod());
+
+        if (isRazorpay) {
+            for (Map.Entry<Long, Integer> e : stockNeeded.entrySet()) {
                 Product p = productRepo.findById(e.getKey())
-                    .orElseThrow(() -> new NotFoundException("Product not found: " + e.getKey()));
-                throw new ConflictException("Out of stock: " + p.getName());
+                        .orElseThrow(() -> new NotFoundException("Product not found: " + e.getKey()));
+                if (p.getStock() < e.getValue()) {
+                    throw new ConflictException("Out of stock: " + p.getName());
+                }
+            }
+        } else {
+            // COD or other non-online payments: decrement stock and clear the cart
+            // immediately
+            for (Map.Entry<Long, Integer> e : stockNeeded.entrySet()) {
+                int updated = productRepo.decrementStock(e.getKey(), e.getValue());
+                if (updated == 0) {
+                    Product p = productRepo.findById(e.getKey())
+                            .orElseThrow(() -> new NotFoundException("Product not found: " + e.getKey()));
+                    throw new ConflictException("Out of stock: " + p.getName());
+                }
+            }
+            cartRepo.deleteByUserId(userId);
+            // mark gift boxes ordered for non-online flows
+            for (GiftBox box : boxes) {
+                box.setStatus(GiftBoxStatus.ORDERED);
             }
         }
 
         order.setTotalAmount(total);
-        cartRepo.deleteByUserId(userId);
 
         String rzpOrderId = null;
-        if ("RAZORPAY".equalsIgnoreCase(req.paymentMethod())) {
+        if (isRazorpay) {
             rzpOrderId = paymentService.createOrder(total);
             order.setRazorpayOrderId(rzpOrderId);
         }
 
         Order savedOrder = order;
-        TransactionSynchronizationManager.registerSynchronization(
-            new org.springframework.transaction.support.TransactionSynchronization() {
-                @Override public void afterCommit() { emailService.sendOrderConfirmation(savedOrder); }
-            }
-        );
+        // Send order confirmation immediately only for non-online payments.
+        if (!isRazorpay) {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            emailService.sendOrderConfirmation(savedOrder);
+                        }
+                    });
+        }
+
         return new PlaceOrderResponse(OrderDto.from(order), paymentService.getKeyId());
     }
 
     public OrderDto verifyPayment(Long userId, Long orderId, VerifyPaymentRequest req) {
         Order order = orderRepo.findById(orderId)
-            .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
+                .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
         if (!order.getUser().getId().equals(userId)) {
             throw new BadRequestException("Order does not belong to user");
         }
@@ -156,15 +185,56 @@ public class OrderService {
             throw new BadRequestException("Invalid payment signature");
         }
         order.setRazorpayPaymentId(req.razorpayPaymentId());
+        applyPostPaymentActions(order, req.razorpayPaymentId());
+        return OrderDto.from(order);
+    }
+
+    /**
+     * Apply post-payment changes: decrement stock, mark gift boxes, clear cart,
+     * set payment/order status and send payment confirmation email.
+     * Intended to be called after a successful Razorpay payment verification.
+     */
+    public void applyPostPaymentActions(Order order, String razorpayPaymentId) {
+        // Attempt to decrement stock and clear the cart now that payment is verified.
+        Map<Long, Integer> stockNeeded = new HashMap<>();
+        for (OrderItem item : order.getItems()) {
+            if (item.getProduct() != null) {
+                stockNeeded.merge(item.getProduct().getId(), item.getQuantity(), Integer::sum);
+            }
+        }
+
+        for (Map.Entry<Long, Integer> e : stockNeeded.entrySet()) {
+            int updated = productRepo.decrementStock(e.getKey(), e.getValue());
+            if (updated == 0) {
+                order.setPaymentStatus(PaymentStatus.FAILED);
+                order.setStatus(OrderStatus.CANCELLED);
+                orderRepo.save(order);
+                throw new ConflictException("Payment verified but items are out of stock. Please contact support.");
+            }
+        }
+
+        // mark gift boxes ordered and clear the user's cart
+        for (OrderItem item : order.getItems()) {
+            if (item.getGiftBox() != null) {
+                GiftBox box = item.getGiftBox();
+                box.setStatus(GiftBoxStatus.ORDERED);
+            }
+        }
+        cartRepo.deleteByUserId(order.getUser().getId());
+
         order.setPaymentStatus(PaymentStatus.SUCCESS);
         order.setStatus(OrderStatus.PAID);
+        order.setRazorpayPaymentId(razorpayPaymentId);
+        orderRepo.save(order);
+
         Order confirmedOrder = order;
         TransactionSynchronizationManager.registerSynchronization(
-            new org.springframework.transaction.support.TransactionSynchronization() {
-                @Override public void afterCommit() { emailService.sendPaymentConfirmation(confirmedOrder); }
-            }
-        );
-        return OrderDto.from(order);
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        emailService.sendPaymentConfirmation(confirmedOrder);
+                    }
+                });
     }
 
     @Transactional(readOnly = true)
@@ -175,7 +245,7 @@ public class OrderService {
     @Transactional(readOnly = true)
     public OrderDto get(Long userId, Long orderId) {
         Order o = orderRepo.findById(orderId)
-            .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
+                .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
         if (!o.getUser().getId().equals(userId)) {
             throw new BadRequestException("Order does not belong to user");
         }
@@ -184,12 +254,13 @@ public class OrderService {
 
     public OrderDto cancelOrder(Long userId, Long orderId) {
         Order order = orderRepo.findById(orderId)
-            .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
+                .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
         if (!order.getUser().getId().equals(userId)) {
             throw new BadRequestException("Order does not belong to user");
         }
         if (order.getStatus() == OrderStatus.SHIPPED || order.getStatus() == OrderStatus.DELIVERED) {
-            throw new BadRequestException("Cannot cancel order that is already " + order.getStatus().name().toLowerCase());
+            throw new BadRequestException(
+                    "Cannot cancel order that is already " + order.getStatus().name().toLowerCase());
         }
         if (order.getStatus() == OrderStatus.CANCELLED) {
             throw new ConflictException("Order is already cancelled");
@@ -217,7 +288,7 @@ public class OrderService {
 
     public OrderDto adminUpdateStatus(Long orderId, UpdateOrderStatusRequest req) {
         Order order = orderRepo.findById(orderId)
-            .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
+                .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
         order.setStatus(req.status());
         return OrderDto.from(order);
     }

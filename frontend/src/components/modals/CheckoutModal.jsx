@@ -91,14 +91,32 @@ export default function CheckoutModal() {
     setOrderError('')
 
     try {
-      await cartApi.clear()
-      try {
-        for (const item of items) {
-          await cartApi.add(item.product.id, item.qty)
+      // Non-destructive cart sync: fetch server cart and apply minimal diffs
+      const serverRes = await cartApi.get()
+      const serverItems = serverRes.data?.items || []
+
+      const serverByProduct = new Map()
+      for (const si of serverItems) serverByProduct.set(Number(si.productId), si)
+
+      const localByProduct = new Map()
+      for (const li of items) localByProduct.set(Number(li.product.id), li.qty)
+
+      // Add or update local items on server
+      for (const [productId, qty] of localByProduct.entries()) {
+        const serverItem = serverByProduct.get(productId)
+        if (serverItem) {
+          if (serverItem.quantity !== qty) {
+            await cartApi.update(serverItem.id, qty)
+          }
+          serverByProduct.delete(productId)
+        } else {
+          await cartApi.add(productId, qty)
         }
-      } catch {
-        await cartApi.clear().catch(() => {})
-        throw new Error('Failed to sync your cart. Please try again.')
+      }
+
+      // Any remaining server items are not present locally — remove them
+      for (const si of serverByProduct.values()) {
+        await cartApi.remove(si.id)
       }
 
       const shippingAddress = [

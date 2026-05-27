@@ -76,8 +76,6 @@ public class SecurityConfig {
                         // (falls through to secured chain where @AuthenticationPrincipal is populated)
                         // ── Other public endpoints ────────────────────────────
                         "/api/payments/webhook",
-                        "/api/create-order",
-                        "/api/verify-payment",
                         "/api/sentry-test",
                         "/api/dev/**",
                         // ── OpenAPI / Swagger (only active when enabled) ──────
