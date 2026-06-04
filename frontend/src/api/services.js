@@ -73,6 +73,15 @@ export const adminApi = {
   testEmail:         (to)               => api.get('/admin/test-email', { params: { to } }),
 }
 
+// ── UPLOADS ───────────────────────────────────────────────────────
+export const uploadApi = {
+  image: (file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post('/uploads', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  },
+}
+
 // ── PRODUCTS (admin write) ────────────────────────────────────────
 // Read methods already in productsApi above; write methods need ADMIN role
 export const productAdminApi = {

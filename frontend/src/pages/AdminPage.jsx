@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { adminApi, productAdminApi, categoriesApi, productsApi, ordersApi } from '../api/services'
+import { adminApi, productAdminApi, categoriesApi, productsApi, ordersApi, uploadApi } from '../api/services'
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────
 const TC = '#C4704A'
@@ -384,6 +384,7 @@ function ProductsView({ onToast }) {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [editItem, setEditItem] = useState(null)
   const [form, setForm] = useState({ name: '', description: '', price: '', stock: '', categoryId: '', imageUrl: '', tag: '', recipient: '' })
@@ -442,6 +443,21 @@ function ProductsView({ onToast }) {
       setProducts(ps => ps.filter(p => p.id !== id))
       onToast('Product removed')
     } catch { onToast('Delete failed') }
+  }
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const { data } = await uploadApi.image(file)
+      setForm(f => ({ ...f, imageUrl: data.url }))
+    } catch {
+      onToast('Image upload failed')
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
   }
 
   const inp = { width: '100%', padding: '10px 14px', borderRadius: 12, border: `1.5px solid ${BEIGE}`, fontSize: 13, background: 'white', fontFamily: "'DM Sans',sans-serif", outline: 'none', color: DARK }
@@ -511,7 +527,6 @@ function ProductsView({ onToast }) {
               { label: 'Description', key: 'description', type: 'text' },
               { label: 'Price (₹)', key: 'price', type: 'number' },
               { label: 'Stock', key: 'stock', type: 'number' },
-              { label: 'Image URL', key: 'imageUrl', type: 'text' },
               { label: 'Tag (e.g. Bestseller)', key: 'tag', type: 'text' },
               { label: 'Recipient (all/him/her/kids)', key: 'recipient', type: 'text' },
             ].map(({ label, key, type }) => (
@@ -521,6 +536,31 @@ function ProductsView({ onToast }) {
                   style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
               </div>
             ))}
+
+            {/* Image upload */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Product Image</label>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                {form.imageUrl && (
+                  <img src={form.imageUrl} alt="preview" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 10, border: `1px solid ${BEIGE}`, flexShrink: 0 }} />
+                )}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 16px', borderRadius: 10, border: `1.5px solid ${uploading ? BEIGE : TC}`, background: uploading ? BEIGE : '#FDF6F1', color: uploading ? LIGHT : TC, fontSize: 12, fontWeight: 700, cursor: uploading ? 'default' : 'pointer', width: 'fit-content' }}>
+                    {uploading ? 'Uploading…' : '↑ Upload Image'}
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }} disabled={uploading} onChange={handleImageUpload} />
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="or paste image URL"
+                    value={form.imageUrl}
+                    onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
+                    style={{ ...inp, fontSize: 12, color: LIGHT }}
+                    onFocus={e => e.target.style.borderColor = TC}
+                    onBlur={e => e.target.style.borderColor = BEIGE}
+                  />
+                </div>
+              </div>
+            </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Category</label>
               <select value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
