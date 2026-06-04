@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -42,7 +41,6 @@ public class RazorpayWebhookController {
      * are safe.
      */
     @PostMapping("/webhook")
-    @Transactional
     public ResponseEntity<Void> handleWebhook(
             @RequestBody String rawBody,
             @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature) {
@@ -55,10 +53,12 @@ public class RazorpayWebhookController {
         try {
             JSONObject payload = new JSONObject(rawBody);
             String event = payload.optString("event");
-            JSONObject paymentEntity = payload
-                    .optJSONObject("payload")
-                    .optJSONObject("payment")
-                    .optJSONObject("entity");
+            JSONObject payloadNode = payload.optJSONObject("payload");
+            if (payloadNode == null) {
+                return ResponseEntity.ok().build();
+            }
+            JSONObject paymentNode = payloadNode.optJSONObject("payment");
+            JSONObject paymentEntity = paymentNode == null ? null : paymentNode.optJSONObject("entity");
 
             if (paymentEntity == null) {
                 return ResponseEntity.ok().build();
@@ -77,16 +77,18 @@ public class RazorpayWebhookController {
 
             switch (event) {
                 case "payment.captured" -> {
-                    if (order.getPaymentStatus() == PaymentStatus.SUCCESS) {
-                        log.info("Webhook payment.captured already processed for order {} — skipping", order.getId());
+                    if (order.getPaymentStatus() == PaymentStatus.SUCCESS
+                            || order.getStatus() == OrderStatus.CANCELLED) {
+                        log.info("Webhook payment.captured already resolved for order {} — skipping", order.getId());
                         return ResponseEntity.ok().build();
                     }
                     try {
-                        orderService.applyPostPaymentActions(order, razorpayPaymentId);
+                        orderService.applyPostPaymentActions(order.getId(), razorpayPaymentId);
                         log.info("Webhook: order {} marked PAID via payment {}", order.getId(), razorpayPaymentId);
                     } catch (Exception e) {
                         log.error("Webhook: failed to apply post-payment actions for order {}: {}", order.getId(),
                                 e.getMessage());
+                        orderService.markOrderCancelled(order.getId());
                         return ResponseEntity.status(500).build();
                     }
                 }

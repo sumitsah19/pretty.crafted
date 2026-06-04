@@ -1,12 +1,12 @@
 import { Helmet } from 'react-helmet-async'
 
-const SITE_NAME = 'Pretty.Crafted'
+const SITE_NAME = 'Prettycrafted'
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://prettycrafted.com'
-const DEFAULT_IMAGE = `${SITE_URL}/logo.png`
+const DEFAULT_IMAGE = `${SITE_URL}/logo.svg`
 const DEFAULT_DESCRIPTION =
-  'Handcrafted personalized gift boxes for birthdays, anniversaries, and special occasions. Shop unique gifts made with love by independent artisans.'
+  'Prettycrafted offers handcrafted personalized gift boxes for birthdays, anniversaries, and special occasions. Shop unique gifts made with love by independent artisans.'
 const DEFAULT_KEYWORDS =
-  'handcrafted gifts, personalized gift boxes, artisan gifts, birthday gifts India, anniversary gifts, custom gift hampers, prettycrafted'
+  'Prettycrafted, handcrafted gifts, personalized gift boxes, artisan gifts, birthday gifts India, anniversary gifts, custom gift hampers, prettycrafted gifts'
 
 export default function SEO({
   title,
@@ -21,7 +21,7 @@ export default function SEO({
 }) {
   const fullTitle = title
     ? `${title} | ${SITE_NAME}`
-    : `${SITE_NAME} — Handcrafted Gifts with Heart`
+    : `${SITE_NAME} | Crafted with love`
   const canonicalUrl = `${SITE_URL}${url}`
 
   // Build product schema if product prop is passed

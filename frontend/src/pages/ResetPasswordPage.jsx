@@ -89,7 +89,7 @@ export default function ResetPasswordPage() {
   return (
     <PageShell>
       <h2 style={{ ...headingStyle, marginBottom: 8 }}>Set New Password</h2>
-      <p style={{ ...subStyle, marginBottom: 28 }}>Choose a strong password for your Pretty.Crafted account.</p>
+      <p style={{ ...subStyle, marginBottom: 28 }}>Choose a strong password for your Prettycrafted account.</p>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, textAlign: 'left' }}>
         <div>

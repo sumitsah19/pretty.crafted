@@ -8,7 +8,7 @@ export default function PrivacyPolicyPage() {
     <>
     <SEO
       title="Privacy Policy"
-      description="Read the Pretty.Crafted privacy policy to understand how we collect, use, and protect your personal information when you shop with us."
+      description="Read the Prettycrafted privacy policy to understand how we collect, use, and protect your personal information when you shop with us."
       url="/privacy"
     />
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '60px 24px 80px', fontFamily: "'DM Sans', sans-serif", color: DARK, lineHeight: 1.8 }}>

@@ -105,7 +105,6 @@ public class OrderService {
                     .lineTotal(box.getTotalPrice())
                     .build());
             total = total.add(box.getTotalPrice());
-            box.setStatus(GiftBoxStatus.ORDERED);
         }
 
         // For online payments (Razorpay) we DO NOT decrement stock or clear the cart
@@ -185,16 +184,23 @@ public class OrderService {
             throw new BadRequestException("Invalid payment signature");
         }
         order.setRazorpayPaymentId(req.razorpayPaymentId());
-        applyPostPaymentActions(order, req.razorpayPaymentId());
+        applyPostPaymentActions(order.getId(), req.razorpayPaymentId());
         return OrderDto.from(order);
     }
 
     /**
      * Apply post-payment changes: decrement stock, mark gift boxes, clear cart,
      * set payment/order status and send payment confirmation email.
-     * Intended to be called after a successful Razorpay payment verification.
+     * Loads the order by ID so it always runs within its own transaction boundary,
+     * keeping the webhook handler free of shared transaction state.
      */
-    public void applyPostPaymentActions(Order order, String razorpayPaymentId) {
+    public void applyPostPaymentActions(Long orderId, String razorpayPaymentId) {
+        Order order = orderRepo.findByIdWithLock(orderId)
+                .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
+        if (order.getPaymentStatus() == PaymentStatus.SUCCESS) {
+            return;
+        }
+
         // Attempt to decrement stock and clear the cart now that payment is verified.
         Map<Long, Integer> stockNeeded = new HashMap<>();
         for (OrderItem item : order.getItems()) {
@@ -206,9 +212,9 @@ public class OrderService {
         for (Map.Entry<Long, Integer> e : stockNeeded.entrySet()) {
             int updated = productRepo.decrementStock(e.getKey(), e.getValue());
             if (updated == 0) {
-                order.setPaymentStatus(PaymentStatus.FAILED);
-                order.setStatus(OrderStatus.CANCELLED);
-                orderRepo.save(order);
+                // Do NOT save here — this transaction will roll back when we throw.
+                // The caller is responsible for persisting the CANCELLED state in a
+                // separate transaction (see markOrderCancelled).
                 throw new ConflictException("Payment verified but items are out of stock. Please contact support.");
             }
         }
@@ -235,6 +241,15 @@ public class OrderService {
                         emailService.sendPaymentConfirmation(confirmedOrder);
                     }
                 });
+    }
+
+    /** Persists FAILED/CANCELLED in its own transaction — safe to call after a rolled-back applyPostPaymentActions. */
+    public void markOrderCancelled(Long orderId) {
+        orderRepo.findById(orderId).ifPresent(order -> {
+            order.setPaymentStatus(PaymentStatus.FAILED);
+            order.setStatus(OrderStatus.CANCELLED);
+            orderRepo.save(order);
+        });
     }
 
     @Transactional(readOnly = true)

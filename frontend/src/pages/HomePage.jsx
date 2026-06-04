@@ -351,8 +351,10 @@ export default function HomePage() {
       <footer style={{ background: '#2C1A0E', color: '#D9CBBF', padding: isMobile ? '40px 20px 32px' : '60px 48px 40px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1fr 1fr 1fr', gap: isMobile ? 28 : 40, marginBottom: isMobile ? 32 : 48 }}>
           <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
-            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: 'white', marginBottom: 10 }}>Pretty<span style={{ color: TC }}>.</span>Crafted</div>
-            <p style={{ fontSize: 13, lineHeight: 1.7, color: '#9C7A63', maxWidth: 260 }}>Curating handcrafted gifts that carry warmth, intention, and love.</p>
+            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: 'white', marginBottom: 10 }}>
+              Prettycrafted
+            </div>
+            <p style={{ fontSize: 13, lineHeight: 1.7, color: '#9C7A63', maxWidth: 260 }}>Prettycrafted — curating handcrafted gifts that carry warmth, intention, and love.</p>
           </div>
           {[
             { title: 'Shop', links: ['Handmade Jewelry', 'Candles & Scents', 'Ceramics', 'Art Prints', 'Skincare', 'Gift Boxes'], actions: [() => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => dispatch(openBoxBuilder())] },
@@ -373,7 +375,7 @@ export default function HomePage() {
           ))}
         </div>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 12 }}>
-          <div style={{ fontSize: 12, color: '#6B4F3A' }}>© 2026 Pretty.Crafted. Made with ♥</div>
+          <div style={{ fontSize: 12, color: '#6B4F3A' }}>© 2026 Prettycrafted. Made with ♥</div>
           <div style={{ display: 'flex', gap: 16 }}>
             {['Privacy', 'Terms', 'Shipping'].map(l => (
               <a key={l} href="#" style={{ fontSize: 12, color: '#6B4F3A', textDecoration: 'none' }}>{l}</a>

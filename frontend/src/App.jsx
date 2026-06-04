@@ -68,37 +68,81 @@ export default function App() {
   // ── Route → SEO mapping ─────────────────────────────────────────
   const routeSEO = {
     '/': {
-      title: 'Handcrafted Gifts with Heart',
-      description: 'Shop unique handcrafted gift boxes for every occasion — birthdays, anniversaries, weddings, and more. Each gift is made with love by independent artisans.',
-      keywords: 'handcrafted gifts India, personalized gift boxes, artisan gifts, birthday gifts, anniversary gifts, prettycrafted',
+      // No title → SEO.jsx default fires: "Prettycrafted | Handcrafted Gift Boxes & Personalized Gifts India"
+      description: 'Prettycrafted — shop unique handcrafted gift boxes for every occasion. Birthdays, anniversaries, weddings, and more. Each gift is made with love by independent artisans.',
+      keywords: 'Prettycrafted, handcrafted gifts India, personalized gift boxes, artisan gifts, birthday gifts, anniversary gifts',
       url: '/',
+    },
+    '/shop': {
+      title: 'Shop Handcrafted Gifts',
+      description: 'Browse the full Prettycrafted collection — handmade jewellery, candles, ceramics, art prints, skincare, and personalised gift boxes, all crafted with love.',
+      keywords: 'Prettycrafted shop, buy handcrafted gifts India, artisan gifts online, prettycrafted gifts',
+      url: '/shop',
+    },
+    '/gift-boxes': {
+      title: 'Custom Gift Boxes',
+      description: 'Build a personalised Prettycrafted gift box. Choose from curated handcrafted items and create a unique gift tailored to your loved one.',
+      keywords: 'custom gift boxes India, personalised gift hampers, Prettycrafted gift box builder',
+      url: '/gift-boxes',
+    },
+    '/occasions': {
+      title: 'Gifts by Occasion',
+      description: 'Find the perfect handcrafted gift for every occasion at Prettycrafted — birthdays, anniversaries, weddings, corporate gifting, and more.',
+      keywords: 'occasion gifts India, birthday gift ideas, anniversary gifts, Prettycrafted occasions',
+      url: '/occasions',
+    },
+    '/occasions/birthday': {
+      title: 'Birthday Gifts',
+      description: 'Make birthdays unforgettable with Prettycrafted handcrafted birthday gifts — personalised gift boxes, artisan jewellery, candles, and more.',
+      keywords: 'birthday gifts India, handcrafted birthday presents, personalised birthday gift boxes, Prettycrafted birthday',
+      url: '/occasions/birthday',
+    },
+    '/occasions/anniversary': {
+      title: 'Anniversary Gifts',
+      description: 'Celebrate years of love with Prettycrafted anniversary gifts — curated handcrafted gift boxes, jewellery, and keepsakes made with heart.',
+      keywords: 'anniversary gifts India, handcrafted anniversary presents, personalised anniversary gifts, Prettycrafted',
+      url: '/occasions/anniversary',
+    },
+    '/occasions/wedding': {
+      title: 'Wedding Gifts',
+      description: 'Gift the couple something truly special — Prettycrafted handcrafted wedding gifts and personalised gift boxes for the start of forever.',
+      keywords: 'wedding gifts India, handcrafted wedding presents, Prettycrafted wedding gifts',
+      url: '/occasions/wedding',
+    },
+    '/occasions/corporate': {
+      title: 'Corporate Gifts',
+      description: 'Premium handcrafted corporate gifts from Prettycrafted — thoughtful, on-brand gift boxes for employees, clients, and partners.',
+      keywords: 'corporate gifts India, premium corporate gifting, handcrafted business gifts, Prettycrafted corporate',
+      url: '/occasions/corporate',
     },
     '/privacy': {
       title: 'Privacy Policy',
-      description: 'Read the Pretty.Crafted privacy policy to understand how we collect, use, and protect your personal information.',
+      description: 'Read the Prettycrafted privacy policy to understand how we collect, use, and protect your personal information when you shop with us.',
       url: '/privacy',
       noIndex: false,
     },
     '/terms': {
       title: 'Terms of Service',
-      description: 'Review the Pretty.Crafted terms of service governing the use of our handcrafted gift shopping platform.',
+      description: 'Review the Prettycrafted terms of service governing the use of our handcrafted gift shopping platform, orders, returns, and payments.',
       url: '/terms',
       noIndex: false,
     },
     '/account': {
       title: 'My Account',
-      description: 'Manage your Pretty.Crafted account, view your order history, and update your profile details.',
+      description: 'Manage your Prettycrafted account, view your order history, and update your profile details.',
       url: '/account',
       noIndex: true,
     },
     '/orders': {
       title: 'My Orders',
-      description: 'Track and view your Pretty.Crafted gift orders.',
+      description: 'Track and view your Prettycrafted gift orders.',
       url: '/orders',
       noIndex: true,
     },
   }
-  const currentSEO = routeSEO[pathname] || routeSEO['/']
+  const currentSEO = routeSEO[pathname]
+    || (pathname.startsWith('/occasions/') ? routeSEO[pathname] || routeSEO['/occasions'] : null)
+    || routeSEO['/']
 
   // Verify-email page is standalone — no nav or storefront shell
   if (isVerifyEmail) {
@@ -192,6 +236,11 @@ export default function App() {
 
         <Routes>
           <Route path="/" element={<HomePage />} />
+          {/* SEO landing pages — same storefront content, distinct metadata per route */}
+          <Route path="/shop" element={<HomePage />} />
+          <Route path="/gift-boxes" element={<HomePage />} />
+          <Route path="/occasions" element={<HomePage />} />
+          <Route path="/occasions/:id" element={<HomePage />} />
           <Route
             path="/account"
             element={

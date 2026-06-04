@@ -28,6 +28,9 @@ export default function Hero({ onScrollTo }) {
         </div>
         <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 'clamp(32px,8vw,42px)' : 'clamp(38px,5vw,62px)', fontWeight: 700, lineHeight: 1.1, marginBottom: 16, color: '#2C1A0E' }}>
           Gifts That Feel Like a Hug
+          <span style={{ display: 'block', fontFamily: "'DM Sans',sans-serif", fontSize: '0.38em', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: TC, marginTop: 10 }}>
+            by Prettycrafted
+          </span>
         </h1>
         <p style={{ fontSize: isMobile ? 16 : 18, color: '#6B4F3A', lineHeight: 1.65, marginBottom: 28, maxWidth: isMobile ? '100%' : 440 }}>
           Handcrafted with love, curated for the people who matter most.

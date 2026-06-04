@@ -4,25 +4,78 @@
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
           http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 
-  <!-- Home -->
+  <!-- Homepage — primary brand landing page -->
   <url>
     <loc>https://prettycrafted.com/</loc>
-    <lastmod>2026-05-24</lastmod>
+    <lastmod>2026-06-04</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
+  </url>
+
+  <!-- Shop — all handcrafted gifts -->
+  <url>
+    <loc>https://prettycrafted.com/shop</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Gift Boxes — custom gift box builder -->
+  <url>
+    <loc>https://prettycrafted.com/gift-boxes</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Occasions — gifts by occasion -->
+  <url>
+    <loc>https://prettycrafted.com/occasions</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Occasion landing pages -->
+  <url>
+    <loc>https://prettycrafted.com/occasions/birthday</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://prettycrafted.com/occasions/anniversary</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://prettycrafted.com/occasions/wedding</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://prettycrafted.com/occasions/corporate</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
   </url>
 
   <!-- Legal -->
   <url>
     <loc>https://prettycrafted.com/privacy</loc>
-    <lastmod>2026-05-24</lastmod>
+    <lastmod>2026-06-04</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
 
   <url>
     <loc>https://prettycrafted.com/terms</loc>
-    <lastmod>2026-05-24</lastmod>
+    <lastmod>2026-06-04</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- ── Favicon ──────────────────────────────────────────────── -->
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="apple-touch-icon" href="/logo.svg" />
 
     <!-- ── Google Search Console ownership verification ────────── -->
     <!-- REPLACE the content value below with your actual verification code from -->
@@ -18,39 +18,40 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Pretty Crafted" />
+    <meta name="apple-mobile-web-app-title" content="Prettycrafted" />
 
     <!-- ── Primary (baseline fallback before React hydrates) ────── -->
-    <title>Pretty Crafted | Handcrafted with love</title>
-    <meta name="description" content="Handcrafted personalized gift boxes for birthdays, anniversaries, and special occasions. Shop unique gifts made with love by independent artisans." />
-    <meta name="keywords" content="handcrafted gifts, personalized gift boxes, artisan gifts, birthday gifts India, anniversary gifts, custom gift hampers, prettycrafted" />
+    <title>Prettycrafted | Crafted with love</title>
+    <meta name="description" content="Prettycrafted — shop handcrafted personalized gift boxes for birthdays, anniversaries, and special occasions. Unique artisan gifts made with love, delivered across India." />
+    <meta name="keywords" content="Prettycrafted, prettycrafted gifts, handcrafted gifts India, personalized gift boxes, artisan gifts, birthday gifts India, anniversary gifts, custom gift hampers" />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
     <link rel="canonical" href="https://prettycrafted.com/" />
 
     <!-- ── Open Graph (WhatsApp, Facebook, LinkedIn preview) ────── -->
-    <meta property="og:site_name" content="Pretty Crafted" />
+    <meta property="og:site_name" content="Prettycrafted" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://prettycrafted.com/" />
-    <meta property="og:title" content="Pretty Crafted | Handcrafted with love" />
-    <meta property="og:description" content="Handcrafted personalized gift boxes for birthdays, anniversaries, and special occasions. Shop unique gifts made with love." />
-    <meta property="og:image" content="https://prettycrafted.com/favicon.png" />
+    <meta property="og:title" content="Prettycrafted | Crafted with love" />
+    <meta property="og:description" content="Prettycrafted — shop handcrafted personalized gift boxes for birthdays, anniversaries, and special occasions. Unique artisan gifts made with love." />
+    <meta property="og:image" content="https://prettycrafted.com/logo.svg" />
     <meta property="og:image:width" content="1080" />
     <meta property="og:image:height" content="1080" />
-    <meta property="og:image:alt" content="Pretty Crafted — Handcrafted Gift Boxes" />
+    <meta property="og:image:alt" content="Prettycrafted — Handcrafted Gift Boxes" />
     <meta property="og:locale" content="en_IN" />
 
     <!-- ── Twitter Card ─────────────────────────────────────────── -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Pretty Crafted | Handcrafted with love" />
-    <meta name="twitter:description" content="Handcrafted personalized gift boxes for birthdays, anniversaries, and special occasions." />
-    <meta name="twitter:image" content="https://prettycrafted.com/favicon.png" />
+    <meta name="twitter:site" content="@prettycrafted" />
+    <meta name="twitter:title" content="Prettycrafted | Crafted with love" />
+    <meta name="twitter:description" content="Shop handcrafted personalized gift boxes for birthdays, anniversaries, and special occasions at Prettycrafted." />
+    <meta name="twitter:image" content="https://prettycrafted.com/logo.svg" />
 
     <!-- ── Fonts ────────────────────────────────────────────────── -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=Lora:ital,wght@0,400;1,400&display=swap" rel="stylesheet" />
 
-    <!-- ── Structured Data: Organization + Website ──────────────── -->
+    <!-- ── Structured Data: Organization + WebSite + OnlineStore ── -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -58,15 +59,17 @@
         {
           "@type": "Organization",
           "@id": "https://prettycrafted.com/#organization",
-          "name": "Pretty Crafted",
+          "name": "Prettycrafted",
+          "alternateName": ["Pretty Crafted", "Pretty.Crafted", "prettycrafted.com"],
           "url": "https://prettycrafted.com",
           "logo": {
             "@type": "ImageObject",
-            "url": "https://prettycrafted.com/favicon.png",
+            "url": "https://prettycrafted.com/logo.svg",
             "width": 1080,
             "height": 1080
           },
-          "description": "Handcrafted personalized gift boxes for birthdays, anniversaries, and special occasions.",
+          "description": "Prettycrafted offers handcrafted personalized gift boxes for birthdays, anniversaries, and special occasions.",
+          "foundingDate": "2024",
           "address": {
             "@type": "PostalAddress",
             "addressCountry": "IN"
@@ -82,8 +85,9 @@
           "@type": "WebSite",
           "@id": "https://prettycrafted.com/#website",
           "url": "https://prettycrafted.com",
-          "name": "Pretty Crafted",
-          "description": "Handcrafted personalized gift boxes for birthdays, anniversaries, and special occasions.",
+          "name": "Prettycrafted",
+          "alternateName": "Pretty Crafted",
+          "description": "Prettycrafted — handcrafted personalized gift boxes for birthdays, anniversaries, and special occasions.",
           "publisher": { "@id": "https://prettycrafted.com/#organization" },
           "potentialAction": {
             "@type": "SearchAction",
@@ -93,6 +97,19 @@
             },
             "query-input": "required name=search_term_string"
           }
+        },
+        {
+          "@type": "OnlineStore",
+          "@id": "https://prettycrafted.com/#store",
+          "name": "Prettycrafted",
+          "alternateName": "Pretty Crafted",
+          "url": "https://prettycrafted.com",
+          "description": "Prettycrafted is an online store offering handcrafted personalized gift boxes and artisan gifts across India.",
+          "image": "https://prettycrafted.com/logo.svg",
+          "priceRange": "₹₹",
+          "currenciesAccepted": "INR",
+          "paymentAccepted": "Credit Card, Debit Card, UPI, Net Banking",
+          "areaServed": "IN"
         }
       ]
     }

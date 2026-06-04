@@ -141,7 +141,7 @@ export default function ProductDetailModal({ product }) {
     <>
     <SEO
       title={product.name}
-      description={`${product.name} — ${product.category}. Handcrafted by independent artisans. ₹${product.price}. Shop at Pretty.Crafted.`}
+      description={`${product.name} — ${product.category}. Handcrafted by independent artisans. ₹${product.price}. Shop at Prettycrafted.`}
       product={product}
       type="product"
     />

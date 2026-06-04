@@ -8,7 +8,7 @@ export default function TermsPage() {
     <>
     <SEO
       title="Terms of Service"
-      description="Review the Pretty.Crafted terms of service governing the use of our handcrafted gift shopping platform, orders, returns, and payments."
+      description="Review the Prettycrafted terms of service governing the use of our handcrafted gift shopping platform, orders, returns, and payments."
       url="/terms"
     />
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '60px 24px 80px', fontFamily: "'DM Sans', sans-serif", color: DARK, lineHeight: 1.8 }}>
@@ -17,7 +17,7 @@ export default function TermsPage() {
       <p style={{ color: '#9C7A63', marginBottom: 48, fontSize: 14 }}>Last updated: May 2026</p>
 
       <Section title="1. Acceptance of Terms">
-        <p>By accessing or using Pretty.Crafted, you agree to be bound by these Terms. If you do not agree, please do not use our service.</p>
+        <p>By accessing or using Prettycrafted, you agree to be bound by these Terms. If you do not agree, please do not use our service.</p>
       </Section>
 
       <Section title="2. Products and Orders">
@@ -41,11 +41,11 @@ export default function TermsPage() {
       </Section>
 
       <Section title="6. Intellectual Property">
-        <p>All content on Pretty.Crafted — product images, copy, design, and branding — is owned by Pretty.Crafted or its licensors. You may not reproduce or redistribute any content without written permission.</p>
+        <p>All content on Prettycrafted — product images, copy, design, and branding — is owned by Prettycrafted or its licensors. You may not reproduce or redistribute any content without written permission.</p>
       </Section>
 
       <Section title="7. Limitation of Liability">
-        <p>To the maximum extent permitted by law, Pretty.Crafted is not liable for any indirect, incidental, or consequential damages arising from your use of our service.</p>
+        <p>To the maximum extent permitted by law, Prettycrafted is not liable for any indirect, incidental, or consequential damages arising from your use of our service.</p>
       </Section>
 
       <Section title="8. Governing Law">

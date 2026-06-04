@@ -1,11 +1,9 @@
 package com.prettycrafted.giftbox.controller;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.prettycrafted.giftbox.service.PaymentService;
 import com.razorpay.RazorpayException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -50,22 +48,6 @@ public class RazorpayController {
         }
     }
 
-    @PostMapping("/api/verify-payment")
-    public ResponseEntity<?> verifyPayment(@Valid @RequestBody VerifyPaymentRequest req) {
-        boolean valid = paymentService.verifySignature(
-            req.razorpayOrderId(),
-            req.razorpayPaymentId(),
-            req.razorpaySignature()
-        );
-
-        if (!valid) {
-            return ResponseEntity.badRequest()
-                .body(new ErrorResponse("signature_mismatch", "Payment signature verification failed."));
-        }
-
-        return ResponseEntity.ok(new VerifyPaymentResponse(true));
-    }
-
     public record CreateOrderRequest(
         @Min(value = MIN_AMOUNT_PAISE, message = "amount must be at least 100 paise") int amount,
         String currency,
@@ -73,17 +55,6 @@ public class RazorpayController {
     ) {}
 
     public record CreateOrderResponse(String order_id, int amount, String currency) {}
-
-    public record VerifyPaymentRequest(
-        @JsonProperty("razorpay_payment_id")
-        @NotBlank String razorpayPaymentId,
-        @JsonProperty("razorpay_order_id")
-        @NotBlank String razorpayOrderId,
-        @JsonProperty("razorpay_signature")
-        @NotBlank String razorpaySignature
-    ) {}
-
-    public record VerifyPaymentResponse(boolean success) {}
 
     public record ErrorResponse(String code, String message) {}
 }

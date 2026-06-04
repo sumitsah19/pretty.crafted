@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Block private/admin routes from indexing
+Disallow: /admin
+Disallow: /admin/
+Disallow: /account
+Disallow: /account/
+Disallow: /orders
+Disallow: /orders/
+Disallow: /verify-email
+Disallow: /reset-password
+
+# Sitemap location
+Sitemap: https://prettycrafted.com/sitemap.xml

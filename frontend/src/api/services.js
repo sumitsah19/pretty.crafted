@@ -46,11 +46,8 @@ export const ordersApi = {
   verifyPayment: (id, payload) => api.post(`/orders/${id}/payment/verify`, payload),
 }
 
-// Standard Razorpay Checkout helpers for simple payment flows.
-// Store checkout should keep using ordersApi so successful payments update orders.
 export const paymentsApi = {
-  createOrder:   ({ amount, currency = 'INR', receipt }) => api.post('/create-order', { amount, currency, receipt }),
-  verifyPayment: (payload) => api.post('/verify-payment', payload),
+  createOrder: ({ amount, currency = 'INR', receipt }) => api.post('/create-order', { amount, currency, receipt }),
 }
 
 // ── GIFT BOXES ───────────────────────────────────────────────────

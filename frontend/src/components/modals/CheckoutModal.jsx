@@ -148,7 +148,7 @@ export default function CheckoutModal() {
             key: res.data.razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
             amount: Math.round(Number(order.totalAmount || total) * 100),
             currency: 'INR',
-            name: 'Pretty.Crafted',
+            name: 'Prettycrafted',
             description: `Order #${orderId}`,
             order_id: order.razorpayOrderId,
             prefill: {
