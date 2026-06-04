@@ -12,21 +12,34 @@ export default function Hero({ onScrollTo }) {
 
   return (
     <section style={{
-      padding: isMobile ? '48px 20px 56px' : isTablet ? '60px 32px 72px' : '80px 48px 100px',
-      background: 'linear-gradient(135deg, #F5EDE0 0%, #FAF7F2 50%, #EDE8E0 100%)',
-      display: 'flex', flexDirection: isMobile ? 'column' : 'row',
-      alignItems: 'center', gap: isMobile ? 40 : 60,
+      padding: isMobile ? '48px 20px 56px' : isTablet ? '60px 32px 72px' : '96px 48px 104px',
+      display: 'flex', flexDirection: 'row', alignItems: 'center',
       position: 'relative', overflow: 'hidden',
+      minHeight: isMobile ? 0 : 540,
       width: '100%', boxSizing: 'border-box',
     }}>
-      <div style={{ position: 'absolute', top: -80, right: 120, width: 300, height: 300, borderRadius: '50%', background: 'rgba(196,112,74,0.07)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: -60, left: 80, width: 200, height: 200, borderRadius: '50%', background: 'rgba(122,154,107,0.08)', pointerEvents: 'none' }} />
+      {/* Full-bleed background image */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: "url('/hero-giftbox2.png') right center / cover",
+        backgroundColor: '#EDE8E0',
+        pointerEvents: 'none',
+      }} />
 
-      <div style={{ flex: 1, maxWidth: isMobile ? '100%' : 560, textAlign: isMobile ? 'center' : 'left' }}>
+      {/* Left scrim — fades image out so text stays readable */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        background: isMobile
+          ? 'linear-gradient(180deg, rgba(250,247,242,0.97) 0%, rgba(250,247,242,0.9) 48%, rgba(250,247,242,0.5) 100%)'
+          : 'linear-gradient(100deg, rgba(250,247,242,0.97) 0%, rgba(250,247,242,0.93) 34%, rgba(250,247,242,0.5) 56%, rgba(250,247,242,0) 80%)',
+      }} />
+
+      {/* Text content */}
+      <div style={{ position: 'relative', flex: 1, maxWidth: isMobile ? '100%' : 600, textAlign: isMobile ? 'center' : 'left' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'white', border: `1.5px solid ${TC}20`, borderRadius: 99, padding: '6px 14px', fontSize: 11, color: TC, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 16 }}>
           ✦ Handcrafted with Love
         </div>
-        <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 'clamp(32px,8vw,42px)' : 'clamp(38px,5vw,62px)', fontWeight: 700, lineHeight: 1.1, marginBottom: 16, color: '#2C1A0E' }}>
+        <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 'clamp(32px,8vw,42px)' : 'clamp(38px,5vw,62px)', fontWeight: 700, lineHeight: 1.1, marginBottom: 16, color: '#2C1A0E', textWrap: 'balance' }}>
           Gifts That Feel Like a Hug
           <span style={{ display: 'block', fontFamily: "'DM Sans',sans-serif", fontSize: '0.38em', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: TC, marginTop: 10 }}>
             by Prettycrafted
@@ -45,27 +58,7 @@ export default function Hero({ onScrollTo }) {
             Shop Now
           </a>
         </div>
-        <div style={{ display: 'flex', gap: isMobile ? 16 : 24, marginTop: 32, flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
-          {[['🤲', 'Handcrafted'], ['🌿', 'Eco Packaging'], ['💌', 'Gift Wrapping'], ['⭐', '4.9 Reviews']].map(([e, l]) => (
-            <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: isMobile ? 12 : 13, color: '#6B4F3A', fontWeight: 500 }}>
-              <span>{e}</span><span>{l}</span>
-            </div>
-          ))}
-        </div>
       </div>
-
-      {!isMobile && (
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div className="float-anim" style={{ width: isTablet ? 240 : 320, height: isTablet ? 240 : 320, background: 'white', borderRadius: '30% 70% 60% 40% / 50% 40% 60% 50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 20px 80px rgba(196,112,74,0.18)', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ fontSize: isTablet ? 72 : 100 }}>🎁</div>
-            {[{ e: '🕯️', x: '-30%', y: '-30%' }, { e: '💍', x: '110%', y: '-20%' }, { e: '🌿', x: '-35%', y: '70%' }, { e: '☕', x: '110%', y: '65%' }].map((item, i) => (
-              <div key={i} style={{ position: 'absolute', left: item.x, top: item.y, background: 'white', borderRadius: '50%', width: isTablet ? 44 : 54, height: isTablet ? 44 : 54, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isTablet ? 18 : 24, boxShadow: '0 4px 16px rgba(44,26,14,0.12)', animation: `float ${3 + i * 0.4}s ease-in-out ${i * 0.3}s infinite` }}>
-                {item.e}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </section>
   )
 }

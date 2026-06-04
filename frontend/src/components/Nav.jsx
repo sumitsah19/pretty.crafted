@@ -122,61 +122,63 @@ export default function Nav({ onScrollTo }) {
             {/* RIGHT — icon actions */}
             <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 2 : 12, justifyContent: 'flex-end' }}>
 
-              {/* Search */}
+              {/* Search — always visible */}
               <IconBtn onClick={() => dispatch(openSearch())} title="Search">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
               </IconBtn>
 
-              {/* Wishlist */}
-              <IconBtn onClick={() => dispatch(openWishlist())} title="Wishlist" style={{ position: 'relative' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24"
-                  fill={wishlistIds.length > 0 ? TC : 'none'}
-                  stroke={wishlistIds.length > 0 ? TC : 'currentColor'}
-                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-                {wishlistIds.length > 0 && (
-                  <span style={{ position: 'absolute', top: 4, right: 4, background: TC, color: 'white', borderRadius: '50%', width: 14, height: 14, fontSize: 8, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
-                    {wishlistIds.length}
-                  </span>
-                )}
-              </IconBtn>
-
-              {/* Account */}
-              <IconBtn
-                onClick={() => isLoggedIn ? dispatch(openUserAccount()) : dispatch(openLogin())}
-                title={isLoggedIn ? 'My Account' : 'Sign In'}
-                style={{ color: isLoggedIn ? TC : '#2C1A0E' }}>
-                {isLoggedIn && user ? (
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: TC, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 12, fontWeight: 700 }}>
-                    {user.name?.charAt(0).toUpperCase() || 'U'}
-                  </div>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+              {/* Wishlist — desktop only (accessible via hamburger on mobile) */}
+              {!isMobile && (
+                <IconBtn onClick={() => dispatch(openWishlist())} title="Wishlist" style={{ position: 'relative' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24"
+                    fill={wishlistIds.length > 0 ? TC : 'none'}
+                    stroke={wishlistIds.length > 0 ? TC : 'currentColor'}
+                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                   </svg>
-                )}
-              </IconBtn>
+                  {wishlistIds.length > 0 && (
+                    <span style={{ position: 'absolute', top: 4, right: 4, background: TC, color: 'white', borderRadius: '50%', width: 14, height: 14, fontSize: 8, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                      {wishlistIds.length}
+                    </span>
+                  )}
+                </IconBtn>
+              )}
 
-              {/* Cart */}
-              <button onClick={() => dispatch(openCart())}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: isMobile ? '8px 14px' : '9px 18px', borderRadius: 99, border: 'none', background: TC, color: 'white', cursor: 'pointer', fontWeight: 700, fontSize: 13, boxShadow: '0 2px 12px rgba(196,112,74,0.3)', transition: 'all 0.2s', minHeight: 38, whiteSpace: 'nowrap' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#A85A38'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(196,112,74,0.4)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = TC; e.currentTarget.style.boxShadow = '0 2px 12px rgba(196,112,74,0.3)' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <path d="M16 10a4 4 0 0 1-8 0" />
+              {/* Cart — always visible */}
+              <IconBtn onClick={() => dispatch(openCart())} title="Cart" style={{ position: 'relative' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24"
+                  fill={cartCount > 0 ? TC : 'none'}
+                  stroke={cartCount > 0 ? TC : 'currentColor'}
+                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
                 </svg>
-                {!isMobile && <span>Cart</span>}
                 {cartCount > 0 && (
-                  <span style={{ background: 'white', color: TC, borderRadius: '50%', width: 18, height: 18, fontSize: 10, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ position: 'absolute', top: 4, right: 4, background: TC, color: 'white', borderRadius: '50%', width: 14, height: 14, fontSize: 8, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
                     {cartCount}
                   </span>
                 )}
-              </button>
+              </IconBtn>
+
+              {/* Account — desktop only (accessible via hamburger on mobile) */}
+              {!isMobile && (
+                <IconBtn
+                  onClick={() => isLoggedIn ? dispatch(openUserAccount()) : dispatch(openLogin())}
+                  title={isLoggedIn ? 'My Account' : 'Sign In'}
+                  style={{ color: isLoggedIn ? TC : '#2C1A0E' }}>
+                  {isLoggedIn && user ? (
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: TC, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 12, fontWeight: 700 }}>
+                      {user.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                    </svg>
+                  )}
+                </IconBtn>
+              )}
             </div>
           </div>
         </nav>
@@ -195,6 +197,22 @@ export default function Nav({ onScrollTo }) {
           animation: 'slideDown 0.22s ease',
         }}>
           <div style={{ padding: '8px 16px 16px' }}>
+            {/* Quick-action tiles */}
+            <div style={{ display: 'flex', gap: 8, paddingBottom: 12, marginBottom: 8, borderBottom: '1px solid #EDE4D8' }}>
+              {[
+                { label: isLoggedIn ? 'Account' : 'Sign In', icon: <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>, action: () => { setMobileOpen(false); setTimeout(() => isLoggedIn ? dispatch(openUserAccount()) : dispatch(openLogin()), 100) } },
+                { label: 'Wish List', icon: <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />, action: () => { setMobileOpen(false); setTimeout(() => dispatch(openWishlist()), 100) } },
+                { label: 'Search', icon: <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>, action: () => { setMobileOpen(false); setTimeout(() => dispatch(openSearch()), 100) } },
+              ].map(q => (
+                <button key={q.label} onClick={q.action}
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '12px 4px', background: 'white', border: '1px solid #EDE4D8', borderRadius: 14, cursor: 'pointer', minHeight: 64 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={TC} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{q.icon}</svg>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#2C1A0E', whiteSpace: 'nowrap' }}>{q.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Nav links */}
             {mobileLinks.map((l, i) => (
               <a key={l.label} href={l.href} onClick={e => { e.preventDefault(); l.action() }}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 8px', background: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: i < mobileLinks.length - 1 ? '1px solid #EDE4D8' : 'none', textDecoration: 'none' }}>

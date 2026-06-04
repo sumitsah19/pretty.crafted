@@ -60,10 +60,11 @@ export default function ProductDetailModal({ product }) {
   const similarRef = useRef(null)
   const touchStartX = useRef(0)
 
-  // Build gallery from the product's own images
+  // Build gallery from the product's own images; always at least 1 entry
   const gallery = useMemo(() => {
     const urls = product.imageUrls?.length ? product.imageUrls : (product.imageUrl ? [product.imageUrl] : [])
-    return urls.map(url => ({ imageUrl: url }))
+    if (urls.length === 0) return [{ imageUrl: null, bg: product.bg || '#EDE4D8' }]
+    return urls.map(url => ({ imageUrl: url, bg: product.bg || '#EDE4D8' }))
   }, [product])
 
   const reviews = useMemo(() => makeReviews(product), [product])
