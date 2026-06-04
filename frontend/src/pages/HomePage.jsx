@@ -357,15 +357,24 @@ export default function HomePage() {
             <p style={{ fontSize: 13, lineHeight: 1.7, color: '#9C7A63', maxWidth: 260 }}>Prettycrafted — curating handcrafted gifts that carry warmth, intention, and love.</p>
           </div>
           {[
-            { title: 'Shop', links: ['Handmade Jewelry', 'Candles & Scents', 'Ceramics', 'Art Prints', 'Skincare', 'Gift Boxes'], actions: [() => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => dispatch(openBoxBuilder())] },
-            { title: 'Gifting', links: ['Gift Box Builder', 'Occasions', 'For Her', 'For Him', 'For Kids'], actions: [() => dispatch(openBoxBuilder()), () => dispatch(openOccasions()), () => { setActiveRecipient('her'); scrollTo('featured-collection') }, () => { setActiveRecipient('him'); scrollTo('featured-collection') }, () => { setActiveRecipient('kids'); scrollTo('featured-collection') }] },
-            { title: 'Company', links: ['About Us', 'Artisans', 'Sustainability', 'Press'], actions: [] },
+            { title: 'Shop',
+              links:   ['Handmade Jewelry', 'Candles & Scents', 'Ceramics', 'Art Prints', 'Skincare', 'Gift Boxes'],
+              hrefs:   ['/shop', '/shop', '/shop', '/shop', '/shop', '/gift-boxes'],
+              actions: [() => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => dispatch(openBoxBuilder())] },
+            { title: 'Gifting',
+              links:   ['Gift Box Builder', 'Occasions', 'For Her', 'For Him', 'For Kids'],
+              hrefs:   ['/gift-boxes', '/occasions', '/shop', '/shop', '/shop'],
+              actions: [() => dispatch(openBoxBuilder()), () => dispatch(openOccasions()), () => { setActiveRecipient('her'); scrollTo('featured-collection') }, () => { setActiveRecipient('him'); scrollTo('featured-collection') }, () => { setActiveRecipient('kids'); scrollTo('featured-collection') }] },
+            { title: 'Company',
+              links:   ['About Us', 'Artisans', 'Sustainability', 'Press'],
+              hrefs:   ['/', '/', '/', '/'],
+              actions: [] },
           ].map(col => (
             <div key={col.title}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'white', marginBottom: 14 }}>{col.title}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {col.links.map((l, li) => (
-                  <a key={l} href="#" onClick={e => { e.preventDefault(); col.actions[li]?.() }}
+                  <a key={l} href={col.hrefs[li]} onClick={e => { e.preventDefault(); col.actions[li]?.() }}
                     style={{ color: '#9C7A63', textDecoration: 'none', fontSize: 13, transition: 'color 0.2s' }}
                     onMouseEnter={e => e.target.style.color = TC}
                     onMouseLeave={e => e.target.style.color = '#9C7A63'}>{l}</a>
@@ -377,8 +386,8 @@ export default function HomePage() {
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 12 }}>
           <div style={{ fontSize: 12, color: '#6B4F3A' }}>© 2026 Prettycrafted. Made with ♥</div>
           <div style={{ display: 'flex', gap: 16 }}>
-            {['Privacy', 'Terms', 'Shipping'].map(l => (
-              <a key={l} href="#" style={{ fontSize: 12, color: '#6B4F3A', textDecoration: 'none' }}>{l}</a>
+            {[{ label: 'Privacy', href: '/privacy' }, { label: 'Terms', href: '/terms' }, { label: 'Shipping', href: '#' }].map(l => (
+              <a key={l.label} href={l.href} style={{ fontSize: 12, color: '#6B4F3A', textDecoration: 'none' }}>{l.label}</a>
             ))}
           </div>
         </div>

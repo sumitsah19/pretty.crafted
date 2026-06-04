@@ -44,17 +44,17 @@ export default function Nav({ onScrollTo }) {
   }, [])
 
   const links = [
-    { label: 'Shop',         action: () => onScrollTo?.('featured-collection') },
-    { label: 'Occasions',    action: () => dispatch(openOccasions()) },
-    { label: 'Best Sellers', action: () => onScrollTo?.('bestsellers') },
-    { label: 'Gift Boxes',   action: () => dispatch(openBoxBuilder()) },
+    { label: 'Shop',         href: '/shop',        action: () => onScrollTo?.('featured-collection') },
+    { label: 'Occasions',    href: '/occasions',   action: () => dispatch(openOccasions()) },
+    { label: 'Best Sellers', href: '/shop',        action: () => onScrollTo?.('bestsellers') },
+    { label: 'Gift Boxes',   href: '/gift-boxes',  action: () => dispatch(openBoxBuilder()) },
   ]
 
   const mobileLinks = [
-    { label: 'Shop All Gifts',   icon: '🛍️', action: () => { setMobileOpen(false); onScrollTo?.('featured-collection') } },
-    { label: 'Occasions',        icon: '✦',   action: () => { setMobileOpen(false); dispatch(openOccasions()) } },
-    { label: 'Best Sellers',     icon: '⭐',  action: () => { setMobileOpen(false); onScrollTo?.('bestsellers') } },
-    { label: 'Build a Gift Box', icon: '🎁',  action: () => { setMobileOpen(false); dispatch(openBoxBuilder()) } },
+    { label: 'Shop All Gifts',   href: '/shop',       icon: '🛍️', action: () => { setMobileOpen(false); onScrollTo?.('featured-collection') } },
+    { label: 'Occasions',        href: '/occasions',  icon: '✦',   action: () => { setMobileOpen(false); dispatch(openOccasions()) } },
+    { label: 'Best Sellers',     href: '/shop',       icon: '⭐',  action: () => { setMobileOpen(false); onScrollTo?.('bestsellers') } },
+    { label: 'Build a Gift Box', href: '/gift-boxes', icon: '🎁',  action: () => { setMobileOpen(false); dispatch(openBoxBuilder()) } },
   ]
 
   const showSolid = isSticky || scrolled || (isMobile && mobileOpen)
@@ -102,7 +102,7 @@ export default function Nav({ onScrollTo }) {
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
                   {links.map((link) => (
-                    <a key={link.label} href="#" onClick={(e) => { e.preventDefault(); link.action() }}
+                    <a key={link.label} href={link.href} onClick={(e) => { e.preventDefault(); link.action() }}
                       style={{ fontSize: 14, fontWeight: 500, color: '#6B4F3A', textDecoration: 'none', position: 'relative', paddingBottom: 2, transition: 'color 0.2s', whiteSpace: 'nowrap' }}
                       onMouseEnter={(e) => e.currentTarget.style.color = TC}
                       onMouseLeave={(e) => e.currentTarget.style.color = '#6B4F3A'}>
@@ -196,17 +196,17 @@ export default function Nav({ onScrollTo }) {
         }}>
           <div style={{ padding: '8px 16px 16px' }}>
             {mobileLinks.map((l, i) => (
-              <button key={l.label} onClick={l.action}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 8px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: i < mobileLinks.length - 1 ? '1px solid #EDE4D8' : 'none' }}>
+              <a key={l.label} href={l.href} onClick={e => { e.preventDefault(); l.action() }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 8px', background: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: i < mobileLinks.length - 1 ? '1px solid #EDE4D8' : 'none', textDecoration: 'none' }}>
                 <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>{l.icon}</span>
                 <span style={{ fontSize: 15, fontWeight: 500, color: '#2C1A0E' }}>{l.label}</span>
                 <svg style={{ marginLeft: 'auto' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9C7A63" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-              </button>
+              </a>
             ))}
-            <button onClick={() => { setMobileOpen(false); dispatch(openBoxBuilder()) }}
-              style={{ marginTop: 12, width: '100%', padding: '14px', borderRadius: 12, border: 'none', background: TC, color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 4px 16px rgba(196,112,74,0.3)' }}>
+            <a href="/gift-boxes" onClick={e => { e.preventDefault(); setMobileOpen(false); dispatch(openBoxBuilder()) }}
+              style={{ marginTop: 12, display: 'block', width: '100%', padding: '14px', borderRadius: 12, background: TC, color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 4px 16px rgba(196,112,74,0.3)', textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box' }}>
               🎁 Build a Gift Box
-            </button>
+            </a>
           </div>
         </div>
       )}

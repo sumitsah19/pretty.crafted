@@ -36,14 +36,14 @@ export default function Hero({ onScrollTo }) {
           Handcrafted with love, curated for the people who matter most.
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
-          <button onClick={() => dispatch(openBoxBuilder())}
-            style={{ padding: isMobile ? '14px 24px' : '16px 32px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontWeight: 700, fontSize: isMobile ? 14 : 15, cursor: 'pointer', boxShadow: '0 6px 24px rgba(196,112,74,0.35)', transition: 'all 0.2s', minHeight: 48 }}>
+          <a href="/gift-boxes" onClick={e => { e.preventDefault(); dispatch(openBoxBuilder()) }}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '14px 24px' : '16px 32px', borderRadius: 99, background: TC, color: 'white', fontWeight: 700, fontSize: isMobile ? 14 : 15, cursor: 'pointer', boxShadow: '0 6px 24px rgba(196,112,74,0.35)', transition: 'all 0.2s', minHeight: 48, textDecoration: 'none' }}>
             🎁 Build Your Gift Box
-          </button>
-          <button onClick={() => onScrollTo?.('featured-collection')}
-            style={{ padding: isMobile ? '14px 22px' : '16px 32px', borderRadius: 99, border: '1.5px solid #D9CBBF', background: 'white', color: '#2C1A0E', fontWeight: 600, fontSize: isMobile ? 14 : 15, cursor: 'pointer', minHeight: 48 }}>
+          </a>
+          <a href="/shop" onClick={e => { e.preventDefault(); onScrollTo?.('featured-collection') }}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '14px 22px' : '16px 32px', borderRadius: 99, border: '1.5px solid #D9CBBF', background: 'white', color: '#2C1A0E', fontWeight: 600, fontSize: isMobile ? 14 : 15, cursor: 'pointer', minHeight: 48, textDecoration: 'none' }}>
             Shop Now
-          </button>
+          </a>
         </div>
         <div style={{ display: 'flex', gap: isMobile ? 16 : 24, marginTop: 32, flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
           {[['🤲', 'Handcrafted'], ['🌿', 'Eco Packaging'], ['💌', 'Gift Wrapping'], ['⭐', '4.9 Reviews']].map(([e, l]) => (
