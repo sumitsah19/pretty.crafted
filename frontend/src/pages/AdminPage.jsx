@@ -49,12 +49,13 @@ const USER_ORDERS = {
 }
 
 const NAV_ITEMS = [
-  { id: 'dashboard', icon: '◈', label: 'Dashboard'  },
-  { id: 'products',  icon: '⊞', label: 'Products'   },
-  { id: 'orders',    icon: '⊟', label: 'Orders'     },
-  { id: 'customers', icon: '◎', label: 'Customers'  },
-  { id: 'occasions', icon: '✦', label: 'Occasions'  },
-  { id: 'marketing', icon: '◇', label: 'Marketing'  },
+  { id: 'dashboard',  icon: '◈', label: 'Dashboard'  },
+  { id: 'products',   icon: '⊞', label: 'Products'   },
+  { id: 'orders',     icon: '⊟', label: 'Orders'     },
+  { id: 'customers',  icon: '◎', label: 'Customers'  },
+  { id: 'categories', icon: '⊕', label: 'Categories' },
+  { id: 'occasions',  icon: '✦', label: 'Occasions'  },
+  { id: 'marketing',  icon: '◇', label: 'Marketing'  },
 ]
 
 // ─── SHARED HELPERS ────────────────────────────────────────────────
@@ -401,10 +402,14 @@ function ProductsView({ onToast }) {
     }).finally(() => setLoading(false))
   }, [])
 
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.categoryName || '').toLowerCase().includes(search.toLowerCase())
-  )
+  const [lowStockOnly, setLowStockOnly] = useState(false)
+
+  const filtered = products.filter(p => {
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.categoryName || '').toLowerCase().includes(search.toLowerCase())
+    const matchStock = !lowStockOnly || p.stock <= 5
+    return matchSearch && matchStock
+  })
 
   const openAdd = () => {
     setEditItem(null)
@@ -466,10 +471,14 @@ function ProductsView({ onToast }) {
     <div>
       <SectionHeader title="Products" sub={loading ? 'Loading…' : `${products.length} items in catalogue`} action="+ Add Product" onAction={openAdd} />
       <div style={{ background: 'white', borderRadius: 20, border: `1px solid ${BEIGE}`, overflow: 'hidden', boxShadow: '0 2px 12px rgba(44,26,14,0.05)' }}>
-        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BEIGE}` }}>
+        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BEIGE}`, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products…"
-            style={{ width: '100%', maxWidth: 340, padding: '9px 14px', borderRadius: 10, border: `1.5px solid ${BEIGE}`, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: CREAM, color: DARK, outline: 'none' }}
+            style={{ flex: 1, minWidth: 180, maxWidth: 340, padding: '9px 14px', borderRadius: 10, border: `1.5px solid ${BEIGE}`, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: CREAM, color: DARK, outline: 'none' }}
             onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+          <button onClick={() => setLowStockOnly(v => !v)}
+            style={{ padding: '8px 16px', borderRadius: 99, border: `1.5px solid ${lowStockOnly ? '#A02A2A' : BEIGE}`, background: lowStockOnly ? '#FFF5F5' : 'white', color: lowStockOnly ? '#A02A2A' : MID, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            ⚠ Low Stock{lowStockOnly ? ' (on)' : ''}
+          </button>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -725,6 +734,7 @@ function OrderDetailModal({ order, onClose, onUpdateStatus, updatingId }) {
 // ─── ORDERS VIEW ───────────────────────────────────────────────────
 function OrdersView({ onToast }) {
   const [filter, setFilter] = useState('all')
+  const [search, setSearch] = useState('')
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState(null)
@@ -761,6 +771,11 @@ function OrdersView({ onToast }) {
   return (
     <div>
       <SectionHeader title="Orders" sub={loading ? 'Loading…' : `${orders.length} orders`} />
+      <div style={{ marginBottom: 16 }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by customer name, email or order ID…"
+          style={{ width: '100%', maxWidth: 400, padding: '9px 14px', borderRadius: 10, border: `1.5px solid ${BEIGE}`, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: 'white', color: DARK, outline: 'none' }}
+          onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+      </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         {STATUS_FILTERS.map(s => (
           <button key={s} onClick={() => setFilter(s)}
@@ -770,7 +785,11 @@ function OrdersView({ onToast }) {
         ))}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {orders.map((o, i) => {
+        {orders.filter(o => {
+          if (!search.trim()) return true
+          const q = search.toLowerCase()
+          return String(o.id).includes(q) || (o.userName || '').toLowerCase().includes(q) || (o.userEmail || '').toLowerCase().includes(q)
+        }).map((o, i) => {
           const next = nextStatus(o.status)
           return (
             <div key={o.id} onClick={() => setSelectedOrder(o)} style={{ background: 'white', borderRadius: 18, padding: '18px 22px', border: `1px solid ${BEIGE}`, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', boxShadow: '0 2px 8px rgba(44,26,14,0.04)', animation: 'fadeUp 0.4s ease forwards', animationDelay: `${i * 0.03}s`, cursor: 'pointer', transition: 'box-shadow 0.15s' }}
@@ -805,7 +824,11 @@ function OrdersView({ onToast }) {
             </div>
           )
         })}
-        {!loading && orders.length === 0 && (
+        {!loading && orders.filter(o => {
+          if (!search.trim()) return true
+          const q = search.toLowerCase()
+          return String(o.id).includes(q) || (o.userName || '').toLowerCase().includes(q) || (o.userEmail || '').toLowerCase().includes(q)
+        }).length === 0 && (
           <div style={{ textAlign: 'center', padding: '48px', color: LIGHT, background: 'white', borderRadius: 18, border: `1px solid ${BEIGE}` }}>No orders found</div>
         )}
       </div>
@@ -928,261 +951,213 @@ function MarketingView({ onToast }) {
   )
 }
 
-// ─── CUSTOMER PROFILE ──────────────────────────────────────────────
-function CustomerProfile({ customer, onBack }) {
-  const OCCASIONS = ['Birthday', "Mother's Day", 'Anniversary', 'Wedding', 'For Her', 'Graduation']
-  const orders = USER_ORDERS[customer.id] || [
-    { id: `#PC-${2800 + customer.id}`, date: 'Apr 28', items: ['Handcrafted Gift Set'], total: customer.spent, status: 'delivered' },
-  ]
-
-  return (
-    <div style={{ animation: 'fadeUp 0.3s ease' }}>
-      <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#F5EEE6', border: 'none', borderRadius: 99, padding: '8px 16px', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: MID, marginBottom: 24 }}>
-        ← Back to Customers
-      </button>
-      {/* Profile header cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 16, marginBottom: 28 }}>
-        <div style={{ background: 'white', borderRadius: 20, padding: 22, border: `1px solid ${BEIGE}`, display: 'flex', gap: 16, alignItems: 'center', gridColumn: 'span 2' }}>
-          <div style={{ width: 52, height: 52, borderRadius: '50%', background: TC, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>
-            {customer.name.charAt(0)}
-          </div>
-          <div>
-            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700, color: DARK }}>{customer.name}</div>
-            <div style={{ fontSize: 12, color: LIGHT, marginTop: 2 }}>{customer.email}</div>
-            <div style={{ fontSize: 10, color: TC, fontWeight: 600, marginTop: 4 }}>Member since {customer.joined}</div>
-          </div>
-        </div>
-        {[{ label: 'Total Orders', value: customer.orders, icon: '📦' }, { label: 'Total Spent', value: `$${customer.spent}`, icon: '💰' }, { label: 'Fav Occasion', value: customer.fav, icon: '✦' }].map(s => (
-          <div key={s.label} style={{ background: 'white', borderRadius: 20, padding: '20px 22px', border: `1px solid ${BEIGE}`, textAlign: 'center' }}>
-            <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
-            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: DARK, marginBottom: 4 }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: LIGHT }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-      {/* Analytics */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-        <div style={{ background: 'white', borderRadius: 20, padding: '22px 24px', border: `1px solid ${BEIGE}` }}>
-          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Occasion Preferences</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[customer.fav, OCCASIONS[(customer.id + 1) % OCCASIONS.length], OCCASIONS[(customer.id + 2) % OCCASIONS.length]].map((o, i) => {
-              const pct = [75, 45, 20][i]
-              return (
-                <div key={o}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 600, color: DARK }}>{o}</span>
-                    <span style={{ color: LIGHT }}>{pct}%</span>
-                  </div>
-                  <div style={{ height: 5, background: BEIGE, borderRadius: 99 }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: TC, borderRadius: 99 }} />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-        <div style={{ background: 'white', borderRadius: 20, padding: '22px 24px', border: `1px solid ${BEIGE}` }}>
-          <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Activity Overview</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[
-              ['Last order', customer.lastOrder],
-              ['Account status', customer.status === 'active' ? 'Active' : 'New'],
-              ['Avg order value', `$${Math.round(customer.spent / customer.orders)}`],
-              ['Order frequency', customer.orders > 6 ? 'Regular' : 'Occasional'],
-            ].map(([k, v]) => (
-              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span style={{ color: LIGHT }}>{k}</span>
-                <span style={{ fontWeight: 600, color: DARK }}>{v}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      {/* Order history */}
-      <div style={{ background: 'white', borderRadius: 20, padding: '24px 28px', border: `1px solid ${BEIGE}` }}>
-        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Order History</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {orders.map(o => (
-            <div key={o.id} style={{ padding: '16px 18px', borderRadius: 14, background: CREAM, border: `1px solid ${BEIGE}`, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <div style={{ flex: '0 0 auto' }}>
-                <div style={{ fontWeight: 700, color: TC, fontSize: 13 }}>{o.id}</div>
-                <div style={{ fontSize: 11, color: LIGHT }}>{o.date}</div>
-              </div>
-              <div style={{ flex: 1, minWidth: 140 }}>
-                <div style={{ fontSize: 12, color: MID }}>{o.items.join(', ')}</div>
-              </div>
-              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700 }}>${o.total}</div>
-              <Badge status={o.status} />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── CUSTOMERS VIEW ────────────────────────────────────────────────
-function CustomersView({ onToast }) {
+function CustomersView() {
+  const [customers, setCustomers] = useState([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState('spent')
-  const [selected, setSelected] = useState(null)
-  const [discountTarget, setDiscountTarget] = useState(null)
-  const [discountForm, setDiscountForm] = useState({ type: 'percent', value: '10', code: '', expiry: '', minOrder: '' })
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [total, setTotal] = useState(0)
 
-  const filtered = useMemo(() => {
-    let c = CUSTOMERS.filter(c =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.email.toLowerCase().includes(search.toLowerCase())
-    )
-    if (sortBy === 'spent')  c = [...c].sort((a, b) => b.spent - a.spent)
-    if (sortBy === 'orders') c = [...c].sort((a, b) => b.orders - a.orders)
-    if (sortBy === 'recent') c = [...c].sort((a, b) => a.lastOrder < b.lastOrder ? 1 : -1)
-    return c
-  }, [search, sortBy])
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400)
+    return () => clearTimeout(t)
+  }, [search])
 
-  const inp = { width: '100%', padding: '9px 13px', borderRadius: 10, border: `1.5px solid ${BEIGE}`, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: 'white', outline: 'none', color: DARK }
+  useEffect(() => {
+    setLoading(true)
+    adminApi.customers({ q: debouncedSearch || undefined, size: 50 })
+      .then(({ data }) => { setCustomers(data.content || []); setTotal(data.totalElements || 0) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [debouncedSearch])
 
-  if (selected) return <CustomerProfile customer={selected} onBack={() => setSelected(null)} />
+  const totalSpent = customers.reduce((s, c) => s + Number(c.totalSpent || 0), 0)
+  const totalOrders = customers.reduce((s, c) => s + (c.totalOrders || 0), 0)
 
   return (
     <div>
-      {/* Discount modal */}
-      {discountTarget && (
-        <div onClick={e => e.target === e.currentTarget && setDiscountTarget(null)} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(44,26,14,0.45)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: CREAM, borderRadius: 24, padding: 28, width: '100%', maxWidth: 440, boxShadow: '0 24px 64px rgba(44,26,14,0.2)', animation: 'fadeUp 0.25s ease' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <div>
-                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700, color: DARK }}>Send Discount</div>
-                <div style={{ fontSize: 12, color: LIGHT, marginTop: 2 }}>to {discountTarget.name}</div>
-              </div>
-              <button onClick={() => setDiscountTarget(null)} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
-            </div>
-            {/* Discount type */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Discount Type</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[['percent', '% Off'], ['flat', 'Flat Amount'], ['freeship', 'Free Shipping']].map(([k, l]) => (
-                  <button key={k} onClick={() => setDiscountForm(f => ({ ...f, type: k }))} style={{ flex: 1, padding: 8, borderRadius: 10, border: `1.5px solid ${discountForm.type === k ? TC : BEIGE}`, background: discountForm.type === k ? '#FDF6F1' : 'white', color: discountForm.type === k ? TC : MID, fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.18s' }}>{l}</button>
-                ))}
-              </div>
-            </div>
-            {discountForm.type !== 'freeship' && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{discountForm.type === 'percent' ? 'Discount %' : 'Amount ($)'}</label>
-                <input value={discountForm.value} onChange={e => setDiscountForm(f => ({ ...f, value: e.target.value.replace(/\D/g, '') }))} placeholder={discountForm.type === 'percent' ? 'e.g. 20' : 'e.g. 15'} style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
-              </div>
-            )}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Coupon Code</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input value={discountForm.code} onChange={e => setDiscountForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="e.g. WELCOME20" style={{ ...inp, flex: 1 }} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
-                <button onClick={() => setDiscountForm(f => ({ ...f, code: 'PC' + discountTarget.name.split(' ')[0].toUpperCase() + Math.floor(Math.random() * 90 + 10) }))} style={{ padding: '9px 14px', borderRadius: 10, border: 'none', background: '#F5EEE6', color: TC, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Generate</button>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Min Order ($)</label>
-                <input value={discountForm.minOrder} onChange={e => setDiscountForm(f => ({ ...f, minOrder: e.target.value }))} placeholder="Optional" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Expires On</label>
-                <input type="date" value={discountForm.expiry} onChange={e => setDiscountForm(f => ({ ...f, expiry: e.target.value }))} style={{ ...inp, cursor: 'pointer' }} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
-              </div>
-            </div>
-            {discountForm.code && (
-              <div style={{ background: '#F5EEE6', borderRadius: 12, padding: '11px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 18 }}>🎫</span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: DARK }}>{discountForm.code}</div>
-                  <div style={{ fontSize: 11, color: LIGHT }}>
-                    {discountForm.type === 'freeship' ? 'Free Shipping' : discountForm.type === 'percent' ? `${discountForm.value}% off` : `$${discountForm.value} off`}
-                    {discountForm.minOrder ? ` · min $${discountForm.minOrder}` : ''}
-                    {discountForm.expiry ? ` · expires ${discountForm.expiry}` : ''}
-                  </div>
-                </div>
-              </div>
-            )}
-            <button
-              onClick={() => { onToast(`Discount sent to ${discountTarget.name}!`); setDiscountTarget(null); setDiscountForm({ type: 'percent', value: '10', code: '', expiry: '', minOrder: '' }) }}
-              disabled={!discountForm.code}
-              style={{ width: '100%', padding: 13, borderRadius: 99, border: 'none', background: discountForm.code ? TC : BEIGE, color: discountForm.code ? 'white' : LIGHT, fontWeight: 700, fontSize: 14, cursor: discountForm.code ? 'pointer' : 'default', transition: 'all 0.2s' }}>
-              Send via Email to {discountTarget.name.split(' ')[0]}
-            </button>
-          </div>
-        </div>
-      )}
+      <SectionHeader title="Customers" sub={loading ? 'Loading…' : `${total} registered customers`} />
 
-      {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 14, marginBottom: 28 }}>
         {[
-          { label: 'Total Customers',    value: CUSTOMERS.length, icon: '👥', trend: '+12%' },
-          { label: 'Active This Month',  value: CUSTOMERS.filter(c => c.status === 'active').length, icon: '⚡', trend: '+8%' },
-          { label: 'Total Revenue',      value: '₹' + CUSTOMERS.reduce((s, c) => s + c.spent, 0).toLocaleString(), icon: '💰', trend: '+18%' },
-          { label: 'Avg. Order Value',   value: '₹' + Math.round(CUSTOMERS.reduce((s, c) => s + c.spent, 0) / CUSTOMERS.reduce((s, c) => s + c.orders, 0)), icon: '📊', trend: '+5%' },
+          { label: 'Total Customers', value: loading ? '…' : total, icon: '👥' },
+          { label: 'Email Verified',  value: loading ? '…' : customers.filter(c => c.emailVerified).length, icon: '✓' },
+          { label: 'Total Revenue',   value: loading ? '…' : '₹' + totalSpent.toLocaleString('en-IN', { maximumFractionDigits: 0 }), icon: '💰' },
+          { label: 'Avg Order Value', value: loading || totalOrders === 0 ? '…' : '₹' + Math.round(totalSpent / totalOrders).toLocaleString('en-IN'), icon: '📊' },
         ].map(s => (
           <div key={s.label} style={{ background: 'white', borderRadius: 18, padding: '18px 20px', border: `1px solid ${BEIGE}`, boxShadow: '0 2px 8px rgba(44,26,14,0.04)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-              <span style={{ fontSize: 24 }}>{s.icon}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#2A7A3B', background: '#EBF7EC', padding: '2px 7px', borderRadius: 99 }}>{s.trend}</span>
-            </div>
+            <div style={{ fontSize: 24, marginBottom: 10 }}>{s.icon}</div>
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: DARK, marginBottom: 2 }}>{s.value}</div>
             <div style={{ fontSize: 11, color: LIGHT }}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Table */}
       <div style={{ background: 'white', borderRadius: 20, border: `1px solid ${BEIGE}`, overflow: 'hidden', boxShadow: '0 2px 12px rgba(44,26,14,0.05)' }}>
-        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BEIGE}`, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search customers…" style={{ flex: 1, minWidth: 180, maxWidth: 320, padding: '8px 14px', borderRadius: 10, border: `1.5px solid ${BEIGE}`, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: CREAM, color: DARK, outline: 'none' }}
+        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BEIGE}` }}>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or email…"
+            style={{ width: '100%', maxWidth: 340, padding: '9px 14px', borderRadius: 10, border: `1.5px solid ${BEIGE}`, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: CREAM, color: DARK, outline: 'none' }}
             onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '8px 14px', borderRadius: 10, border: `1.5px solid ${BEIGE}`, fontSize: 12, background: 'white', fontFamily: "'DM Sans',sans-serif", cursor: 'pointer', outline: 'none' }}>
-            <option value="spent">Sort: Top Spenders</option>
-            <option value="orders">Sort: Most Orders</option>
-            <option value="recent">Sort: Most Recent</option>
-          </select>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: `2px solid ${BEIGE}` }}>
-                {['Customer', 'Email', 'Orders', 'Total Spent', 'Fav Occasion', 'Last Order', 'Status', ''].map(h => (
+                {['Customer', 'Email', 'Phone', 'Orders', 'Total Spent', 'Verified', 'Joined'].map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, fontWeight: 700, color: LIGHT, textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.map(c => (
-                <tr key={c.id} style={{ borderBottom: '1px solid #F5EEE6', transition: 'background 0.15s', cursor: 'pointer' }}
-                  onClick={() => setSelected(c)}
+              {customers.map(c => (
+                <tr key={c.id} style={{ borderBottom: '1px solid #F5EEE6', transition: 'background 0.15s' }}
                   onMouseEnter={e => e.currentTarget.style.background = CREAM}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: TC, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{c.name.charAt(0)}</div>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: TC, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{c.name?.charAt(0)}</div>
                       <span style={{ fontWeight: 600, color: DARK }}>{c.name}</span>
                     </div>
                   </td>
                   <td style={{ padding: '14px 16px', color: LIGHT, fontSize: 12 }}>{c.email}</td>
-                  <td style={{ padding: '14px 16px', fontWeight: 700, color: DARK }}>{c.orders}</td>
-                  <td style={{ padding: '14px 16px', fontWeight: 700, color: TC }}>${c.spent}</td>
-                  <td style={{ padding: '14px 16px' }}><span style={{ background: '#F5EEE6', color: MID, fontSize: 11, padding: '3px 10px', borderRadius: 99 }}>{c.fav}</span></td>
-                  <td style={{ padding: '14px 16px', color: LIGHT, whiteSpace: 'nowrap' }}>{c.lastOrder}</td>
+                  <td style={{ padding: '14px 16px', color: LIGHT, fontSize: 12 }}>{c.phone || '—'}</td>
+                  <td style={{ padding: '14px 16px', fontWeight: 700, color: DARK }}>{c.totalOrders}</td>
+                  <td style={{ padding: '14px 16px', fontWeight: 700, color: TC }}>₹{Number(c.totalSpent).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
                   <td style={{ padding: '14px 16px' }}>
-                    <span style={{ background: c.status === 'active' ? '#EBF7EC' : '#EAF0FB', color: c.status === 'active' ? '#2A7A3B' : '#2A52A0', fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 99, textTransform: 'capitalize' }}>{c.status}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: c.emailVerified ? '#EBF7EC' : '#FEF3E8', color: c.emailVerified ? '#2A7A3B' : TC }}>
+                      {c.emailVerified ? '✓ Yes' : 'No'}
+                    </span>
                   </td>
-                  <td style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <span style={{ color: TC, fontSize: 12, fontWeight: 600 }}>View →</span>
-                      <button onClick={e => { e.stopPropagation(); setDiscountTarget(c) }} style={{ padding: '4px 10px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>🎫 Discount</button>
-                    </div>
+                  <td style={{ padding: '14px 16px', color: LIGHT, whiteSpace: 'nowrap', fontSize: 12 }}>
+                    {c.joinedAt ? new Date(c.joinedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                   </td>
                 </tr>
               ))}
+              {!loading && customers.length === 0 && (
+                <tr><td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: LIGHT }}>No customers found</td></tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ─── CATEGORIES VIEW ───────────────────────────────────────────────
+function CategoriesView({ onToast }) {
+  const [cats, setCats] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [editItem, setEditItem] = useState(null)
+  const [form, setForm] = useState({ name: '', slug: '', description: '', imageUrl: '' })
+
+  const inp = { width: '100%', padding: '10px 14px', borderRadius: 12, border: `1.5px solid ${BEIGE}`, fontSize: 13, background: 'white', fontFamily: "'DM Sans',sans-serif", outline: 'none', color: DARK }
+
+  useEffect(() => {
+    categoriesApi.list()
+      .then(({ data }) => setCats(data || []))
+      .catch(() => onToast('Failed to load categories'))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const autoSlug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+  const openAdd = () => {
+    setEditItem(null)
+    setForm({ name: '', slug: '', description: '', imageUrl: '' })
+    setShowForm(true)
+  }
+
+  const openEdit = (c) => {
+    setEditItem(c)
+    setForm({ name: c.name, slug: c.slug, description: c.description || '', imageUrl: c.imageUrl || '' })
+    setShowForm(true)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      if (editItem) {
+        const { data } = await categoriesApi.update(editItem.id, form)
+        setCats(cs => cs.map(c => c.id === data.id ? data : c))
+        onToast('Category updated')
+      } else {
+        const { data } = await categoriesApi.create(form)
+        setCats(cs => [...cs, data])
+        onToast('Category added')
+      }
+      setShowForm(false)
+    } catch (e) {
+      onToast('Error: ' + (e.response?.data?.message || 'Save failed'))
+    } finally { setSaving(false) }
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this category? Products in it will be affected.')) return
+    try {
+      await categoriesApi.remove(id)
+      setCats(cs => cs.filter(c => c.id !== id))
+      onToast('Category deleted')
+    } catch { onToast('Delete failed') }
+  }
+
+  return (
+    <div>
+      <SectionHeader title="Categories" sub={loading ? 'Loading…' : `${cats.length} categories`} action="+ Add Category" onAction={openAdd} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
+        {cats.map(c => (
+          <div key={c.id} style={{ background: 'white', borderRadius: 18, padding: '18px 20px', border: `1px solid ${BEIGE}`, boxShadow: '0 2px 8px rgba(44,26,14,0.04)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: DARK, fontSize: 15, marginBottom: 3 }}>{c.name}</div>
+                <div style={{ fontSize: 11, color: TC, fontWeight: 600, marginBottom: 6 }}>/{c.slug}</div>
+                {c.description && <div style={{ fontSize: 12, color: LIGHT, lineHeight: 1.5 }}>{c.description}</div>}
+              </div>
+              {c.imageUrl && <img src={c.imageUrl} alt={c.name} style={{ width: 52, height: 52, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <button onClick={() => openEdit(c)} style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
+              <button onClick={() => handleDelete(c.id)} style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: '1.5px solid #FED7D7', background: '#FFF5F5', color: '#A02A2A', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Delete</button>
+            </div>
+          </div>
+        ))}
+        {!loading && cats.length === 0 && (
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: 40, color: LIGHT }}>No categories yet. Add one to get started.</div>
+        )}
+      </div>
+
+      {showForm && (
+        <div onClick={e => e.target === e.currentTarget && setShowForm(false)} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(44,26,14,0.45)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: CREAM, borderRadius: 24, padding: '32px 28px', width: '100%', maxWidth: 440, boxShadow: '0 24px 64px rgba(44,26,14,0.2)', animation: 'fadeUp 0.25s ease' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700 }}>{editItem ? 'Edit Category' : 'Add Category'}</div>
+              <button onClick={() => setShowForm(false)} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
+            </div>
+            {[
+              { label: 'Name', key: 'name' },
+              { label: 'Slug (e.g. gift-for-her)', key: 'slug' },
+              { label: 'Description', key: 'description' },
+              { label: 'Image URL', key: 'imageUrl' },
+            ].map(({ label, key }) => (
+              <div key={key} style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
+                <input value={form[key]} onChange={e => {
+                  const val = e.target.value
+                  setForm(f => ({ ...f, [key]: val, ...(key === 'name' && !editItem ? { slug: autoSlug(val) } : {}) }))
+                }} style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+              </div>
+            ))}
+            <button onClick={handleSave} disabled={saving || !form.name || !form.slug}
+              style={{ width: '100%', padding: 13, borderRadius: 99, border: 'none', background: saving ? BEIGE : TC, color: saving ? LIGHT : 'white', fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', marginTop: 8 }}>
+              {saving ? 'Saving…' : editItem ? 'Save Changes' : 'Add Category'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1256,12 +1231,13 @@ export default function AdminPage() {
   const showToast = useCallback(msg => setToast(msg), [])
 
   const views = {
-    dashboard: <DashboardView />,
-    products:  <ProductsView  onToast={showToast} />,
-    orders:    <OrdersView    onToast={showToast} />,
-    customers: <CustomersView onToast={showToast} />,
-    occasions: <OccasionsView />,
-    marketing: <MarketingView onToast={showToast} />,
+    dashboard:  <DashboardView />,
+    products:   <ProductsView  onToast={showToast} />,
+    orders:     <OrdersView    onToast={showToast} />,
+    customers:  <CustomersView />,
+    categories: <CategoriesView onToast={showToast} />,
+    occasions:  <OccasionsView />,
+    marketing:  <MarketingView onToast={showToast} />,
   }
 
   return (
