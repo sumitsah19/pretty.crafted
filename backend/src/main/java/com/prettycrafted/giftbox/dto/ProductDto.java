@@ -2,6 +2,7 @@ package com.prettycrafted.giftbox.dto;
 
 import com.prettycrafted.giftbox.domain.Product;
 import java.math.BigDecimal;
+import java.util.List;
 
 public record ProductDto(
     Long id,
@@ -10,6 +11,7 @@ public record ProductDto(
     BigDecimal price,
     Integer stock,
     String imageUrl,
+    List<String> imageUrls,
     Long categoryId,
     String categoryName,
     Integer popularityScore,
@@ -17,13 +19,18 @@ public record ProductDto(
     String tag
 ) {
     public static ProductDto from(Product p) {
+        List<String> urls = p.getImages().stream()
+            .map(img -> img.getImageUrl())
+            .toList();
+        String primary = urls.isEmpty() ? p.getImageUrl() : urls.get(0);
         return new ProductDto(
             p.getId(),
             p.getName(),
             p.getDescription(),
             p.getPrice(),
             p.getStock(),
-            p.getImageUrl(),
+            primary,
+            urls,
             p.getCategory().getId(),
             p.getCategory().getName(),
             p.getPopularityScore(),

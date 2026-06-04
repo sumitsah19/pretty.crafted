@@ -387,7 +387,7 @@ function ProductsView({ onToast }) {
   const [uploading, setUploading] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [editItem, setEditItem] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', price: '', stock: '', categoryId: '', imageUrl: '', tag: '', recipient: '' })
+  const [form, setForm] = useState({ name: '', description: '', price: '', stock: '', categoryId: '', imageUrls: [], tag: '', recipient: '' })
 
   useEffect(() => {
     Promise.all([
@@ -408,19 +408,19 @@ function ProductsView({ onToast }) {
 
   const openAdd = () => {
     setEditItem(null)
-    setForm({ name: '', description: '', price: '', stock: '', categoryId: categories[0]?.id || '', imageUrl: '', tag: '', recipient: '' })
+    setForm({ name: '', description: '', price: '', stock: '', categoryId: categories[0]?.id || '', imageUrls: [], tag: '', recipient: '' })
     setShowAdd(true)
   }
   const openEdit = (p) => {
     setEditItem(p)
-    setForm({ name: p.name, description: p.description || '', price: p.price, stock: p.stock, categoryId: p.categoryId, imageUrl: p.imageUrl || '', tag: p.tag || '', recipient: p.recipient || '' })
+    setForm({ name: p.name, description: p.description || '', price: p.price, stock: p.stock, categoryId: p.categoryId, imageUrls: p.imageUrls?.length ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []), tag: p.tag || '', recipient: p.recipient || '' })
     setShowAdd(true)
   }
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const payload = { name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), categoryId: Number(form.categoryId), imageUrl: form.imageUrl, tag: form.tag, recipient: form.recipient }
+      const payload = { name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), categoryId: Number(form.categoryId), imageUrls: form.imageUrls, tag: form.tag, recipient: form.recipient }
       if (editItem) {
         const { data } = await productAdminApi.update(editItem.id, payload)
         setProducts(ps => ps.map(p => p.id === data.id ? data : p))
@@ -451,7 +451,7 @@ function ProductsView({ onToast }) {
     setUploading(true)
     try {
       const { data } = await uploadApi.image(file)
-      setForm(f => ({ ...f, imageUrl: data.url }))
+      setForm(f => ({ ...f, imageUrls: [...f.imageUrls, data.url] }))
     } catch {
       onToast('Image upload failed')
     } finally {
@@ -537,29 +537,43 @@ function ProductsView({ onToast }) {
               </div>
             ))}
 
-            {/* Image upload */}
+            {/* Multi-image upload */}
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Product Image</label>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                {form.imageUrl && (
-                  <img src={form.imageUrl} alt="preview" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 10, border: `1px solid ${BEIGE}`, flexShrink: 0 }} />
-                )}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 16px', borderRadius: 10, border: `1.5px solid ${uploading ? BEIGE : TC}`, background: uploading ? BEIGE : '#FDF6F1', color: uploading ? LIGHT : TC, fontSize: 12, fontWeight: 700, cursor: uploading ? 'default' : 'pointer', width: 'fit-content' }}>
-                    {uploading ? 'Uploading…' : '↑ Upload Image'}
-                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }} disabled={uploading} onChange={handleImageUpload} />
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="or paste image URL"
-                    value={form.imageUrl}
-                    onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
-                    style={{ ...inp, fontSize: 12, color: LIGHT }}
-                    onFocus={e => e.target.style.borderColor = TC}
-                    onBlur={e => e.target.style.borderColor = BEIGE}
-                  />
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: MID, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Product Images</label>
+                <span style={{ fontSize: 11, color: LIGHT }}>{form.imageUrls.length}/4 uploaded</span>
               </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {[0, 1, 2, 3].map(i => {
+                  const url = form.imageUrls[i]
+                  const isNext = form.imageUrls.length === i
+                  return (
+                    <div key={i}>
+                      {url ? (
+                        <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', height: 110 }}>
+                          <img src={url} alt={`Product ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          {i === 0 && <span style={{ position: 'absolute', top: 6, left: 6, background: TC, color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 99 }}>Primary</span>}
+                          <button onClick={() => setForm(f => ({ ...f, imageUrls: f.imageUrls.filter((_, idx) => idx !== i) }))}
+                            style={{ position: 'absolute', top: 5, right: 5, background: 'rgba(44,26,14,0.65)', border: 'none', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', color: 'white', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                        </div>
+                      ) : (
+                        <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 110, border: `2px dashed ${isNext && !uploading ? TC : BEIGE}`, borderRadius: 12, cursor: isNext && !uploading ? 'pointer' : 'default', background: isNext ? '#FDF6F1' : '#F9F6F2', opacity: isNext ? 1 : 0.5, gap: 6 }}>
+                          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }} disabled={!isNext || uploading} onChange={handleImageUpload} />
+                          {isNext && uploading
+                            ? <div style={{ fontSize: 11, fontWeight: 600, color: MID }}>Uploading…</div>
+                            : <>
+                                <div style={{ fontSize: 22, opacity: 0.5 }}>📷</div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: MID }}>{i === 0 ? 'Add Primary' : `Image ${i + 1}`}</div>
+                                {i === 0 && <div style={{ fontSize: 10, color: LIGHT }}>PNG, JPG · max 5 MB</div>}
+                              </>
+                          }
+                        </label>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              {form.imageUrls.length > 0 && <div style={{ fontSize: 11, color: LIGHT, marginTop: 8 }}>First image is primary. Click × to remove.</div>}
             </div>
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Category</label>

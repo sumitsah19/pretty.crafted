@@ -2,6 +2,7 @@ package com.prettycrafted.giftbox.service;
 
 import com.prettycrafted.giftbox.domain.Category;
 import com.prettycrafted.giftbox.domain.Product;
+import com.prettycrafted.giftbox.domain.ProductImage;
 import com.prettycrafted.giftbox.dto.ProductDto;
 import com.prettycrafted.giftbox.dto.ProductRequest;
 import com.prettycrafted.giftbox.exception.NotFoundException;
@@ -47,16 +48,22 @@ public class ProductService {
     public ProductDto create(ProductRequest req) {
         Category category = categoryRepo.findById(req.categoryId())
                 .orElseThrow(() -> new NotFoundException("Category not found: " + req.categoryId()));
+
+        List<String> urls = req.imageUrls() != null ? req.imageUrls() : List.of();
+        String primary = urls.isEmpty() ? null : urls.get(0);
+
         Product product = Product.builder()
                 .name(req.name())
                 .description(req.description())
                 .price(req.price())
                 .stock(req.stock())
-                .imageUrl(req.imageUrl())
+                .imageUrl(primary)
                 .category(category)
                 .recipient(req.recipient() != null ? req.recipient() : "all")
                 .tag(req.tag() != null ? req.tag() : "")
                 .build();
+
+        addImages(product, urls);
         return ProductDto.from(productRepo.save(product));
     }
 
@@ -66,14 +73,22 @@ public class ProductService {
                 .orElseThrow(() -> new NotFoundException("Product not found: " + id));
         Category category = categoryRepo.findById(req.categoryId())
                 .orElseThrow(() -> new NotFoundException("Category not found: " + req.categoryId()));
+
+        List<String> urls = req.imageUrls() != null ? req.imageUrls() : List.of();
+        String primary = urls.isEmpty() ? null : urls.get(0);
+
         product.setName(req.name());
         product.setDescription(req.description());
         product.setPrice(req.price());
         product.setStock(req.stock());
-        product.setImageUrl(req.imageUrl());
+        product.setImageUrl(primary);
         product.setCategory(category);
         if (req.recipient() != null) product.setRecipient(req.recipient());
         if (req.tag() != null) product.setTag(req.tag());
+
+        product.getImages().clear();
+        addImages(product, urls);
+
         return ProductDto.from(product);
     }
 
@@ -83,5 +98,16 @@ public class ProductService {
             throw new NotFoundException("Product not found: " + id);
         }
         productRepo.deleteById(id);
+    }
+
+    private void addImages(Product product, List<String> urls) {
+        for (int i = 0; i < urls.size(); i++) {
+            ProductImage img = ProductImage.builder()
+                    .product(product)
+                    .imageUrl(urls.get(i))
+                    .displayOrder(i)
+                    .build();
+            product.getImages().add(img);
+        }
     }
 }
