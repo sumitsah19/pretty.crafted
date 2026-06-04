@@ -4,7 +4,7 @@ FROM maven:3.9.4-eclipse-temurin-21 AS builder
 WORKDIR /app
 COPY pom.xml mvnw .mvn/ ./
 COPY src ./src
-RUN --mount=type=cache,id=maven-cache,target=/root/.m2 mvn -B -DskipTests package
+RUN mvn -B -DskipTests package
 
 ## Runtime: minimal JRE image
 FROM eclipse-temurin:21-jre-jammy
