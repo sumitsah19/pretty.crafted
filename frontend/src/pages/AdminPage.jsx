@@ -527,8 +527,6 @@ function ProductsView({ onToast }) {
               { label: 'Description', key: 'description', type: 'text' },
               { label: 'Price (₹)', key: 'price', type: 'number' },
               { label: 'Stock', key: 'stock', type: 'number' },
-              { label: 'Tag (e.g. Bestseller)', key: 'tag', type: 'text' },
-              { label: 'Recipient (all/him/her/kids)', key: 'recipient', type: 'text' },
             ].map(({ label, key, type }) => (
               <div key={key} style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
@@ -536,6 +534,32 @@ function ProductsView({ onToast }) {
                   style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
               </div>
             ))}
+
+            {/* Tag dropdown */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tag</label>
+              <select value={form.tag} onChange={e => setForm(f => ({ ...f, tag: e.target.value }))}
+                style={{ ...inp, cursor: 'pointer' }}>
+                <option value="">— No tag —</option>
+                <option value="Bestseller">Bestseller</option>
+                <option value="New">New</option>
+                <option value="Sale">Sale</option>
+                <option value="Limited">Limited</option>
+                <option value="Trending">Trending</option>
+              </select>
+            </div>
+
+            {/* Recipient dropdown */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Recipient</label>
+              <select value={form.recipient} onChange={e => setForm(f => ({ ...f, recipient: e.target.value }))}
+                style={{ ...inp, cursor: 'pointer' }}>
+                <option value="all">All</option>
+                <option value="her">Her</option>
+                <option value="him">Him</option>
+                <option value="kids">Kids</option>
+              </select>
+            </div>
 
             {/* Multi-image upload */}
             <div style={{ marginBottom: 14 }}>
