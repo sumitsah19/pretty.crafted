@@ -175,10 +175,11 @@ export default function ProductDetailModal({ product }) {
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
               style={{ position: 'relative', aspectRatio: '1/1', borderRadius: isMobile ? 0 : 20, background: gallery[activeImage].bg||'#EDE4D8', overflow: 'hidden', cursor: isMobile ? 'default' : 'zoom-in', transition: 'background 0.4s ease' }}>
-              <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', flexDirection: 'column', gap: 6, zIndex: 2 }}>
-                <span style={{ background: '#2C1A0E', color: 'white', fontSize: 10, fontWeight: 700, padding: '5px 10px', borderRadius: 99, letterSpacing: '0.06em', textTransform: 'uppercase' }}>✦ Handmade</span>
-                {product.tag && <span style={{ background: TC, color: 'white', fontSize: 10, fontWeight: 700, padding: '5px 10px', borderRadius: 99, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{product.tag}</span>}
-              </div>
+              {product.tag && (
+                <div style={{ position: 'absolute', top: 14, left: 14, zIndex: 2 }}>
+                  <span style={{ background: TC, color: 'white', fontSize: 10, fontWeight: 700, padding: '5px 10px', borderRadius: 99, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{product.tag}</span>
+                </div>
+              )}
               {/* Wishlist heart — top-right of gallery image */}
               <button onClick={() => dispatch(toggleWishlist(product.id))}
                 style={{ position: 'absolute', top: 10, right: 10, zIndex: 3, background: 'rgba(255,255,255,0.92)', border: 'none', borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(44,26,14,0.12)', transition: 'transform 0.2s' }}
