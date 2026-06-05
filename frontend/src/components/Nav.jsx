@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { selectIsLoggedIn, selectUser } from '../store/slices/authSlice'
 import { selectCartCount } from '../store/slices/cartSlice'
 import { selectWishlistIds } from '../store/slices/wishlistSlice'
-import { openLogin, openSearch, openBoxBuilder, openOccasions, openUserAccount, openCart, openWishlist } from '../store/slices/uiSlice'
+import { openLogin, openSearch, openBoxBuilder, openOccasions, openUserAccount, openCart, openWishlist, selectUI } from '../store/slices/uiSlice'
 import { useWindowWidth } from '../hooks/useWindowWidth'
 
 const TC = '#C4704A'
@@ -14,6 +14,8 @@ export default function Nav({ onScrollTo }) {
   const user = useSelector(selectUser)
   const cartCount = useSelector(selectCartCount)
   const wishlistIds = useSelector(selectWishlistIds)
+  const ui = useSelector(selectUI)
+  const productOpen = !!ui.activeProduct
   const ww = useWindowWidth()
   const isMobile = ww < 640
 
@@ -57,7 +59,7 @@ export default function Nav({ onScrollTo }) {
     { label: 'Build a Gift Box', href: '/gift-boxes', icon: '🎁',  action: () => { setMobileOpen(false); dispatch(openBoxBuilder()) } },
   ]
 
-  const showSolid = isSticky || scrolled || (isMobile && mobileOpen)
+  const showSolid = isSticky || scrolled || (isMobile && mobileOpen) || productOpen
 
   return (
     <>
@@ -70,12 +72,12 @@ export default function Nav({ onScrollTo }) {
       */}
       <div style={{ height: navHeight }}>
         <nav style={{
-          position: isSticky ? 'fixed' : 'relative',
+          position: isSticky || productOpen ? 'fixed' : 'relative',
           top: 0,
           left: 0,
           right: 0,
           width: '100%',
-          zIndex: 200,
+          zIndex: productOpen ? 1100 : 200,
           background: showSolid ? 'rgba(250,247,242,0.98)' : 'rgba(250,247,242,0.85)',
           backdropFilter: 'blur(16px)',
           borderBottom: showSolid ? '1px solid #EDE4D8' : '1px solid transparent',
