@@ -10,12 +10,6 @@ const TC = '#C4704A'
 const STEPS = ['Address', 'Payment', 'Review']
 const RAZORPAY_CHECKOUT_URL = 'https://checkout.razorpay.com/v1/checkout.js'
 
-const DELIVERY_OPTIONS = [
-  { key: 'standard', label: 'Standard Delivery', eta: '3–5 business days', price: 0,     note: 'Free for all orders' },
-  { key: 'express',  label: 'Express Delivery',  eta: '1–2 business days', price: 99,   note: 'Arrives faster' },
-  { key: 'sameday',  label: 'Same-Day Delivery', eta: 'Today by 8 PM',     price: 199,  note: 'Select cities only' },
-]
-
 let razorpayScriptPromise
 
 const loadRazorpayScript = () => {
@@ -50,16 +44,13 @@ export default function CheckoutModal() {
   const [orderError, setOrderError] = useState('')
   const [serverOrderId, setServerOrderId] = useState(null)
   const [upiId, setUpiId] = useState('')
-  const [delivery, setDelivery] = useState('standard')
-  const [deliveryDate, setDeliveryDate] = useState('')
 
   useEffect(() => { analytics.checkoutStart() }, [])
   useEffect(() => { analytics.checkoutStep(step) }, [step])
 
   const boxesTotal = boxes.reduce((s, b) => s + Number(b.totalPrice || 0), 0)
   const subtotalItems = items.reduce((s, i) => s + i.product.price * i.qty, 0) + boxesTotal
-  const deliveryFee = DELIVERY_OPTIONS.find(d => d.key === delivery)?.price || 0
-  const total = subtotalItems + deliveryFee
+  const total = subtotalItems
 
   const setA = (k, v) => setAddr((p) => ({ ...p, [k]: v }))
   const setC = (k, v) => setCard((p) => ({ ...p, [k]: v }))
@@ -317,14 +308,9 @@ export default function CheckoutModal() {
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#9C7A63', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Delivering to</div>
                 <div style={{ fontSize: 13, color: '#2C1A0E', lineHeight: 1.7 }}>{addr.name}<br />{addr.line1}{addr.line2 ? ', ' + addr.line2 : ''}<br />{addr.city}{addr.state ? ', ' + addr.state : ''} {addr.zip}, {addr.country}</div>
               </div>
-              <div style={{ padding: '12px 16px', background: 'white', borderRadius: 12, border: '1px solid #EDE4D8' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#9C7A63', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Delivery</div>
-                <div style={{ fontSize: 13, color: '#2C1A0E', fontWeight: 600 }}>{DELIVERY_OPTIONS.find(d => d.key === delivery)?.label} — {DELIVERY_OPTIONS.find(d => d.key === delivery)?.eta}</div>
-                {deliveryDate && <div style={{ fontSize: 12, color: '#9C7A63', marginTop: 3 }}>Preferred date: {deliveryDate}</div>}
-              </div>
               <div style={{ padding: '12px 16px', background: '#F5EEE6', borderRadius: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13, color: '#6B4F3A' }}><span>Subtotal</span><span>₹{subtotalItems.toFixed(2)}</span></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13, color: '#6B4F3A' }}><span>Delivery</span><span>{deliveryFee === 0 ? 'Free' : `₹${deliveryFee}`}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13, color: '#6B4F3A' }}><span>Delivery</span><span style={{ color: '#7A9A6B', fontWeight: 600 }}>Free</span></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #EDE4D8', paddingTop: 8 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#2C1A0E' }}>Total</div>
                   <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: TC }}>₹{total.toFixed(2)}</div>
