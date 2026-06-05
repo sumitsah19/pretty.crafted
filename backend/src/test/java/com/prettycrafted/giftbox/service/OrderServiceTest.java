@@ -76,7 +76,7 @@ class OrderServiceTest {
         when(orderRepo.findById(10L)).thenReturn(Optional.of(order));
 
         var req = new VerifyPaymentRequest("rzp_order", "rzp_payment", "sig");
-        assertThrows(ConflictException.class, () -> service.verifyPayment(1L, 10L, req));
+        assertThrows(ConflictException.class, () -> service.verifyPaymentSignature(1L, 10L, req));
     }
 
     @Test
@@ -89,7 +89,7 @@ class OrderServiceTest {
         when(orderRepo.findById(10L)).thenReturn(Optional.of(order));
 
         var req = new VerifyPaymentRequest("rzp_order", "rzp_payment", "sig");
-        assertThrows(BadRequestException.class, () -> service.verifyPayment(1L, 10L, req));
+        assertThrows(BadRequestException.class, () -> service.verifyPaymentSignature(1L, 10L, req));
     }
 
     @Test
@@ -104,8 +104,9 @@ class OrderServiceTest {
         when(paymentService.verifySignature("rzp_order", "rzp_payment", "badsig")).thenReturn(false);
 
         var req = new VerifyPaymentRequest("rzp_order", "rzp_payment", "badsig");
-        assertThrows(BadRequestException.class, () -> service.verifyPayment(1L, 10L, req));
-        assertEquals(PaymentStatus.FAILED, order.getPaymentStatus());
+        assertThrows(BadRequestException.class, () -> service.verifyPaymentSignature(1L, 10L, req));
+        // Order is left PENDING (not FAILED) so the webhook can still resolve it via payment.captured.
+        assertEquals(PaymentStatus.PENDING, order.getPaymentStatus());
     }
 
     @Test
@@ -119,7 +120,7 @@ class OrderServiceTest {
         when(orderRepo.findById(10L)).thenReturn(Optional.of(order));
 
         var req = new VerifyPaymentRequest("different_order", "rzp_payment", "sig");
-        assertThrows(BadRequestException.class, () -> service.verifyPayment(1L, 10L, req));
+        assertThrows(BadRequestException.class, () -> service.verifyPaymentSignature(1L, 10L, req));
         verify(paymentService, never()).verifySignature(any(), any(), any());
     }
 }

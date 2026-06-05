@@ -164,7 +164,14 @@ public class OrderService {
         return new PlaceOrderResponse(OrderDto.from(order), paymentService.getKeyId());
     }
 
-    public OrderDto verifyPayment(Long userId, Long orderId, VerifyPaymentRequest req) {
+    /**
+     * Validates ownership, order-id match and the Razorpay signature, and records the
+     * payment id. Runs in its own transaction so the caller (OrderController) can then
+     * invoke applyPostPaymentActions / markOrderCancelled in separate transactions —
+     * mirroring the webhook flow so an out-of-stock failure AFTER a successful payment
+     * still persists a CANCELLED order instead of silently rolling back.
+     */
+    public void verifyPaymentSignature(Long userId, Long orderId, VerifyPaymentRequest req) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
         if (!order.getUser().getId().equals(userId)) {
@@ -180,12 +187,9 @@ public class OrderService {
             throw new BadRequestException("Payment order id does not match this order");
         }
         if (!paymentService.verifySignature(req.razorpayOrderId(), req.razorpayPaymentId(), req.razorpaySignature())) {
-            order.setPaymentStatus(PaymentStatus.FAILED);
             throw new BadRequestException("Invalid payment signature");
         }
         order.setRazorpayPaymentId(req.razorpayPaymentId());
-        applyPostPaymentActions(order.getId(), req.razorpayPaymentId());
-        return OrderDto.from(order);
     }
 
     /**

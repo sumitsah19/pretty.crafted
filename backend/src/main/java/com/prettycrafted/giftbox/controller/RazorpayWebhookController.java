@@ -7,6 +7,7 @@ import com.prettycrafted.giftbox.repository.OrderRepository;
 import com.prettycrafted.giftbox.service.OrderService;
 import com.prettycrafted.giftbox.service.EmailService;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Optional;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -125,7 +126,10 @@ public class RazorpayWebhookController {
             StringBuilder hex = new StringBuilder();
             for (byte b : hash)
                 hex.append(String.format("%02x", b));
-            return hex.toString().equals(signature);
+            // Constant-time comparison to avoid timing side-channels.
+            return MessageDigest.isEqual(
+                hex.toString().getBytes(StandardCharsets.UTF_8),
+                signature.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             log.error("Webhook signature verification error: {}", e.getMessage());
             return false;

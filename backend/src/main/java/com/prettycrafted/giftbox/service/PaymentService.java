@@ -6,6 +6,7 @@ import com.razorpay.RazorpayException;
 import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.json.JSONObject;
@@ -69,6 +70,7 @@ public class PaymentService {
     }
 
     public boolean verifySignature(String razorpayOrderId, String razorpayPaymentId, String signature) {
+        if (signature == null) return false;
         try {
             String payload = razorpayOrderId + "|" + razorpayPaymentId;
             Mac mac = Mac.getInstance("HmacSHA256");
@@ -76,7 +78,10 @@ public class PaymentService {
             byte[] hash = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();
             for (byte b : hash) hex.append(String.format("%02x", b));
-            return hex.toString().equals(signature);
+            // Constant-time comparison to avoid leaking signature bytes via timing.
+            return MessageDigest.isEqual(
+                hex.toString().getBytes(StandardCharsets.UTF_8),
+                signature.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             return false;
         }

@@ -190,7 +190,7 @@ export default function ProductDetailModal({ product }) {
                 </svg>
               </button>
               {gallery[activeImage].imageUrl ? (
-                <img src={gallery[activeImage].imageUrl} alt={gallery[activeImage].name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: zoom.active ? `scale(1.5) translate(${(50 - zoom.x) * 0.4}%, ${(50 - zoom.y) * 0.4}%)` : 'scale(1)', transition: zoom.active ? 'transform 0.1s linear' : 'transform 0.3s ease', transformOrigin: `${zoom.x}% ${zoom.y}%` }} />
+                <img src={gallery[activeImage].imageUrl} alt={`${product.name} — image ${activeImage + 1}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: zoom.active ? `scale(1.5) translate(${(50 - zoom.x) * 0.4}%, ${(50 - zoom.y) * 0.4}%)` : 'scale(1)', transition: zoom.active ? 'transform 0.1s linear' : 'transform 0.3s ease', transformOrigin: `${zoom.x}% ${zoom.y}%` }} />
               ) : null}
               {!isMobile && <div style={{ position: 'absolute', bottom: 12, right: 14, fontSize: 11, color: 'rgba(44,26,14,0.4)', fontWeight: 600 }}>Hover to zoom</div>}
               {isMobile && (
@@ -206,7 +206,7 @@ export default function ProductDetailModal({ product }) {
                 {gallery.map((p, i) => (
                   <button key={i} onClick={() => setActiveImage(i)}
                     style={{ width: 72, height: 72, borderRadius: 12, background: p.bg||'#EDE4D8', border: `2px solid ${i === activeImage ? TC : '#EDE4D8'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'border-color 0.2s', overflow: 'hidden', flexShrink: 0 }}>
-                    {p.imageUrl && <img src={p.imageUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                    {p.imageUrl && <img src={p.imageUrl} alt={`${product.name} thumbnail ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                   </button>
                 ))}
               </div>

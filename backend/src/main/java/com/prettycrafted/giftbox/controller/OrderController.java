@@ -49,7 +49,19 @@ public class OrderController {
     public OrderDto verifyPayment(@AuthenticationPrincipal Jwt jwt,
                                   @PathVariable Long id,
                                   @Valid @RequestBody VerifyPaymentRequest req) {
-        return service.verifyPayment(userId(jwt), id, req);
+        Long uid = userId(jwt);
+        // Each call runs in its own transaction (via the service proxy). If applying
+        // post-payment actions fails (e.g. stock ran out after payment), we persist a
+        // CANCELLED order in a separate transaction so support can refund — matching
+        // the webhook handler, instead of silently rolling everything back.
+        service.verifyPaymentSignature(uid, id, req);
+        try {
+            service.applyPostPaymentActions(id, req.razorpayPaymentId());
+        } catch (RuntimeException e) {
+            service.markOrderCancelled(id);
+            throw e;
+        }
+        return service.get(uid, id);
     }
 
     @DeleteMapping("/{id}")
