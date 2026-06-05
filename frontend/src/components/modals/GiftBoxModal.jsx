@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { closeBoxBuilder } from '../../store/slices/uiSlice'
-import { addLocal } from '../../store/slices/cartSlice'
+import { closeBoxBuilder, openCart, openLogin } from '../../store/slices/uiSlice'
+import { addBox } from '../../store/slices/cartSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
+import { selectIsLoggedIn } from '../../store/slices/authSlice'
+import { giftBoxApi } from '../../api/services'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
 
 const TC = '#C4704A'
+// Keys match the backend BoxSize enum. slots = capacity, price = base price.
 const BOX_SIZES = {
-  small:  { label: 'Small',  slots: 4, price: 8,  cols: 2, desc: '4 items · perfect for a thoughtful single-person gift' },
-  medium: { label: 'Medium', slots: 6, price: 12, cols: 3, desc: '6 items · our most-loved size for any occasion' },
-  large:  { label: 'Large',  slots: 9, price: 18, cols: 3, desc: '9 items · go all-out with a generous, luxe spread' },
+  SMALL:  { label: 'Small',  slots: 2, price: 199, cols: 2, desc: '2 items · a sweet, simple gift' },
+  MEDIUM: { label: 'Medium', slots: 4, price: 349, cols: 2, desc: '4 items · our most-loved size for any occasion' },
+  LARGE:  { label: 'Large',  slots: 6, price: 549, cols: 3, desc: '6 items · go all-out with a generous spread' },
 }
 const RIBBONS = ['#C4704A', '#7A9A6B', '#8B6B9A', '#C4A44A', '#6B9AAA']
 const CATEGORIES = ['All', 'Candles & Scents', 'Handmade Jewelry', 'Ceramics', 'Art Prints', 'Skincare', 'Books & Stationery', 'Food & Gourmet', 'Plants']
@@ -17,15 +20,16 @@ const CATEGORIES = ['All', 'Candles & Scents', 'Handmade Jewelry', 'Ceramics', '
 export default function GiftBoxModal() {
   const dispatch = useDispatch()
   const products = useSelector(selectProducts)
+  const isLoggedIn = useSelector(selectIsLoggedIn)
   const ww = useWindowWidth()
   const isMobile = ww < 640
 
-  const [boxSize, setBoxSize] = useState('medium')
+  const [boxSize, setBoxSize] = useState('MEDIUM')
   const BOX_SLOTS = BOX_SIZES[boxSize].slots
   const BOX_COLS = BOX_SIZES[boxSize].cols
   const BOX_PRICE = BOX_SIZES[boxSize].price
 
-  const [slots, setSlots] = useState(Array(BOX_SIZES.medium.slots).fill(null))
+  const [slots, setSlots] = useState(Array(BOX_SIZES.MEDIUM.slots).fill(null))
   const [dragItem, setDragItem] = useState(null)
   const [activeCategory, setActiveCategory] = useState('All')
   const [previewProduct, setPreviewProduct] = useState(null)
@@ -35,6 +39,8 @@ export default function GiftBoxModal() {
   const [ribbonColor, setRibbonColor] = useState(TC)
   const [step, setStep] = useState(1)
   const [mobileTab, setMobileTab] = useState('products')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     setSlots((prev) => {
@@ -45,7 +51,10 @@ export default function GiftBoxModal() {
     })
   }, [boxSize])
 
+  const inBox = (productId) => slots.some((s) => s && s.id === productId)
+
   const handleAddToBox = (product) => {
+    if (inBox(product.id)) return // backend rejects duplicate products in a box
     const firstEmpty = slots.findIndex((s) => !s)
     if (firstEmpty === -1) return
     setSlots((prev) => { const n = [...prev]; n[firstEmpty] = product; return n })
@@ -55,6 +64,8 @@ export default function GiftBoxModal() {
 
   const handleDrop = (idx) => {
     if (!dragItem) return
+    // ignore if this product already sits in another slot (no duplicates allowed)
+    if (slots.some((s, i) => s && s.id === dragItem.id && i !== idx)) { setDragItem(null); setOverIdx(null); return }
     setSlots((prev) => { const n = [...prev]; n[idx] = dragItem; return n })
     setDragItem(null); setOverIdx(null)
   }
@@ -65,9 +76,30 @@ export default function GiftBoxModal() {
   const filled = slots.filter(Boolean).length
   const filteredProducts = products.filter((p) => activeCategory === 'All' || p.category === activeCategory)
 
-  const addBoxToCart = () => {
-    slots.filter(Boolean).forEach((p) => dispatch(addLocal(p)))
-    dispatch(closeBoxBuilder())
+  const addBoxToCart = async () => {
+    // Building a box must be persisted server-side, which requires auth.
+    if (!isLoggedIn) {
+      dispatch(closeBoxBuilder())
+      dispatch(openLogin())
+      return
+    }
+    const productIds = slots.filter(Boolean).map((p) => p.id)
+    if (productIds.length === 0) return
+    setSaving(true); setError('')
+    try {
+      const { data } = await giftBoxApi.create({
+        size: boxSize,
+        wrapType: 'STANDARD',
+        customMessage: message.trim() || null,
+        productIds,
+      })
+      dispatch(addBox(data))
+      dispatch(closeBoxBuilder())
+      dispatch(openCart())
+    } catch (e) {
+      setError(e.response?.data?.message || 'Could not add gift box. Please try again.')
+      setSaving(false)
+    }
   }
 
   return (
@@ -138,7 +170,7 @@ export default function GiftBoxModal() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                       {Object.entries(BOX_SIZES).map(([key, s]) => (
                         <button key={key} onClick={() => setBoxSize(key)} style={{ padding: isMobile ? '10px 6px' : '12px 8px', borderRadius: 14, cursor: 'pointer', border: boxSize === key ? `2px solid ${TC}` : '2px solid #EDE4D8', background: boxSize === key ? '#FDF6F1' : 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, transition: 'all 0.2s' }}>
-                          <div style={{ fontSize: isMobile ? 22 : 26 }}>{key === 'small' ? '🎁' : key === 'medium' ? '📦' : '🧰'}</div>
+                          <div style={{ fontSize: isMobile ? 22 : 26 }}>{key === 'SMALL' ? '🎁' : key === 'MEDIUM' ? '📦' : '🧰'}</div>
                           <div style={{ fontSize: 12, fontWeight: 700, color: boxSize === key ? TC : '#2C1A0E' }}>{s.label}</div>
                           <div style={{ fontSize: 10, color: '#9C7A63' }}>{s.slots} items · +₹{s.price}</div>
                         </button>
@@ -201,10 +233,17 @@ export default function GiftBoxModal() {
                     <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{previewProduct.category}</div>
                     <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 17, fontWeight: 700, marginBottom: 8, lineHeight: 1.3 }}>{previewProduct.name}</div>
                     <div style={{ fontSize: 22, fontWeight: 700, color: TC, marginBottom: 20 }}>₹{previewProduct.price}</div>
-                    <button onClick={() => handleAddToBox(previewProduct)} disabled={filled >= BOX_SLOTS}
-                      style={{ width: '100%', padding: '14px', borderRadius: 99, border: 'none', background: addedFlash ? '#7A9A6B' : filled >= BOX_SLOTS ? '#EDE4D8' : TC, color: filled >= BOX_SLOTS ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', transition: 'background 0.3s', minHeight: 48 }}>
-                      {addedFlash ? 'Added ✓' : filled >= BOX_SLOTS ? 'Box is Full' : 'Add to Box 🎁'}
-                    </button>
+                    {(() => {
+                      const dup = inBox(previewProduct.id)
+                      const full = filled >= BOX_SLOTS
+                      const disabled = dup || full
+                      return (
+                        <button onClick={() => handleAddToBox(previewProduct)} disabled={disabled}
+                          style={{ width: '100%', padding: '14px', borderRadius: 99, border: 'none', background: addedFlash ? '#7A9A6B' : disabled ? '#EDE4D8' : TC, color: disabled ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: disabled ? 'default' : 'pointer', transition: 'background 0.3s', minHeight: 48 }}>
+                          {addedFlash ? 'Added ✓' : dup ? 'Already in Box' : full ? 'Box is Full' : 'Add to Box 🎁'}
+                        </button>
+                      )
+                    })()}
                   </div>
                 </div>
               )}
@@ -267,8 +306,12 @@ export default function GiftBoxModal() {
                   <div style={{ fontSize: 12, color: '#9C7A63' }}>Box total ({filled} items)</div>
                   <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: TC }}>₹{total}</div>
                 </div>
-                <button onClick={addBoxToCart} style={{ padding: '14px 28px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 4px 16px rgba(196,112,74,0.35)', minHeight: 48, flex: isMobile ? 1 : 'none' }}>Add to Cart 🛒</button>
+                <button onClick={addBoxToCart} disabled={saving}
+                  style={{ padding: '14px 28px', borderRadius: 99, border: 'none', background: saving ? '#EDE4D8' : TC, color: saving ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: saving ? 'default' : 'pointer', boxShadow: saving ? 'none' : '0 4px 16px rgba(196,112,74,0.35)', minHeight: 48, flex: isMobile ? 1 : 'none' }}>
+                  {saving ? 'Adding…' : 'Add to Cart 🛒'}
+                </button>
               </div>
+              {error && <div style={{ background: '#FEE2E2', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#C44A4A', width: '100%', maxWidth: 520 }}>⚠️ {error}</div>}
               <div style={{ display: 'flex', gap: 10, width: '100%', maxWidth: 520 }}>
                 <button onClick={() => setStep(2)} style={{ flex: 1, padding: '11px 16px', borderRadius: 99, border: '1.5px solid #EDE4D8', background: 'none', color: '#6B4F3A', fontWeight: 500, cursor: 'pointer', fontSize: 13, minHeight: 44 }}>← Edit Message</button>
                 <button onClick={() => { setStep(1); setMobileTab('products') }} style={{ flex: 1, padding: '11px 16px', borderRadius: 99, border: '1.5px solid #EDE4D8', background: 'none', color: '#6B4F3A', fontWeight: 500, cursor: 'pointer', fontSize: 13, minHeight: 44 }}>Rebuild Box</button>

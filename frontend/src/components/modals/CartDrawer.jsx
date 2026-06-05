@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { selectCart, updateLocal, removeLocal, addLocal } from '../../store/slices/cartSlice'
+import { selectCart, updateLocal, removeLocal, addLocal, removeBox } from '../../store/slices/cartSlice'
 import { openCheckout, closeCart } from '../../store/slices/uiSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
+import { giftBoxApi } from '../../api/services'
 
 const TC = '#C4704A'
 
 export default function CartDrawer() {
   const dispatch = useDispatch()
-  const { items } = useSelector(selectCart)
+  const { items, boxes } = useSelector(selectCart)
   const products = useSelector(selectProducts)
   const [promo, setPromo] = useState('')
   const [promoApplied, setPromoApplied] = useState(false)
@@ -16,7 +17,14 @@ export default function CartDrawer() {
   const [giftWrap, setGiftWrap] = useState(false)
   const [savedItems, setSavedItems] = useState([])
 
-  const subtotal = items.reduce((s, i) => s + i.product.price * i.qty, 0)
+  const isEmpty = items.length === 0 && boxes.length === 0
+  const boxesTotal = boxes.reduce((s, b) => s + Number(b.totalPrice || 0), 0)
+  const subtotal = items.reduce((s, i) => s + i.product.price * i.qty, 0) + boxesTotal
+
+  const removeGiftBox = async (id) => {
+    dispatch(removeBox(id))
+    try { await giftBoxApi.remove(id) } catch {}
+  }
   const discount = promoApplied ? Math.round(subtotal * 0.15) : 0
   const shipping = subtotal >= 60 ? 0 : 5.99
   const giftWrapFee = giftWrap ? 4 : 0
@@ -48,13 +56,13 @@ export default function CartDrawer() {
         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700 }}>Your Cart</div>
-            <div style={{ fontSize: 12, color: '#9C7A63', marginTop: 2 }}>{items.length === 0 ? 'Empty' : `${items.reduce((s, i) => s + i.qty, 0)} items`}</div>
+            <div style={{ fontSize: 12, color: '#9C7A63', marginTop: 2 }}>{isEmpty ? 'Empty' : `${items.reduce((s, i) => s + i.qty, 0) + boxes.length} items`}</div>
           </div>
           <button onClick={() => dispatch(closeCart())} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
 
         {/* Free shipping bar */}
-        {items.length > 0 && subtotal < FREE_SHIPPING_AT && (
+        {!isEmpty && subtotal < FREE_SHIPPING_AT && (
           <div style={{ padding: '12px 24px', background: '#F5EEE6', flexShrink: 0 }}>
             <div style={{ fontSize: 12, color: '#6B4F3A', marginBottom: 6, fontWeight: 500 }}>Add <b style={{ color: TC }}>₹{(FREE_SHIPPING_AT - subtotal).toFixed(0)}</b> more for free shipping 🚚</div>
             <div style={{ height: 6, background: '#EDE4D8', borderRadius: 99, overflow: 'hidden' }}>
@@ -62,13 +70,13 @@ export default function CartDrawer() {
             </div>
           </div>
         )}
-        {items.length > 0 && subtotal >= FREE_SHIPPING_AT && (
+        {!isEmpty && subtotal >= FREE_SHIPPING_AT && (
           <div style={{ padding: '10px 24px', background: '#EAF2E8', fontSize: 12, color: '#4A8A3A', fontWeight: 600, flexShrink: 0 }}>✓ You've unlocked free shipping! 🎉</div>
         )}
 
         {/* Items */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
-          {items.length === 0 ? (
+          {isEmpty ? (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <div style={{ fontSize: 56, marginBottom: 16 }}>🛒</div>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Your cart is empty</div>
@@ -94,6 +102,20 @@ export default function CartDrawer() {
                     <button onClick={() => saveForLater(item.product.id)} style={{ marginTop: 7, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#9C7A63', padding: 0, fontWeight: 600 }}>Save for later</button>
                   </div>
                   <button onClick={() => dispatch(removeLocal(item.product.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C5B5A5', fontSize: 18, padding: 4, flexShrink: 0, marginTop: -2, lineHeight: 1 }}>×</button>
+                </div>
+              ))}
+
+              {/* Gift boxes */}
+              {boxes.map((box) => (
+                <div key={`box-${box.id}`} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '14px', background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(44,26,14,0.06)', border: `1.5px solid ${TC}22` }}>
+                  <div style={{ width: 60, height: 60, borderRadius: 12, background: '#FDF6F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>🎁</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 10, color: TC, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>Custom Gift Box</div>
+                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 14, fontWeight: 600, lineHeight: 1.3, marginBottom: 4 }}>{box.size} Box · {box.items?.length || 0} items</div>
+                    {box.customMessage && <div style={{ fontSize: 11, color: '#9C7A63', fontStyle: 'italic', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{box.customMessage}"</div>}
+                    <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>₹{Number(box.totalPrice).toFixed(2)}</div>
+                  </div>
+                  <button onClick={() => removeGiftBox(box.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C5B5A5', fontSize: 18, padding: 4, flexShrink: 0, marginTop: -2, lineHeight: 1 }}>×</button>
                 </div>
               ))}
             </div>
@@ -139,7 +161,7 @@ export default function CartDrawer() {
         </div>
 
         {/* Footer */}
-        {items.length > 0 && (
+        {!isEmpty && (
           <div style={{ padding: '16px 24px 28px', borderTop: '1px solid #EDE4D8', flexShrink: 0, background: '#FAF7F2' }}>
             <div onClick={() => setGiftWrap(g => !g)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, border: `1.5px solid ${giftWrap ? TC : '#EDE4D8'}`, background: giftWrap ? '#FDF6F1' : 'white', cursor: 'pointer', marginBottom: 14, transition: 'all 0.2s' }}>
               <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F5EEE6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎀</div>

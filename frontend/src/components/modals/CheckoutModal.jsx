@@ -39,7 +39,7 @@ const loadRazorpayScript = () => {
 
 export default function CheckoutModal() {
   const dispatch = useDispatch()
-  const { items } = useSelector(selectCart)
+  const { items, boxes } = useSelector(selectCart)
   const isLoggedIn = useSelector(selectIsLoggedIn)
   const [step, setStep] = useState(1)
   const [addr, setAddr] = useState({ name: '', phone: '', line1: '', line2: '', city: '', state: '', zip: '', country: 'India' })
@@ -56,7 +56,8 @@ export default function CheckoutModal() {
   useEffect(() => { analytics.checkoutStart() }, [])
   useEffect(() => { analytics.checkoutStep(step) }, [step])
 
-  const subtotalItems = items.reduce((s, i) => s + i.product.price * i.qty, 0)
+  const boxesTotal = boxes.reduce((s, b) => s + Number(b.totalPrice || 0), 0)
+  const subtotalItems = items.reduce((s, i) => s + i.product.price * i.qty, 0) + boxesTotal
   const deliveryFee = DELIVERY_OPTIONS.find(d => d.key === delivery)?.price || 0
   const total = subtotalItems + deliveryFee
 
@@ -299,6 +300,16 @@ export default function CheckoutModal() {
                       <div style={{ fontSize: 11, color: '#9C7A63' }}>Qty: {item.qty}</div>
                     </div>
                     <div style={{ fontWeight: 700, color: TC, fontSize: 14 }}>₹{(item.product.price * item.qty).toFixed(2)}</div>
+                  </div>
+                ))}
+                {boxes.map((box) => (
+                  <div key={`box-${box.id}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'white', borderRadius: 12, border: `1px solid ${TC}22` }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 10, background: '#FDF6F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🎁</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{box.size} Gift Box</div>
+                      <div style={{ fontSize: 11, color: '#9C7A63' }}>{box.items?.length || 0} items</div>
+                    </div>
+                    <div style={{ fontWeight: 700, color: TC, fontSize: 14 }}>₹{Number(box.totalPrice).toFixed(2)}</div>
                   </div>
                 ))}
               </div>

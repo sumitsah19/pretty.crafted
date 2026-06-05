@@ -54,6 +54,7 @@ export const paymentsApi = {
 export const giftBoxApi = {
   create: (payload) => api.post('/gift-boxes', payload),
   list:   ()        => api.get('/gift-boxes'),
+  remove: (id)      => api.delete(`/gift-boxes/${id}`),
 }
 
 // ── CATEGORIES ───────────────────────────────────────────────────
