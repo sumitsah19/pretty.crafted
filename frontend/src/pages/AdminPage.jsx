@@ -894,16 +894,42 @@ function OccasionsView() {
 
 // ─── MARKETING VIEW ────────────────────────────────────────────────
 function MarketingView({ onToast }) {
-  const [bannerMsg, setBannerMsg] = useState('✦ Free gift wrapping on orders over $60 — use code PRETTY15 for 15% off ✦')
-  const coupons = [
+  const [bannerMsg, setBannerMsg] = useState('✦ Free gift wrapping on orders over ₹5000 — use code PRETTY15 for 15% off ✦')
+  const [coupons, setCoupons] = useState([
     { code: 'PRETTY15', disc: '15% off', uses: 148, expires: 'May 31', active: true  },
     { code: 'MAMA20',   disc: '20% off', uses: 92,  expires: 'May 19', active: true  },
     { code: 'GRAD10',   disc: '10% off', uses: 34,  expires: 'Jun 30', active: false },
-  ]
+  ])
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ code: '', value: '', expires: '' })
+
+  const inp = { width: '100%', padding: '10px 14px', borderRadius: 12, border: `1.5px solid ${BEIGE}`, fontSize: 13, background: 'white', fontFamily: "'DM Sans',sans-serif", outline: 'none', color: DARK }
+
+  const toggleCoupon = (code) => {
+    setCoupons(cs => cs.map(c => c.code === code ? { ...c, active: !c.active } : c))
+    const c = coupons.find(x => x.code === code)
+    onToast(`${code} ${c?.active ? 'paused' : 'activated'}`)
+  }
+
+  const deleteCoupon = (code) => {
+    if (!window.confirm(`Delete coupon ${code}?`)) return
+    setCoupons(cs => cs.filter(c => c.code !== code))
+    onToast(`${code} deleted`)
+  }
+
+  const createCoupon = () => {
+    const code = form.code.trim().toUpperCase()
+    if (!code || !form.value) { onToast('Enter a code and discount %'); return }
+    if (coupons.some(c => c.code === code)) { onToast('That code already exists'); return }
+    setCoupons(cs => [{ code, disc: `${form.value}% off`, uses: 0, expires: form.expires || 'No expiry', active: true }, ...cs])
+    setForm({ code: '', value: '', expires: '' })
+    setShowForm(false)
+    onToast(`Coupon ${code} created`)
+  }
 
   return (
     <div>
-      <SectionHeader title="Marketing" sub="Banners, coupons & campaigns" action="+ New Campaign" onAction={() => onToast('Campaign editor opened')} />
+      <SectionHeader title="Marketing" sub="Banners & coupons" />
       {/* Banner editor */}
       <div style={{ background: 'white', borderRadius: 20, padding: '24px 28px', border: `1px solid ${BEIGE}`, marginBottom: 24, boxShadow: '0 2px 12px rgba(44,26,14,0.05)' }}>
         <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Announcement Banner</div>
@@ -927,8 +953,30 @@ function MarketingView({ onToast }) {
       <div style={{ background: 'white', borderRadius: 20, padding: '24px 28px', border: `1px solid ${BEIGE}`, boxShadow: '0 2px 12px rgba(44,26,14,0.05)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700 }}>Coupons & Discounts</div>
-          <button onClick={() => onToast('New coupon created')} style={{ padding: '7px 16px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ New Coupon</button>
+          <button onClick={() => setShowForm(s => !s)} style={{ padding: '7px 16px', borderRadius: 99, border: `1.5px solid ${TC}`, background: showForm ? TC : 'white', color: showForm ? 'white' : TC, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+            {showForm ? 'Close' : '+ New Coupon'}
+          </button>
         </div>
+
+        {/* New coupon form */}
+        {showForm && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr auto', gap: 10, alignItems: 'end', marginBottom: 18, padding: '16px', background: CREAM, borderRadius: 14, border: `1px solid ${BEIGE}` }}>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 700, color: MID, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Code</label>
+              <input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="WELCOME10" style={inp} />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 700, color: MID, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Discount %</label>
+              <input value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value.replace(/\D/g, '') }))} placeholder="10" style={inp} />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 700, color: MID, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Expires</label>
+              <input type="date" value={form.expires} onChange={e => setForm(f => ({ ...f, expires: e.target.value }))} style={{ ...inp, cursor: 'pointer' }} />
+            </div>
+            <button onClick={createCoupon} style={{ padding: '10px 20px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', height: 40 }}>Add</button>
+          </div>
+        )}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {coupons.map(c => (
             <div key={c.code} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 16px', borderRadius: 14, background: c.active ? CREAM : '#F9F9F9', border: `1px solid ${BEIGE}` }}>
@@ -940,11 +988,17 @@ function MarketingView({ onToast }) {
               <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: c.active ? '#EBF7EC' : BEIGE, color: c.active ? '#2A7A3B' : LIGHT }}>
                 {c.active ? 'Active' : 'Paused'}
               </span>
-              <button onClick={() => onToast(`${c.code} ${c.active ? 'paused' : 'activated'}`)} style={{ padding: '5px 12px', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+              <button onClick={() => toggleCoupon(c.code)} style={{ padding: '5px 12px', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
                 {c.active ? 'Pause' : 'Activate'}
+              </button>
+              <button onClick={() => deleteCoupon(c.code)} style={{ padding: '5px 12px', borderRadius: 99, border: '1.5px solid #FED7D7', background: '#FFF5F5', color: '#A02A2A', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                Delete
               </button>
             </div>
           ))}
+          {coupons.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 28, color: LIGHT, fontSize: 13 }}>No coupons. Click "+ New Coupon" to add one.</div>
+          )}
         </div>
       </div>
     </div>

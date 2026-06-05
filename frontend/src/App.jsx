@@ -197,9 +197,15 @@ export default function App() {
           </div>
         )}
 
-        {/* Announcement banner */}
-        <div style={{ background: TC, color: 'white', textAlign: 'center', padding: isMobile ? '9px 16px' : '10px 20px', fontSize: isMobile ? 12 : 13, fontWeight: 500 }}>
-          {isMobile ? '🎁 Use PRETTY15 for 15% off' : '✦ Free gift wrapping on orders over $60 — use code PRETTY15 for 15% off ✦'}
+        {/* Announcement banner — scrolling marquee */}
+        <div style={{ background: TC, color: 'white', padding: isMobile ? '9px 0' : '10px 0', fontSize: isMobile ? 12 : 13, fontWeight: 500, overflow: 'hidden' }}>
+          <div className="marquee-track" aria-hidden="true">
+            {Array.from({ length: 2 }).map((_, rep) => (
+              ['✦ Free gift wrapping on orders over ₹5000', 'Use code PRETTY15 for 15% off', '🎁 Handcrafted with love, delivered across India', '✦ New arrivals every week'].map((msg, i) => (
+                <span key={`${rep}-${i}`} className="marquee-item">{msg}</span>
+              ))
+            ))}
+          </div>
         </div>
 
         {/* Email verification banner */}
