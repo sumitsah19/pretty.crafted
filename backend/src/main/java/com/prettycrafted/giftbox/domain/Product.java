@@ -37,8 +37,20 @@ public class Product {
     @Column(nullable = false, length = 160)
     private String name;
 
-    @Column(length = 1000)
+    @Column(columnDefinition = "TEXT")
     private String description;
+
+    /** Rich-text: what the product is made of (admin-managed). */
+    @Column(columnDefinition = "TEXT")
+    private String materials;
+
+    /** Rich-text: care instructions (admin-managed). */
+    @Column(columnDefinition = "TEXT")
+    private String care;
+
+    /** Rich-text: shipping & returns policy for this product (admin-managed). */
+    @Column(name = "shipping_and_returns", columnDefinition = "TEXT")
+    private String shippingAndReturns;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;

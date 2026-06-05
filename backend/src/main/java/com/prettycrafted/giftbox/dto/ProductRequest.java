@@ -10,7 +10,10 @@ import java.util.List;
 
 public record ProductRequest(
     @NotBlank @Size(max = 160) String name,
-    @Size(max = 1000) String description,
+    @Size(max = 20000) String description,
+    @Size(max = 20000) String materials,
+    @Size(max = 20000) String care,
+    @Size(max = 20000) String shippingAndReturns,
     @NotNull @DecimalMin("0.00") BigDecimal price,
     @NotNull @Min(0) Integer stock,
     List<String> imageUrls,

@@ -33,6 +33,16 @@ function makeReviews(product) {
   }))
 }
 
+// Renders an admin-managed rich-text field. Text is stored with newlines
+// preserved (entered via the admin textarea); falls back to a neutral empty
+// state when the admin has not provided any content for this product.
+function TabContent({ value }) {
+  if (!value || !value.trim()) {
+    return <div style={{ fontSize: 14, color: '#9C7A63', fontStyle: 'italic', lineHeight: 1.8 }}>No information available</div>
+  }
+  return <div style={{ fontSize: 14, color: '#6B4F3A', lineHeight: 1.8, maxWidth: 680, whiteSpace: 'pre-wrap' }}>{value}</div>
+}
+
 function StarRating({ rating, size = 14 }) {
   return (
     <span style={{ display: 'inline-flex', gap: 1 }}>
@@ -112,7 +122,6 @@ export default function ProductDetailModal({ product }) {
   const scrollCarousel = (ref, dir) => { ref.current?.scrollBy({ left: dir * (isMobile ? 200 : 300), behavior: 'smooth' }) }
 
   const stockCount = 8 + (product.id % 5)
-  const desc = `Handcrafted with love and intention, this ${product.name.toLowerCase()} brings warmth and beauty to any space. Each piece is thoughtfully made by independent artisans using traditional techniques and sustainable materials.`
 
   const TABS = [
     { key: 'description', label: 'Description' },
@@ -281,42 +290,10 @@ export default function ProductDetailModal({ product }) {
           </div>
 
           <div style={{ padding: isMobile ? '20px 0' : '24px 0 32px' }}>
-            {activeTab === 'description' && (
-              <div style={{ fontSize: 14, color: '#6B4F3A', lineHeight: 1.8, maxWidth: 680 }}>
-                <p style={{ marginBottom: 14 }}>{desc}</p>
-                <p>The {product.name} is part of our curated {product.category.toLowerCase()} collection — a tribute to slow craft and timeless design. No two pieces are exactly alike; small variations celebrate the human touch behind every creation.</p>
-              </div>
-            )}
-            {activeTab === 'materials' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 520 }}>
-                {[['Primary material', 'Sustainably sourced natural materials'], ['Finish', 'Hand-applied, non-toxic treatment'], ['Dimensions', 'Standard (±5% handmade variation)'], ['Weight', 'Approx. 200–350g'], ['Origin', 'Made in India by independent artisans']].map(([k, v]) => (
-                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #EDE4D8', fontSize: 13 }}>
-                    <span style={{ color: '#9C7A63', fontWeight: 500 }}>{k}</span>
-                    <span style={{ color: '#2C1A0E', fontWeight: 600, textAlign: 'right', maxWidth: '60%' }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {activeTab === 'care' && (
-              <div style={{ fontSize: 14, color: '#6B4F3A', lineHeight: 1.8, maxWidth: 560 }}>
-                <ul style={{ paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {['Handle with care — each piece is handcrafted and unique.', 'Wipe clean with a soft, dry or slightly damp cloth.', 'Avoid prolonged exposure to direct sunlight.', 'Store in the provided box or wrap in tissue to maintain finish.', 'Do not use harsh chemicals or abrasive materials.'].map(c => <li key={c}>{c}</li>)}
-                </ul>
-              </div>
-            )}
-            {activeTab === 'shipping' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 560 }}>
-                {[['Standard Delivery', '3–5 business days', '$5.99 (free on orders $60+)'], ['Express Delivery', '1–2 business days', '$9.99'], ['Same-Day', 'Today by 8 PM', '$19.99 (select cities)'], ['Returns', '30-day free returns', 'No questions asked']].map(([t, eta, price]) => (
-                  <div key={t} style={{ display: 'flex', gap: 14, padding: '14px 16px', background: 'white', borderRadius: 14, border: '1px solid #EDE4D8' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 700, color: '#2C1A0E', fontSize: 13, marginBottom: 3 }}>{t}</div>
-                      <div style={{ fontSize: 12, color: '#9C7A63' }}>{eta}</div>
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: TC, flexShrink: 0 }}>{price}</div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {activeTab === 'description' && <TabContent value={product.description} />}
+            {activeTab === 'materials' && <TabContent value={product.materials} />}
+            {activeTab === 'care' && <TabContent value={product.care} />}
+            {activeTab === 'shipping' && <TabContent value={product.shippingAndReturns} />}
             {activeTab === 'reviews' && (
               <div style={{ maxWidth: 700 }}>
                 {/* Rating overview */}

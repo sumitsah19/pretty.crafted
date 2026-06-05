@@ -388,7 +388,7 @@ function ProductsView({ onToast }) {
   const [uploading, setUploading] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [editItem, setEditItem] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', price: '', stock: '', categoryId: '', imageUrls: [], tag: '', recipient: '' })
+  const [form, setForm] = useState({ name: '', description: '', materials: '', care: '', shippingAndReturns: '', price: '', stock: '', categoryId: '', imageUrls: [], tag: '', recipient: '' })
 
   useEffect(() => {
     Promise.all([
@@ -413,19 +413,19 @@ function ProductsView({ onToast }) {
 
   const openAdd = () => {
     setEditItem(null)
-    setForm({ name: '', description: '', price: '', stock: '', categoryId: categories[0]?.id || '', imageUrls: [], tag: '', recipient: '' })
+    setForm({ name: '', description: '', materials: '', care: '', shippingAndReturns: '', price: '', stock: '', categoryId: categories[0]?.id || '', imageUrls: [], tag: '', recipient: '' })
     setShowAdd(true)
   }
   const openEdit = (p) => {
     setEditItem(p)
-    setForm({ name: p.name, description: p.description || '', price: p.price, stock: p.stock, categoryId: p.categoryId, imageUrls: p.imageUrls?.length ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []), tag: p.tag || '', recipient: p.recipient || '' })
+    setForm({ name: p.name, description: p.description || '', materials: p.materials || '', care: p.care || '', shippingAndReturns: p.shippingAndReturns || '', price: p.price, stock: p.stock, categoryId: p.categoryId, imageUrls: p.imageUrls?.length ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []), tag: p.tag || '', recipient: p.recipient || '' })
     setShowAdd(true)
   }
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const payload = { name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), categoryId: Number(form.categoryId), imageUrls: form.imageUrls, tag: form.tag, recipient: form.recipient }
+      const payload = { name: form.name, description: form.description, materials: form.materials, care: form.care, shippingAndReturns: form.shippingAndReturns, price: Number(form.price), stock: Number(form.stock), categoryId: Number(form.categoryId), imageUrls: form.imageUrls, tag: form.tag, recipient: form.recipient }
       if (editItem) {
         const { data } = await productAdminApi.update(editItem.id, payload)
         setProducts(ps => ps.map(p => p.id === data.id ? data : p))
@@ -533,14 +533,23 @@ function ProductsView({ onToast }) {
             </div>
             {[
               { label: 'Product Name', key: 'name', type: 'text' },
-              { label: 'Description', key: 'description', type: 'text' },
+              { label: 'Description', key: 'description', type: 'textarea', hint: 'Shown in the Description tab. Line breaks are preserved.' },
+              { label: 'Materials', key: 'materials', type: 'textarea', hint: 'Shown in the Materials tab. Line breaks are preserved.' },
+              { label: 'Care', key: 'care', type: 'textarea', hint: 'Shown in the Care tab. Line breaks are preserved.' },
+              { label: 'Shipping & Returns', key: 'shippingAndReturns', type: 'textarea', hint: 'Shown in the Shipping & Returns tab. Line breaks are preserved.' },
               { label: 'Price (₹)', key: 'price', type: 'number' },
               { label: 'Stock', key: 'stock', type: 'number' },
-            ].map(({ label, key, type }) => (
+            ].map(({ label, key, type, hint }) => (
               <div key={key} style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
-                <input type={type} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                  style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+                {type === 'textarea' ? (
+                  <textarea value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} rows={4}
+                    style={{ ...inp, resize: 'vertical', lineHeight: 1.5 }} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+                ) : (
+                  <input type={type} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                    style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+                )}
+                {hint && <div style={{ fontSize: 10, color: LIGHT, marginTop: 5 }}>{hint}</div>}
               </div>
             ))}
 

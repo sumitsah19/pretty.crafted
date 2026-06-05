@@ -55,6 +55,9 @@ public class ProductService {
         Product product = Product.builder()
                 .name(req.name())
                 .description(req.description())
+                .materials(req.materials())
+                .care(req.care())
+                .shippingAndReturns(req.shippingAndReturns())
                 .price(req.price())
                 .stock(req.stock())
                 .imageUrl(primary)
@@ -79,6 +82,9 @@ public class ProductService {
 
         product.setName(req.name());
         product.setDescription(req.description());
+        product.setMaterials(req.materials());
+        product.setCare(req.care());
+        product.setShippingAndReturns(req.shippingAndReturns());
         product.setPrice(req.price());
         product.setStock(req.stock());
         product.setImageUrl(primary);
