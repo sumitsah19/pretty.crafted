@@ -893,22 +893,37 @@ function OccasionsView() {
 }
 
 // ─── MARKETING VIEW ────────────────────────────────────────────────
+const COUPONS_KEY = 'pc_admin_coupons'
+const DEFAULT_COUPONS = [
+  { code: 'PRETTY15', disc: '15% off', uses: 148, expires: 'May 31', active: true  },
+  { code: 'MAMA20',   disc: '20% off', uses: 92,  expires: 'May 19', active: true  },
+  { code: 'GRAD10',   disc: '10% off', uses: 34,  expires: 'Jun 30', active: false },
+]
+const loadCoupons = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COUPONS_KEY))
+    if (Array.isArray(saved)) return saved
+  } catch { /* ignore */ }
+  return DEFAULT_COUPONS
+}
+
 function MarketingView({ onToast }) {
   const [bannerMsg, setBannerMsg] = useState('✦ Free gift wrapping on orders over ₹5000 — use code PRETTY15 for 15% off ✦')
-  const [coupons, setCoupons] = useState([
-    { code: 'PRETTY15', disc: '15% off', uses: 148, expires: 'May 31', active: true  },
-    { code: 'MAMA20',   disc: '20% off', uses: 92,  expires: 'May 19', active: true  },
-    { code: 'GRAD10',   disc: '10% off', uses: 34,  expires: 'Jun 30', active: false },
-  ])
+  const [coupons, setCoupons] = useState(loadCoupons)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ code: '', value: '', expires: '' })
+
+  // Persist coupons so toggles/creates survive re-renders and page reloads.
+  useEffect(() => {
+    try { localStorage.setItem(COUPONS_KEY, JSON.stringify(coupons)) } catch { /* ignore */ }
+  }, [coupons])
 
   const inp = { width: '100%', padding: '10px 14px', borderRadius: 12, border: `1.5px solid ${BEIGE}`, fontSize: 13, background: 'white', fontFamily: "'DM Sans',sans-serif", outline: 'none', color: DARK }
 
   const toggleCoupon = (code) => {
     setCoupons(cs => cs.map(c => c.code === code ? { ...c, active: !c.active } : c))
-    const c = coupons.find(x => x.code === code)
-    onToast(`${code} ${c?.active ? 'paused' : 'activated'}`)
+    const current = coupons.find(x => x.code === code)
+    if (current) onToast(`${code} ${current.active ? 'paused' : 'activated'}`)
   }
 
   const deleteCoupon = (code) => {
