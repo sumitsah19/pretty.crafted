@@ -47,6 +47,8 @@ export default function ProductDetailModal({ product }) {
   const wishlistIds = useSelector(selectWishlistIds)
   const ww = useWindowWidth()
   const isMobile = ww < 768
+  // Match the live nav height so the full-screen page starts right below it
+  const navH = ww < 640 ? 60 : 72
   const isWishlisted = wishlistIds.includes(product.id)
 
   useEffect(() => { analytics.productView(product) }, [product])
@@ -147,8 +149,8 @@ export default function ProductDetailModal({ product }) {
       type="product"
     />
     <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && dispatch(clearActiveProduct())}
-      style={{ alignItems: 'flex-start', padding: isMobile ? 0 : 20, overflowY: 'auto' }}>
-      <div style={{ background: '#FAF7F2', width: '100%', maxWidth: 1080, borderRadius: isMobile ? 0 : 24, boxShadow: '0 32px 80px rgba(44,26,14,0.25)', overflow: 'hidden', marginTop: isMobile ? 0 : 20, marginBottom: isMobile ? 0 : 20, minHeight: isMobile ? '100vh' : 'auto' }}
+      style={{ alignItems: 'flex-start', padding: 0, top: navH, background: '#FAF7F2', backdropFilter: 'none', overflowY: 'auto' }}>
+      <div style={{ background: '#FAF7F2', width: '100%', maxWidth: 1100, borderRadius: 0, boxShadow: 'none', overflow: 'hidden', minHeight: `calc(100vh - ${navH}px)`, margin: '0 auto' }}
         className="animate-fade-up">
 
         {/* Sticky top bar — breadcrumb + close */}

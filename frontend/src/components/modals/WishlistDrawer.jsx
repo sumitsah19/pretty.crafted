@@ -21,7 +21,7 @@ export default function WishlistDrawer() {
   }, [dispatch])
 
   return (
-    <div onClick={(e) => e.target === e.currentTarget && dispatch(closeWishlist())} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(44,26,14,0.45)', backdropFilter: 'blur(4px)' }}>
+    <div onClick={(e) => e.target === e.currentTarget && dispatch(closeWishlist())} style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(44,26,14,0.45)', backdropFilter: 'blur(4px)' }}>
       <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: 400, background: '#FAF7F2', boxShadow: '-8px 0 40px rgba(44,26,14,0.15)', display: 'flex', flexDirection: 'column' }} className="animate-slide-right">
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>

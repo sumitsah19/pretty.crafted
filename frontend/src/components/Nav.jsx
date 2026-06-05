@@ -15,7 +15,8 @@ export default function Nav({ onScrollTo }) {
   const cartCount = useSelector(selectCartCount)
   const wishlistIds = useSelector(selectWishlistIds)
   const ui = useSelector(selectUI)
-  const productOpen = !!ui.activeProduct
+  // Nav pins on top of any full-screen overlay (product detail OR gift-box builder)
+  const overlayOpen = !!ui.activeProduct || ui.showBoxBuilder
   const ww = useWindowWidth()
   const isMobile = ww < 640
 
@@ -59,7 +60,7 @@ export default function Nav({ onScrollTo }) {
     { label: 'Build a Gift Box', href: '/gift-boxes', icon: '🎁',  action: () => { setMobileOpen(false); dispatch(openBoxBuilder()) } },
   ]
 
-  const showSolid = isSticky || scrolled || (isMobile && mobileOpen) || productOpen
+  const showSolid = isSticky || scrolled || (isMobile && mobileOpen) || overlayOpen
 
   return (
     <>
@@ -72,12 +73,12 @@ export default function Nav({ onScrollTo }) {
       */}
       <div style={{ height: navHeight }}>
         <nav style={{
-          position: isSticky || productOpen ? 'fixed' : 'relative',
+          position: isSticky || overlayOpen ? 'fixed' : 'relative',
           top: 0,
           left: 0,
           right: 0,
           width: '100%',
-          zIndex: productOpen ? 1100 : 200,
+          zIndex: overlayOpen ? 1100 : 200,
           background: showSolid ? 'rgba(250,247,242,0.98)' : 'rgba(250,247,242,0.85)',
           backdropFilter: 'blur(16px)',
           borderBottom: showSolid ? '1px solid #EDE4D8' : '1px solid transparent',
@@ -189,13 +190,16 @@ export default function Nav({ onScrollTo }) {
       {/* Mobile Dropdown */}
       {isMobile && mobileOpen && (
         <div style={{
-          position: isSticky ? 'fixed' : 'relative',
-          top: isSticky ? navHeight : undefined,
+          position: 'fixed',
+          top: navHeight,
           left: 0, right: 0,
-          zIndex: 199,
+          zIndex: 1099,
+          maxHeight: `calc(100vh - ${navHeight}px)`,
+          overflowY: 'auto',
           background: 'rgba(250,247,242,0.98)',
           backdropFilter: 'blur(16px)',
           borderBottom: '1px solid #EDE4D8',
+          boxShadow: '0 12px 30px rgba(44,26,14,0.12)',
           animation: 'slideDown 0.22s ease',
         }}>
           <div style={{ padding: '8px 16px 16px' }}>
@@ -204,7 +208,7 @@ export default function Nav({ onScrollTo }) {
               {[
                 { label: isLoggedIn ? 'Account' : 'Sign In', icon: <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>, action: () => { setMobileOpen(false); setTimeout(() => isLoggedIn ? dispatch(openUserAccount()) : dispatch(openLogin()), 100) } },
                 { label: 'Wish List', icon: <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />, action: () => { setMobileOpen(false); setTimeout(() => dispatch(openWishlist()), 100) } },
-                { label: 'Search', icon: <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>, action: () => { setMobileOpen(false); setTimeout(() => dispatch(openSearch()), 100) } },
+                { label: 'Gift Finder', icon: <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>, action: () => { setMobileOpen(false); setTimeout(() => dispatch(openSearch()), 100) } },
               ].map(q => (
                 <button key={q.label} onClick={q.action}
                   style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '12px 4px', background: 'white', border: '1px solid #EDE4D8', borderRadius: 14, cursor: 'pointer', minHeight: 64 }}>

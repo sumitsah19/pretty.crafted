@@ -50,8 +50,8 @@ export default function CartDrawer() {
 
   return (
     <>
-      <div onClick={() => dispatch(closeCart())} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(44,26,14,0.4)', backdropFilter: 'blur(3px)' }} />
-      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 301, width: 'min(420px, 100vw)', background: '#FAF7F2', boxShadow: '-8px 0 40px rgba(44,26,14,0.15)', display: 'flex', flexDirection: 'column' }} className="animate-slide-right">
+      <div onClick={() => dispatch(closeCart())} style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(44,26,14,0.4)', backdropFilter: 'blur(3px)' }} />
+      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 1201, width: 'min(420px, 100vw)', background: '#FAF7F2', boxShadow: '-8px 0 40px rgba(44,26,14,0.15)', display: 'flex', flexDirection: 'column' }} className="animate-slide-right">
         {/* Header */}
         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>

@@ -71,7 +71,7 @@ export default function SearchModal() {
   const categories = ['All', ...Array.from(new Set(products.map((p) => p.category)))]
 
   return (
-    <div onClick={(e) => e.target === e.currentTarget && dispatch(closeSearch())} style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(44,26,14,0.5)', backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 16px 16px' }}>
+    <div onClick={(e) => e.target === e.currentTarget && dispatch(closeSearch())} style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(44,26,14,0.5)', backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 16px 16px' }}>
       <div style={{ width: '100%', maxWidth: 680, background: '#FAF7F2', borderRadius: 24, boxShadow: '0 32px 80px rgba(44,26,14,0.25)', overflow: 'hidden', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }} className="animate-fade-up">
         {/* Search input */}
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #EDE4D8', flexShrink: 0 }}>

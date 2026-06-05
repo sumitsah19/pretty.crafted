@@ -23,6 +23,8 @@ export default function GiftBoxModal() {
   const isLoggedIn = useSelector(selectIsLoggedIn)
   const ww = useWindowWidth()
   const isMobile = ww < 640
+  // Opens full-screen below the pinned navbar (matches product detail)
+  const navH = isMobile ? 60 : 72
 
   const [boxSize, setBoxSize] = useState('MEDIUM')
   const BOX_SLOTS = BOX_SIZES[boxSize].slots
@@ -103,8 +105,9 @@ export default function GiftBoxModal() {
   }
 
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && dispatch(closeBoxBuilder())}>
-      <div style={{ background: '#FAF7F2', borderRadius: isMobile ? 20 : 24, width: '100%', maxWidth: isMobile ? '100%' : 880, maxHeight: isMobile ? '95vh' : '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(44,26,14,0.25)' }}>
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && dispatch(closeBoxBuilder())}
+      style={{ alignItems: 'flex-start', padding: 0, top: navH, background: '#FAF7F2', backdropFilter: 'none' }}>
+      <div style={{ background: '#FAF7F2', borderRadius: 0, width: '100%', maxWidth: 880, height: `calc(100vh - ${navH}px)`, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: 'none', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ padding: isMobile ? '16px 20px 14px' : '24px 32px 20px', borderBottom: '1px solid #EDE4D8', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 12 : 0 }}>

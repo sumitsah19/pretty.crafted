@@ -371,7 +371,7 @@ export default function HomePage() {
       <section style={{ margin: isMobile ? '0 20px 56px' : `0 ${px} 80px`, borderRadius: isMobile ? 20 : 28, overflow: 'hidden' }}>
         <div style={{ background: `linear-gradient(135deg, ${TC} 0%, #A85A38 100%)`, padding: isMobile ? '40px 24px' : '56px 64px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: isMobile ? 28 : 48 }}>
           <div style={{ flex: 1, color: 'white' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: TC, marginBottom: 10 }}>✦ Stay in the loop</div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.85)', marginBottom: 10 }}>✦ Stay in the loop</div>
             <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 'clamp(22px,5vw,30px)' : 'clamp(26px,3vw,38px)', fontWeight: 700, lineHeight: 1.2, marginBottom: 10 }}>Gifts, Stories &<br />Handcrafted Finds</h2>
             <p style={{ fontSize: isMobile ? 13 : 15, lineHeight: 1.65, color: 'rgba(255,255,255,0.65)', maxWidth: 360 }}>Join 12,000+ gift-givers who get early access to new collections, seasonal guides, and exclusive offers.</p>
           </div>
@@ -382,7 +382,7 @@ export default function HomePage() {
                 onFocus={e => e.target.style.background = 'rgba(255,255,255,0.15)'}
                 onBlur={e => e.target.style.background = 'rgba(255,255,255,0.1)'} />
               <button onClick={() => { if (!emailVal.includes('@')) return; setSubscribed(true); setTimeout(() => setSubscribed(false), 2500) }}
-                style={{ padding: '14px 28px', borderRadius: 99, border: 'none', background: subscribed ? '#7A9A6B' : TC, color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, boxShadow: '0 6px 20px rgba(196,112,74,0.4)', transition: 'background 0.3s' }}>
+                style={{ padding: '14px 28px', borderRadius: 99, border: 'none', background: subscribed ? '#7A9A6B' : 'white', color: subscribed ? 'white' : TC, fontWeight: 700, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, boxShadow: '0 6px 20px rgba(44,26,14,0.18)', transition: 'background 0.3s, color 0.3s' }}>
                 {subscribed ? 'Subscribed ✓' : 'Subscribe →'}
               </button>
             </div>
@@ -392,13 +392,13 @@ export default function HomePage() {
       </section>
 
       {/* ── FOOTER ────────────────────────────────────────── */}
-      <footer style={{ background: '#2C1A0E', color: '#D9CBBF', padding: isMobile ? '40px 20px 32px' : '60px 48px 40px' }}>
+      <footer style={{ background: `linear-gradient(135deg, ${TC} 0%, #A85A38 100%)`, color: 'rgba(255,255,255,0.85)', padding: isMobile ? '40px 20px 32px' : '60px 48px 40px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1fr 1fr 1fr', gap: isMobile ? 28 : 40, marginBottom: isMobile ? 32 : 48 }}>
           <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: 'white', marginBottom: 10 }}>
               Prettycrafted
             </div>
-            <p style={{ fontSize: 13, lineHeight: 1.7, color: '#9C7A63', maxWidth: 260 }}>Prettycrafted — curating handcrafted gifts that carry warmth, intention, and love.</p>
+            <p style={{ fontSize: 13, lineHeight: 1.7, color: 'rgba(255,255,255,0.75)', maxWidth: 260 }}>Prettycrafted — curating handcrafted gifts that carry warmth, intention, and love.</p>
           </div>
           {[
             { title: 'Shop',
@@ -419,19 +419,19 @@ export default function HomePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {col.links.map((l, li) => (
                   <a key={l} href={col.hrefs[li]} onClick={e => { e.preventDefault(); col.actions[li]?.() }}
-                    style={{ color: '#9C7A63', textDecoration: 'none', fontSize: 13, transition: 'color 0.2s' }}
-                    onMouseEnter={e => e.target.style.color = TC}
-                    onMouseLeave={e => e.target.style.color = '#9C7A63'}>{l}</a>
+                    style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 13, transition: 'color 0.2s' }}
+                    onMouseEnter={e => e.target.style.color = 'white'}
+                    onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.78)'}>{l}</a>
                 ))}
               </div>
             </div>
           ))}
         </div>
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 12 }}>
-          <div style={{ fontSize: 12, color: '#6B4F3A' }}>© 2026 Prettycrafted. Made with ♥</div>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 12 }}>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>© 2026 Prettycrafted. Made with ♥</div>
           <div style={{ display: 'flex', gap: 16 }}>
             {[{ label: 'Privacy', href: '/privacy' }, { label: 'Terms', href: '/terms' }, { label: 'Shipping', href: '#' }].map(l => (
-              <a key={l.label} href={l.href} style={{ fontSize: 12, color: '#6B4F3A', textDecoration: 'none' }}>{l.label}</a>
+              <a key={l.label} href={l.href} style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', textDecoration: 'none' }}>{l.label}</a>
             ))}
           </div>
         </div>
