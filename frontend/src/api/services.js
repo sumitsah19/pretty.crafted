@@ -65,6 +65,19 @@ export const categoriesApi = {
   remove: (id)        => api.delete(`/categories/${id}`),
 }
 
+// ── PROMOTIONS (public — storefront banner) ──────────────────────
+export const promotionsApi = {
+  list: () => api.get('/public/promotions'),
+}
+
+// ── COUPONS (admin write) ─────────────────────────────────────────
+export const couponAdminApi = {
+  list:   ()     => api.get('/admin/coupons'),
+  create: (data) => api.post('/admin/coupons', data),
+  toggle: (id)   => api.patch(`/admin/coupons/${id}/toggle`),
+  remove: (id)   => api.delete(`/admin/coupons/${id}`),
+}
+
 // ── ADMIN ─────────────────────────────────────────────────────────
 export const adminApi = {
   stats:             ()                  => api.get('/admin/stats'),

@@ -6,6 +6,7 @@ import { fetchProducts } from './store/slices/productsSlice'
 import { selectUI, selectCartOpen, selectWishlistOpen } from './store/slices/uiSlice'
 import { useWindowWidth } from './hooks/useWindowWidth'
 import { useOnlineStatus } from './hooks/useOnlineStatus'
+import { promotionsApi } from './api/services'
 import ErrorBoundary from './components/ErrorBoundary'
 
 import Nav from './components/Nav'
@@ -49,10 +50,27 @@ export default function App() {
   const user = useSelector(selectUser)
   const [resendState, setResendState] = useState('idle') // idle | loading | sent | error
 
+  // Storefront announcement banner — active coupons (from backend) + evergreen brand lines
+  const BANNER_BASE = [
+    '✦ Free gift wrapping on orders over ₹5000',
+    '🎁 Handcrafted with love, delivered across India',
+    '✦ New arrivals every week',
+  ]
+  const [bannerMessages, setBannerMessages] = useState(BANNER_BASE)
+
   useEffect(() => {
     dispatch(fetchMe())
     dispatch(fetchProducts())
   }, [dispatch])
+
+  useEffect(() => {
+    promotionsApi.list()
+      .then(({ data }) => {
+        const couponLines = (data || []).map(c => `Use code ${c.code} for ${c.discountPercent}% off`)
+        setBannerMessages([...couponLines, ...BANNER_BASE])
+      })
+      .catch(() => { /* keep base messages */ })
+  }, [])
 
   useEffect(() => {
     const handleForceLogout = () => dispatch(logout())
@@ -197,11 +215,11 @@ export default function App() {
           </div>
         )}
 
-        {/* Announcement banner — scrolling marquee */}
+        {/* Announcement banner — scrolling marquee (active coupons + brand lines) */}
         <div style={{ background: TC, color: 'white', padding: isMobile ? '9px 0' : '10px 0', fontSize: isMobile ? 12 : 13, fontWeight: 500, overflow: 'hidden' }}>
           <div className="marquee-track" aria-hidden="true">
             {Array.from({ length: 2 }).map((_, rep) => (
-              ['✦ Free gift wrapping on orders over ₹5000', 'Use code PRETTY15 for 15% off', '🎁 Handcrafted with love, delivered across India', '✦ New arrivals every week'].map((msg, i) => (
+              bannerMessages.map((msg, i) => (
                 <span key={`${rep}-${i}`} className="marquee-item">{msg}</span>
               ))
             ))}
