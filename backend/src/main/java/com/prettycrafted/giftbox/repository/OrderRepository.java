@@ -4,6 +4,7 @@ import com.prettycrafted.giftbox.domain.Order;
 import com.prettycrafted.giftbox.domain.OrderStatus;
 import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -31,4 +32,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         + "where o.paymentStatus = com.prettycrafted.giftbox.domain.PaymentStatus.SUCCESS "
         + "group by o.user.id")
     List<Object[]> findUserOrderStats();
+
+    @Query("select count(oi) from OrderItem oi "
+        + "join oi.order o "
+        + "where o.user.id = :userId "
+        + "and oi.product.id = :productId "
+        + "and o.status in :statuses")
+    long countUserPurchasesOfProduct(
+        @Param("userId") Long userId,
+        @Param("productId") Long productId,
+        @Param("statuses") Collection<OrderStatus> statuses);
 }

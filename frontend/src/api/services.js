@@ -88,6 +88,16 @@ export const adminApi = {
   testEmail:         (to)               => api.get('/admin/test-email', { params: { to } }),
 }
 
+// ── REVIEWS ──────────────────────────────────────────────────────
+// GET /products/{id}/reviews → public (Chain 1)
+// GET /reviews/can-review/{id} → authenticated (Chain 2)
+// POST /reviews → authenticated (Chain 2); body: { productId, rating, body }
+export const reviewsApi = {
+  list:      (productId)        => api.get(`/products/${productId}/reviews`),
+  canReview: (productId)        => api.get(`/reviews/can-review/${productId}`),
+  submit:    (productId, data)  => api.post('/reviews', { productId, ...data }),
+}
+
 // ── UPLOADS ───────────────────────────────────────────────────────
 export const uploadApi = {
   image: (file) => {

@@ -1,37 +1,17 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { clearActiveProduct, setActiveProduct, openCart } from '../../store/slices/uiSlice'
+import { clearActiveProduct, setActiveProduct, openCart, openLogin } from '../../store/slices/uiSlice'
 import SEO from '../SEO'
 import { addLocal } from '../../store/slices/cartSlice'
 import { toggleWishlist } from '../../store/slices/wishlistSlice'
 import { selectWishlistIds } from '../../store/slices/wishlistSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
+import { selectIsLoggedIn } from '../../store/slices/authSlice'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
 import { analytics } from '../../analytics'
+import { reviewsApi } from '../../api/services'
 
 const TC = '#C4704A'
-
-function makeReviews(product) {
-  const names = ['Aanya S.', 'Maya R.', 'Priya K.', 'Liam C.', 'Noah W.', 'Sofia M.', 'Arjun P.', 'Emma T.']
-  const texts = [
-    'Absolutely stunning craftsmanship! Even better than the photos.',
-    'Beautiful packaging and the quality is top-notch. Worth every penny.',
-    'Gifted this to my sister — she loved it. Will buy again.',
-    'Lovely scent and the design feels really premium.',
-    'Pretty as expected, though shipping took a little longer than I hoped.',
-    'Fell in love the moment I opened it. So thoughtful.',
-    'Great little detail — feels handmade and intentional.',
-    'Five stars. The reviews don\'t lie!',
-  ]
-  const ratings = [5,5,4,5,4,5,5,5]
-  return Array.from({ length: 6 }, (_, i) => ({
-    name: names[(product.id + i) % names.length],
-    rating: ratings[(product.id + i) % ratings.length],
-    text: texts[(product.id + i) % texts.length],
-    date: ['2 days ago','1 week ago','2 weeks ago','1 month ago','3 weeks ago','2 months ago'][i],
-    verified: i % 2 === 0,
-  }))
-}
 
 // Renders an admin-managed rich-text field. Text is stored with newlines
 // preserved (entered via the admin textarea); falls back to a neutral empty
@@ -55,6 +35,7 @@ export default function ProductDetailModal({ product }) {
   const dispatch = useDispatch()
   const allProducts = useSelector(selectProducts)
   const wishlistIds = useSelector(selectWishlistIds)
+  const isLoggedIn = useSelector(selectIsLoggedIn)
   const ww = useWindowWidth()
   const isMobile = ww < 768
   // Match the live nav height so the full-screen page starts right below it
@@ -71,6 +52,18 @@ export default function ProductDetailModal({ product }) {
   const galleryRef = useRef(null)
   const similarRef = useRef(null)
   const touchStartX = useRef(0)
+  const backdropRef = useRef(null)
+
+  // ── Reviews state ────────────────────────────────────────────────
+  const [reviews, setReviews] = useState([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [canReview, setCanReview] = useState(false)
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewBody, setReviewBody] = useState('')
+  const [reviewHover, setReviewHover] = useState(0)
+  const [submitLoading, setSubmitLoading] = useState(false)
+  const [submitError, setSubmitError] = useState(null)
+  const [submitDone, setSubmitDone] = useState(false)
 
   // Build gallery from the product's own images; always at least 1 entry
   const gallery = useMemo(() => {
@@ -79,8 +72,7 @@ export default function ProductDetailModal({ product }) {
     return urls.map(url => ({ imageUrl: url, bg: product.bg || '#EDE4D8' }))
   }, [product])
 
-  const reviews = useMemo(() => makeReviews(product), [product])
-  const avgRating = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+  const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0
   const ratingDist = [5,4,3,2,1].map(n => ({ n, count: reviews.filter(r => r.rating === n).length }))
 
   const similar = useMemo(() => {
@@ -99,7 +91,41 @@ export default function ProductDetailModal({ product }) {
     return () => { window.removeEventListener('keydown', k); document.body.style.overflow = '' }
   }, [dispatch])
 
-  useEffect(() => { setQty(1); setActiveImage(0); setActiveTab('description') }, [product.id])
+  useEffect(() => {
+    setQty(1); setActiveImage(0); setActiveTab('description'); backdropRef.current?.scrollTo({ top: 0 })
+    setReviews([]); setCanReview(false); setSubmitDone(false); setSubmitError(null); setReviewBody(''); setReviewRating(5)
+  }, [product.id])
+
+  useEffect(() => {
+    let cancelled = false
+    setReviewsLoading(true)
+    reviewsApi.list(product.id)
+      .then(res => { if (!cancelled) setReviews(res.data) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setReviewsLoading(false) })
+    return () => { cancelled = true }
+  }, [product.id])
+
+  useEffect(() => {
+    if (!isLoggedIn) { setCanReview(false); return }
+    reviewsApi.canReview(product.id)
+      .then(res => setCanReview(res.data.canReview))
+      .catch(() => setCanReview(false))
+  }, [product.id, isLoggedIn, submitDone])
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault()
+    setSubmitLoading(true); setSubmitError(null)
+    try {
+      const { data } = await reviewsApi.submit(product.id, { rating: reviewRating, body: reviewBody })
+      setReviews(prev => [data, ...prev])
+      setSubmitDone(true)
+    } catch (err) {
+      setSubmitError(err.response?.data?.message || 'Failed to submit review')
+    } finally {
+      setSubmitLoading(false)
+    }
+  }
 
   const handleAdd = () => {
     for (let i = 0; i < qty; i++) dispatch(addLocal(product))
@@ -128,7 +154,7 @@ export default function ProductDetailModal({ product }) {
     { key: 'materials',   label: 'Materials'   },
     { key: 'care',        label: 'Care'         },
     { key: 'shipping',    label: 'Shipping'     },
-    { key: 'reviews',     label: `Reviews (${reviews.length})` },
+    { key: 'reviews',     label: reviewsLoading ? 'Reviews' : `Reviews (${reviews.length})` },
   ]
 
   const MiniCard = ({ p }) => (
@@ -157,7 +183,7 @@ export default function ProductDetailModal({ product }) {
       product={product}
       type="product"
     />
-    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && dispatch(clearActiveProduct())}
+    <div ref={backdropRef} className="modal-backdrop" onClick={e => e.target === e.currentTarget && dispatch(clearActiveProduct())}
       style={{ alignItems: 'flex-start', padding: 0, top: navH, background: '#FAF7F2', backdropFilter: 'none', overflowY: 'auto' }}>
       <div style={{ background: '#FAF7F2', width: '100%', maxWidth: 1100, borderRadius: 0, boxShadow: 'none', overflow: 'hidden', minHeight: `calc(100vh - ${navH}px)`, margin: '0 auto' }}
         className="animate-fade-up">
@@ -231,9 +257,11 @@ export default function ProductDetailModal({ product }) {
 
             {/* Rating summary */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
-              <StarRating rating={avgRating} size={15} />
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#2C1A0E' }}>{avgRating.toFixed(1)}</span>
-              <span style={{ fontSize: 13, color: '#9C7A63', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setActiveTab('reviews')}>({reviews.length} reviews)</span>
+              {reviews.length > 0 && <>
+                <StarRating rating={avgRating} size={15} />
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#2C1A0E' }}>{avgRating.toFixed(1)}</span>
+                <span style={{ fontSize: 13, color: '#9C7A63', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setActiveTab('reviews')}>({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})</span>
+              </>}
               <span style={{ fontSize: 12, color: '#7A9A6B', fontWeight: 600 }}>✓ In Stock ({stockCount} left)</span>
             </div>
 
@@ -243,9 +271,6 @@ export default function ProductDetailModal({ product }) {
               {product.originalPrice && <span style={{ fontSize: 16, color: '#B8A090', textDecoration: 'line-through' }}>₹{product.originalPrice}</span>}
               {product.originalPrice && <span style={{ fontSize: 12, background: '#EAF2E8', color: '#2A7A3B', padding: '2px 8px', borderRadius: 99, fontWeight: 700 }}>Save {Math.round((1 - product.price / product.originalPrice) * 100)}%</span>}
             </div>
-
-            {/* Handcrafted badge */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#F5EEE6', borderRadius: 99, padding: '7px 14px', fontSize: 12, color: '#6B4F3A', fontWeight: 600, marginBottom: 22 }}>🤲 Individually handcrafted · Each one unique</div>
 
             {/* Qty + Add to Cart + Buy Now */}
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 24 }}>
@@ -296,44 +321,102 @@ export default function ProductDetailModal({ product }) {
             {activeTab === 'shipping' && <TabContent value={product.shippingAndReturns} />}
             {activeTab === 'reviews' && (
               <div style={{ maxWidth: 700 }}>
-                {/* Rating overview */}
-                <div style={{ display: 'flex', gap: isMobile ? 20 : 40, alignItems: 'center', padding: '20px', background: 'white', borderRadius: 18, border: '1px solid #EDE4D8', marginBottom: 24, flexWrap: 'wrap' }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 52, fontWeight: 700, color: TC, lineHeight: 1 }}>{avgRating.toFixed(1)}</div>
-                    <StarRating rating={avgRating} size={16} />
-                    <div style={{ fontSize: 12, color: '#9C7A63', marginTop: 4 }}>{reviews.length} reviews</div>
-                  </div>
-                  <div style={{ flex: 1, minWidth: 160 }}>
-                    {ratingDist.map(({ n, count }) => (
-                      <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <span style={{ fontSize: 12, color: '#9C7A63', width: 8, textAlign: 'right', flexShrink: 0 }}>{n}</span>
-                        <span style={{ color: TC, fontSize: 12 }}>★</span>
-                        <div style={{ flex: 1, height: 6, background: '#EDE4D8', borderRadius: 99, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${(count / reviews.length) * 100}%`, background: TC, borderRadius: 99 }} />
+                {/* Rating overview — only shown when there are reviews */}
+                {reviews.length > 0 && (
+                  <div style={{ display: 'flex', gap: isMobile ? 20 : 40, alignItems: 'center', padding: '20px', background: 'white', borderRadius: 18, border: '1px solid #EDE4D8', marginBottom: 24, flexWrap: 'wrap' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 52, fontWeight: 700, color: TC, lineHeight: 1 }}>{avgRating.toFixed(1)}</div>
+                      <StarRating rating={avgRating} size={16} />
+                      <div style={{ fontSize: 12, color: '#9C7A63', marginTop: 4 }}>{reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}</div>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 160 }}>
+                      {ratingDist.map(({ n, count }) => (
+                        <div key={n} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontSize: 12, color: '#9C7A63', width: 8, textAlign: 'right', flexShrink: 0 }}>{n}</span>
+                          <span style={{ color: TC, fontSize: 12 }}>★</span>
+                          <div style={{ flex: 1, height: 6, background: '#EDE4D8', borderRadius: 99, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${(count / reviews.length) * 100}%`, background: TC, borderRadius: 99 }} />
+                          </div>
+                          <span style={{ fontSize: 11, color: '#9C7A63', width: 14, textAlign: 'right' }}>{count}</span>
                         </div>
-                        <span style={{ fontSize: 11, color: '#9C7A63', width: 14, textAlign: 'right' }}>{count}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Write a Review form */}
+                {canReview && !submitDone && (
+                  <form onSubmit={handleSubmitReview} style={{ background: 'white', borderRadius: 18, padding: '20px 22px', border: `1px solid ${TC}33`, marginBottom: 24 }}>
+                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 15, fontWeight: 700, color: '#2C1A0E', marginBottom: 14 }}>Write a Review</div>
+                    {/* Star picker */}
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 14 }}>
+                      {[1,2,3,4,5].map(n => (
+                        <button key={n} type="button"
+                          onClick={() => setReviewRating(n)}
+                          onMouseEnter={() => setReviewHover(n)}
+                          onMouseLeave={() => setReviewHover(0)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, fontSize: 26, color: n <= (reviewHover || reviewRating) ? TC : '#E5DBCC', transition: 'color 0.15s' }}>★</button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={reviewBody}
+                      onChange={e => setReviewBody(e.target.value)}
+                      placeholder="Share your experience with this product (at least 10 characters)…"
+                      required
+                      minLength={10}
+                      maxLength={2000}
+                      rows={4}
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: '1px solid #EDE4D8', fontSize: 13, color: '#2C1A0E', fontFamily: 'DM Sans, sans-serif', resize: 'vertical', outline: 'none', boxSizing: 'border-box', background: '#FAF7F2' }}
+                    />
+                    {submitError && <div style={{ fontSize: 12, color: '#C0392B', marginTop: 8 }}>{submitError}</div>}
+                    <button type="submit" disabled={submitLoading}
+                      style={{ marginTop: 12, padding: '11px 28px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontWeight: 700, fontSize: 13, cursor: submitLoading ? 'default' : 'pointer', opacity: submitLoading ? 0.7 : 1, transition: 'all 0.2s' }}>
+                      {submitLoading ? 'Submitting…' : 'Submit Review'}
+                    </button>
+                  </form>
+                )}
+
+                {submitDone && (
+                  <div style={{ background: '#EAF2E8', borderRadius: 14, padding: '14px 18px', marginBottom: 24, fontSize: 13, color: '#2A7A3B', fontWeight: 600 }}>
+                    ✓ Your review has been submitted. Thank you!
+                  </div>
+                )}
+
+                {/* Prompt to log in if not authenticated */}
+                {!isLoggedIn && (
+                  <div style={{ background: 'white', borderRadius: 14, padding: '14px 18px', marginBottom: 24, border: '1px solid #EDE4D8', fontSize: 13, color: '#6B4F3A' }}>
+                    <span onClick={() => dispatch(openLogin())} style={{ color: TC, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>Sign in</span> and purchase this product to leave a review.
+                  </div>
+                )}
+
+                {/* Review cards */}
+                {reviewsLoading && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {[1,2,3].map(i => <div key={i} style={{ height: 96, borderRadius: 16, background: '#EDE4D8', animation: 'skShimmer 1.4s infinite' }} />)}
+                  </div>
+                )}
+                {!reviewsLoading && reviews.length === 0 && (
+                  <div style={{ fontSize: 14, color: '#9C7A63', fontStyle: 'italic', lineHeight: 1.8 }}>No reviews yet. Be the first to review this product!</div>
+                )}
+                {!reviewsLoading && reviews.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {reviews.map(r => (
+                      <div key={r.id} style={{ background: 'white', borderRadius: 16, padding: '18px 20px', border: '1px solid #EDE4D8' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 10 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: '50%', background: TC, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 14, fontWeight: 700 }}>{r.userName.charAt(0).toUpperCase()}</div>
+                            <div>
+                              <div style={{ fontWeight: 700, color: '#2C1A0E', fontSize: 13 }}>{r.userName} <span style={{ fontSize: 10, color: '#7A9A6B', fontWeight: 600 }}>✓ Verified Purchase</span></div>
+                              <div style={{ fontSize: 11, color: '#9C7A63' }}>{new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                            </div>
+                          </div>
+                          <StarRating rating={r.rating} size={13} />
+                        </div>
+                        <p style={{ fontFamily: "'Lora',serif", fontSize: 13, color: '#6B4F3A', lineHeight: 1.7, fontStyle: 'italic' }}>"{r.body}"</p>
                       </div>
                     ))}
                   </div>
-                </div>
-                {/* Review cards */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {reviews.map((r, i) => (
-                    <div key={i} style={{ background: 'white', borderRadius: 16, padding: '18px 20px', border: '1px solid #EDE4D8' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 10 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 36, height: 36, borderRadius: '50%', background: TC, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 14, fontWeight: 700 }}>{r.name.charAt(0)}</div>
-                          <div>
-                            <div style={{ fontWeight: 700, color: '#2C1A0E', fontSize: 13 }}>{r.name} {r.verified && <span style={{ fontSize: 10, color: '#7A9A6B', fontWeight: 600 }}>✓ Verified</span>}</div>
-                            <div style={{ fontSize: 11, color: '#9C7A63' }}>{r.date}</div>
-                          </div>
-                        </div>
-                        <StarRating rating={r.rating} size={13} />
-                      </div>
-                      <p style={{ fontFamily: "'Lora',serif", fontSize: 13, color: '#6B4F3A', lineHeight: 1.7, fontStyle: 'italic' }}>"{r.text}"</p>
-                    </div>
-                  ))}
-                </div>
+                )}
               </div>
             )}
           </div>
