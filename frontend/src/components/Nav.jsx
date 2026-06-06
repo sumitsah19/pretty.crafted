@@ -193,7 +193,7 @@ export default function Nav({ onScrollTo }) {
           position: 'fixed',
           top: navHeight,
           left: 0, right: 0,
-          zIndex: 1099,
+          zIndex: 199,
           maxHeight: `calc(100vh - ${navHeight}px)`,
           overflowY: 'auto',
           background: 'rgba(250,247,242,0.98)',
@@ -202,7 +202,7 @@ export default function Nav({ onScrollTo }) {
           boxShadow: '0 12px 30px rgba(44,26,14,0.12)',
           animation: 'slideDown 0.22s ease',
         }}>
-          <div style={{ padding: '8px 16px 16px' }}>
+          <div style={{ padding: '8px 16px 16px', paddingTop: 40 }}>
             {/* Quick-action tiles */}
             <div style={{ display: 'flex', gap: 8, paddingBottom: 12, marginBottom: 8, borderBottom: '1px solid #EDE4D8' }}>
               {[
