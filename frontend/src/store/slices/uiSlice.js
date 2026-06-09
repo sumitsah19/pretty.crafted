@@ -15,6 +15,7 @@ const uiSlice = createSlice({
     cartOpen: false,
     wishlistOpen: false,
     showHamperShop: false,
+    showShop: false,
   },
   reducers: {
     openLogin: (state) => { state.showLogin = true },
@@ -41,6 +42,8 @@ const uiSlice = createSlice({
     closeWishlist: (state) => { state.wishlistOpen = false },
     openHamperShop: (state) => { state.showHamperShop = true },
     closeHamperShop: (state) => { state.showHamperShop = false },
+    openShop: (state) => { state.showShop = true },
+    closeShop: (state) => { state.showShop = false },
   },
 })
 
@@ -57,6 +60,7 @@ export const {
   openCart, closeCart,
   openWishlist, closeWishlist,
   openHamperShop, closeHamperShop,
+  openShop, closeShop,
 } = uiSlice.actions
 
 export const selectUI = (state) => state.ui

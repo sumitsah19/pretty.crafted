@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { selectProducts, selectProductsLoading } from '../store/slices/productsSlice'
-import { selectUI, openBoxBuilder, openOccasions, openUserAccount, openLogin, openHamperShop, setActiveProduct, setActiveOccasion } from '../store/slices/uiSlice'
+import { selectUI, openBoxBuilder, openOccasions, openUserAccount, openLogin, openHamperShop, openShop, setActiveProduct, setActiveOccasion } from '../store/slices/uiSlice'
 import { selectIsLoggedIn } from '../store/slices/authSlice'
 import { useWindowWidth } from '../hooks/useWindowWidth'
 import Hero from '../components/Hero'
@@ -131,6 +131,9 @@ export default function HomePage() {
     [products, activeRecipient, activeCategory]
   )
 
+  // Featured Collection shows a preview; "View all" opens the full shop page
+  const featuredCap = 12
+
   const bestsellers = useMemo(
     () => products.filter(p => p.tag === 'Bestseller'),
     [products]
@@ -193,7 +196,7 @@ export default function HomePage() {
             </div>
             <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 32, fontWeight: 700 }}>Featured Collection</h2>
           </div>
-          <a href="#" onClick={e => { e.preventDefault(); setActiveRecipient('all'); setActiveCategory('All') }}
+          <a href="#" onClick={e => { e.preventDefault(); dispatch(openShop()) }}
             style={{ color: TC, fontSize: 13, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>View all →</a>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
@@ -206,7 +209,7 @@ export default function HomePage() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(3,1fr)' : 'repeat(auto-fill, minmax(200px,1fr))', gap: isMobile ? 12 : 20 }}>
           {loading ? Array.from({ length: isMobile ? 4 : 6 }).map((_, i) => <ProductSkeleton key={i} />) :
-            filtered.map(p => <ProductCard key={p.id} product={p} onClick={() => dispatch(setActiveProduct(p))} />)}
+            filtered.slice(0, featuredCap).map(p => <ProductCard key={p.id} product={p} onClick={() => dispatch(setActiveProduct(p))} />)}
         </div>
       </section>
 
