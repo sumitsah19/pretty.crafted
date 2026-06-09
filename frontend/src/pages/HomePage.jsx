@@ -7,15 +7,9 @@ import { useWindowWidth } from '../hooks/useWindowWidth'
 import Hero from '../components/Hero'
 import GiftBoxCTASection from '../components/GiftBoxCTASection'
 import ProductCard, { ProductSkeleton } from '../components/ui/ProductCard'
+import { HAMPERS } from '../data/hampers'
 
 const TC = '#C4704A'
-
-const HAMPERS = [
-  { id: 'h1', name: 'Radiant Morning Hamper',  category: 'Self-Care',          price: 1499, bg: '#EDD5C0', tag: 'Bestseller', desc: 'Soy candle, rose clay mask, linen print & more' },
-  { id: 'h2', name: 'Artisan Coffee Ritual',   category: 'Food & Gourmet',     price: 1199, bg: '#D4C5B5', tag: 'New',        desc: 'Specialty brew, stoneware mug, spiced honey & journal' },
-  { id: 'h3', name: 'Garden & Bloom Box',      category: 'Plants & Scents',    price: 1349, bg: '#C8D8C0', tag: 'Bestseller', desc: 'Terrarium kit, botanicals ring, wildflower candle' },
-  { id: 'h4', name: 'Golden Hour Luxe Set',    category: 'Jewelry & Art',      price: 1899, bg: '#E4D8B0', tag: '',           desc: 'Gold ear cuff, watercolor print, leather journal' },
-]
 
 const TESTIMONIALS = [
   { name: 'Priya N.', location: 'Mumbai', rating: 5, text: "The gift box I built for my mum's birthday was perfect. She cried when she opened it — in the best way possible. The packaging alone is worth it.", occasion: "Mother's Day", avatar: 'P' },
@@ -318,45 +312,12 @@ export default function HomePage() {
           </div>
           <button onClick={() => dispatch(openHamperShop())} style={{ padding: '8px 18px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Show All →</button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(3,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 12 : 20 }}>
-          {HAMPERS.map((h, i) => {
-            const hReviews = (h.id.charCodeAt(1) * 17 + 23) % 100 + 20
-            const hRating  = i % 3 === 0 ? 4.5 : 5
-            const hOrig    = Math.round(h.price * 1.24 / 100) * 100
-            const hSave    = Math.round((1 - h.price / hOrig) * 100)
-            const rs       = n => 'Rs. ' + Number(n).toLocaleString('en-IN') + '.00'
-            const pct      = Math.max(0, Math.min(100, hRating / 5 * 100))
-            return (
-              <div key={h.id} style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer', animation: `fadeUp 0.5s ease ${i * 0.08}s backwards` }}
-                onClick={() => dispatch(openHamperShop())}
-                onMouseEnter={e => { const im = e.currentTarget.querySelector('[data-img]'); if (im) { im.style.boxShadow = '0 10px 28px rgba(44,26,14,0.18)'; im.style.transform = 'translateY(-3px)' } }}
-                onMouseLeave={e => { const im = e.currentTarget.querySelector('[data-img]'); if (im) { im.style.boxShadow = '0 1px 4px rgba(44,26,14,0.08)'; im.style.transform = 'none' } }}>
-                {/* Image */}
-                <div data-img style={{ position: 'relative', aspectRatio: '1/1', borderRadius: 14, background: h.bg, overflow: 'hidden', marginBottom: 12, boxShadow: '0 1px 4px rgba(44,26,14,0.08)', transition: 'all 0.25s ease' }}>
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.85 }}>
-                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4M4 17v4M6 19H2"/></svg>
-                  </div>
-                  {h.tag && <span style={{ position: 'absolute', top: 10, right: 10, padding: '5px 10px', borderRadius: 7, background: '#1a1a1a', color: '#fff', fontSize: 10.5, fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>{h.tag}</span>}
-                </div>
-                {/* Name */}
-                <h4 style={{ margin: '0 0 6px', textAlign: 'center', fontSize: 15, fontWeight: 600, color: '#1a1a1a', fontFamily: "'Playfair Display',serif" }}>{h.name}</h4>
-                {/* Stars */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 8 }}>
-                  <span style={{ position: 'relative', display: 'inline-block', fontSize: 13, lineHeight: 1, letterSpacing: 1, whiteSpace: 'nowrap' }}>
-                    <span style={{ color: 'rgba(0,0,0,0.16)' }}>★★★★★</span>
-                    <span style={{ position: 'absolute', left: 0, top: 0, width: pct + '%', overflow: 'hidden', color: '#C08A1E' }}>★★★★★</span>
-                  </span>
-                  <span style={{ fontSize: 12, color: '#555', whiteSpace: 'nowrap' }}>{hReviews} reviews</span>
-                </div>
-                {/* Prices */}
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 7, whiteSpace: 'nowrap' }}>
-                  <span style={{ fontSize: 12.5, color: '#888', textDecoration: 'line-through' }}>{rs(hOrig)}</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{rs(h.price)}</span>
-                </div>
-                {hSave > 0 && <div style={{ textAlign: 'center', marginTop: 5, fontSize: 12.5, fontWeight: 600, color: '#dc2626', whiteSpace: 'nowrap' }}>Save {hSave}%</div>}
-              </div>
-            )
-          })}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? '1fr 1fr' : 'repeat(4,1fr)', gap: isMobile ? 12 : 20 }}>
+          {HAMPERS.map((h, i) => (
+            <div key={h.id} style={{ animation: `fadeUp 0.5s ease ${i * 0.08}s backwards` }}>
+              <ProductCard product={h} onClick={() => dispatch(setActiveProduct(h))} />
+            </div>
+          ))}
         </div>
       </section>
 

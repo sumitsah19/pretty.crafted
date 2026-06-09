@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
+import { useDispatch } from 'react-redux'
 import { closeHamperShop } from '../../store/slices/uiSlice'
-import { selectProducts, selectProductsLoading } from '../../store/slices/productsSlice'
 import { setActiveProduct } from '../../store/slices/uiSlice'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
-import ProductCard, { ProductSkeleton } from '../ui/ProductCard'
+import ProductCard from '../ui/ProductCard'
+import { HAMPERS } from '../../data/hampers'
 
 const TC = '#C4704A'
 const FIXED_FILTERS = ['ALL', 'BESTSELLER', 'NEW IN']
@@ -12,8 +12,7 @@ const SORT_OPTIONS = ['Featured', 'Price: Low to High', 'Price: High to Low', 'M
 
 export default function HamperShopModal() {
   const dispatch = useDispatch()
-  const products = useSelector(selectProducts)
-  const loading = useSelector(selectProductsLoading)
+  const products = HAMPERS
   const ww = useWindowWidth()
   const isMobile = ww < 640
   const isTablet = ww >= 640 && ww < 1024
@@ -124,16 +123,13 @@ export default function HamperShopModal() {
 
       {/* Product grid */}
       <div style={{ padding: isMobile ? '20px 16px 64px' : '28px 48px 80px', display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: isMobile ? 12 : 20 }}>
-        {loading
-          ? Array.from({ length: cols * 2 }).map((_, i) => <ProductSkeleton key={i} />)
-          : sorted.map(p => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                onClick={() => dispatch(setActiveProduct(p))}
-              />
-            ))
-        }
+        {sorted.map(p => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            onClick={() => { dispatch(closeHamperShop()); dispatch(setActiveProduct(p)) }}
+          />
+        ))}
       </div>
     </div>
   )

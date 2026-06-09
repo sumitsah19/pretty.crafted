@@ -147,7 +147,7 @@ export default function ProductDetailModal({ product }) {
 
   const scrollCarousel = (ref, dir) => { ref.current?.scrollBy({ left: dir * (isMobile ? 200 : 300), behavior: 'smooth' }) }
 
-  const stockCount = 8 + (product.id % 5)
+  const stockCount = 8 + ((Number(product.id) || 0) % 5)
 
   const TABS = [
     { key: 'description', label: 'Description' },

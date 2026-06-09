@@ -4,6 +4,7 @@ import { selectWishlistIds, toggleWishlist } from '../../store/slices/wishlistSl
 import { closeWishlist } from '../../store/slices/uiSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
 import { addLocal } from '../../store/slices/cartSlice'
+import { HAMPERS } from '../../data/hampers'
 
 const TC = '#C4704A'
 
@@ -11,7 +12,9 @@ export default function WishlistDrawer() {
   const dispatch = useDispatch()
   const wishlistIds = useSelector(selectWishlistIds)
   const products = useSelector(selectProducts)
-  const wishlisted = products.filter((p) => wishlistIds.includes(p.id))
+  // Curated hampers live outside the products store, so include them when
+  // resolving saved wishlist ids (see src/data/hampers.js).
+  const wishlisted = [...products, ...HAMPERS].filter((p) => wishlistIds.includes(p.id))
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { toggleWishlist, selectWishlistIds } from '../../store/slices/wishlistSlice'
 
 const SparklesSvg = () => (
   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -26,6 +28,10 @@ export function ProductSkeleton() {
 
 export default function ProductCard({ product, onClick }) {
   const [hover, setHover] = useState(false)
+  const [wishHover, setWishHover] = useState(false)
+  const dispatch = useDispatch()
+  const wishlistIds = useSelector(selectWishlistIds)
+  const wishlisted = wishlistIds.includes(product.id)
 
   const reviews  = product.reviews   ?? ((product.id * 31 + 17) % 120 + 20)
   const rating   = product.rating    ?? (product.id % 3 === 0 ? 4.5 : 5)
@@ -66,6 +72,28 @@ export default function ProductCard({ product, onClick }) {
             {product.tag === 'New' ? 'New In' : product.tag}
           </span>
         )}
+
+        {/* Wishlist button */}
+        <button
+          onClick={(e) => { e.stopPropagation(); dispatch(toggleWishlist(product.id)) }}
+          onMouseEnter={() => setWishHover(true)}
+          onMouseLeave={() => setWishHover(false)}
+          style={{
+            position: 'absolute', top: 10, left: 10,
+            width: 32, height: 32, borderRadius: '50%',
+            background: wishlisted ? '#C4704A' : 'rgba(255,255,255,0.88)',
+            border: wishlisted ? 'none' : '1px solid rgba(0,0,0,0.08)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.2s',
+            transform: wishHover ? 'scale(1.12)' : 'scale(1)',
+          }}
+          aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill={wishlisted ? '#fff' : 'none'} stroke={wishlisted ? '#fff' : '#C4704A'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+        </button>
       </div>
 
       {/* Name */}
