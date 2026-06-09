@@ -119,7 +119,7 @@ export default function Nav({ onScrollTo }) {
             {/* CENTER — Logo */}
             <div onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
               style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#2C1A0E', letterSpacing: '-0.02em', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-              Pretty<span style={{ color: TC }}>.</span>Crafted
+              Prettycrafted
             </div>
 
             {/* RIGHT — icon actions */}

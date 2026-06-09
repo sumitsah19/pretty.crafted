@@ -33,6 +33,7 @@ const OccasionPage = lazy(() => import('./components/modals/OccasionPage'))
 const ProductDetailModal = lazy(() => import('./components/modals/ProductDetailModal'))
 const PersonalizationModal = lazy(() => import('./components/modals/PersonalizationModal'))
 const UserAccountModal = lazy(() => import('./components/modals/UserAccountModal'))
+const HamperShopModal = lazy(() => import('./components/modals/HamperShopModal'))
 
 const TC = '#C4704A'
 
@@ -303,6 +304,7 @@ export default function App() {
           [ui.activeProduct,          <ProductDetailModal product={ui.activeProduct} />],
           [ui.personalizationProduct, <PersonalizationModal />],
           [ui.showUserAccount,        <UserAccountModal />],
+          [ui.showHamperShop,         <HamperShopModal />],
         ].map(([show, modal], i) => show ? (
           <ErrorBoundary key={i} inline>
             <Suspense fallback={null}>{modal}</Suspense>

@@ -1,6 +1,11 @@
 import { useState } from 'react'
 
-const TC = '#C4704A'
+const SparklesSvg = () => (
+  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+    <path d="M20 3v4M22 5h-4M4 17v4M6 19H2" />
+  </svg>
+)
 
 export function ProductSkeleton() {
   const sh = {
@@ -10,81 +15,84 @@ export function ProductSkeleton() {
     borderRadius: 8,
   }
   return (
-    <div style={{ background: 'white', borderRadius: 20, overflow: 'hidden', border: '1px solid #EDE4D8' }}>
-      <div style={{ ...sh, height: 180, borderRadius: '20px 20px 0 0' }} />
-      <div style={{ padding: '14px 16px' }}>
-        <div style={{ ...sh, height: 9, width: '50%', marginBottom: 8 }} />
-        <div style={{ ...sh, height: 13, marginBottom: 6 }} />
-        <div style={{ ...sh, height: 13, width: '70%', marginBottom: 14 }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <div style={{ ...sh, height: 18, width: '30%' }} />
-          <div style={{ ...sh, height: 32, width: '22%', borderRadius: 99 }} />
-        </div>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ ...sh, aspectRatio: '1/1', borderRadius: 14, marginBottom: 12 }} />
+      <div style={{ ...sh, height: 15, width: '65%', margin: '0 auto 8px' }} />
+      <div style={{ ...sh, height: 12, width: '50%', margin: '0 auto 8px' }} />
+      <div style={{ ...sh, height: 13, width: '60%', margin: '0 auto' }} />
     </div>
   )
 }
 
-export default function ProductCard({ product, onAddToCart, onClick, wishlisted, onWishlist }) {
-  const [hovered, setHovered] = useState(false)
-  const [added, setAdded] = useState(false)
+export default function ProductCard({ product, onClick }) {
+  const [hover, setHover] = useState(false)
 
-  const handleAdd = (e) => {
-    e.stopPropagation()
-    setAdded(true)
-    onAddToCart?.(product)
-    setTimeout(() => setAdded(false), 1400)
-  }
+  const reviews  = product.reviews   ?? ((product.id * 31 + 17) % 120 + 20)
+  const rating   = product.rating    ?? (product.id % 3 === 0 ? 4.5 : 5)
+  const orig     = product.origPrice ?? Math.round(product.price * (1.22 + (product.id % 3) * 0.07) / 10) * 10
+  const save     = Math.round((1 - product.price / orig) * 100)
+  const pct      = Math.max(0, Math.min(100, rating / 5 * 100))
+  const rs       = (n) => 'Rs. ' + Number(n).toLocaleString('en-IN') + '.00'
 
   return (
     <div
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: 'white', borderRadius: 20, overflow: 'hidden',
-        boxShadow: hovered ? '0 12px 40px rgba(44,26,14,0.12)' : '0 2px 12px rgba(44,26,14,0.06)',
-        transition: 'all 0.3s', transform: hovered ? 'translateY(-4px)' : 'none',
-        cursor: 'pointer', position: 'relative',
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
+    >
+      {/* Square image */}
+      <div style={{
+        position: 'relative', aspectRatio: '1/1', borderRadius: 14,
+        background: product.bg || '#EDE4D8',
+        overflow: 'hidden', marginBottom: 12,
+        boxShadow: hover ? '0 10px 28px rgba(44,26,14,0.18)' : '0 1px 4px rgba(44,26,14,0.08)',
+        transform: hover ? 'translateY(-3px)' : 'none',
+        transition: 'all 0.25s ease',
       }}>
-      <div style={{ background: product.bg || '#EDE4D8', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64, position: 'relative', overflow: 'hidden' }}>
-        {product.tag && (
-          <div style={{
-            position: 'absolute', top: 10, left: 10, zIndex: 2,
-            background: product.tag === 'New' ? '#7A9A6B' : TC,
-            color: 'white', fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 99,
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-          }}>{product.tag}</div>
-        )}
-        {onWishlist && (
-          <button onClick={(e) => { e.stopPropagation(); onWishlist(product.id) }}
-            style={{ position: 'absolute', top: 8, right: 8, zIndex: 3, background: 'rgba(255,255,255,0.92)', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(44,26,14,0.12)', transition: 'transform 0.2s' }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.15)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill={wishlisted ? TC : 'none'} stroke={TC} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-          </button>
-        )}
-        {product.imageUrl && (
-          <img src={product.imageUrl} alt={product.name} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease', transform: hovered ? 'scale(1.06)' : 'scale(1)' }} />
-        )}
-      </div>
-      <div style={{ padding: '12px 14px 16px' }}>
-        <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{product.category}</div>
-        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 14, fontWeight: 600, lineHeight: 1.3, marginBottom: 8 }}>{product.name}</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>₹{product.price}</div>
-          <button onClick={handleAdd} style={{
-            padding: '7px 14px', borderRadius: 99, border: 'none',
-            background: added ? '#7A9A6B' : '#F5EEE6',
-            color: added ? 'white' : TC,
-            fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', minHeight: 36,
-          }}>
-            {added ? 'Added ✓' : 'Add'}
-          </button>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.85 }}>
+          {product.imageUrl
+            ? <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <SparklesSvg />
+          }
         </div>
+        {product.tag && (
+          <span style={{
+            position: 'absolute', top: 10, right: 10,
+            padding: '5px 10px', borderRadius: 7,
+            background: '#1a1a1a', color: '#fff',
+            fontSize: 10.5, fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap',
+          }}>
+            {product.tag === 'New' ? 'New In' : product.tag}
+          </span>
+        )}
       </div>
+
+      {/* Name */}
+      <h4 style={{ margin: '0 0 6px', textAlign: 'center', fontSize: 15, fontWeight: 600, color: '#1a1a1a', fontFamily: "'Playfair Display',serif" }}>
+        {product.name}
+      </h4>
+
+      {/* Stars */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 8 }}>
+        <span style={{ position: 'relative', display: 'inline-block', fontSize: 13, lineHeight: 1, letterSpacing: 1, whiteSpace: 'nowrap' }}>
+          <span style={{ color: 'rgba(0,0,0,0.16)' }}>★★★★★</span>
+          <span style={{ position: 'absolute', left: 0, top: 0, width: pct + '%', overflow: 'hidden', color: '#C08A1E' }}>★★★★★</span>
+        </span>
+        <span style={{ fontSize: 12, color: '#555555', whiteSpace: 'nowrap' }}>{reviews} reviews</span>
+      </div>
+
+      {/* Prices */}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 7, whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 12.5, color: '#888888', textDecoration: 'line-through' }}>{rs(orig)}</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{rs(product.price)}</span>
+      </div>
+
+      {save > 0 && (
+        <div style={{ textAlign: 'center', marginTop: 5, fontSize: 12.5, fontWeight: 600, color: '#dc2626', whiteSpace: 'nowrap' }}>
+          Save {save}%
+        </div>
+      )}
     </div>
   )
 }
