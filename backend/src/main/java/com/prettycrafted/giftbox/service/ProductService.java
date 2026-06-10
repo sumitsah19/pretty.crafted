@@ -38,6 +38,12 @@ public class ProductService {
                 .stream().map(ProductDto::from).toList();
     }
 
+    /** All curated hamper products (the "Hampers" category), unpaginated. */
+    public List<ProductDto> hampers() {
+        return productRepo.findByCategory_NameIgnoreCaseOrderByIdAsc("Hampers")
+                .stream().map(ProductDto::from).toList();
+    }
+
     public ProductDto findById(Long id) {
         return productRepo.findById(id)
                 .map(ProductDto::from)

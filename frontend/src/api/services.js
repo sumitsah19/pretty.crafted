@@ -19,6 +19,7 @@ export const authApi = {
 export const productsApi = {
   list:    (params) => api.get('/products', { params }),
   popular: ()       => api.get('/products/popular'),
+  hampers: ()       => api.get('/products/hampers'),
   byId:    (id)     => api.get(`/products/${id}`),
   search:  (q, filters) => api.get('/products', { params: { q, ...filters } }),
 }
@@ -68,6 +69,20 @@ export const categoriesApi = {
 // ── PROMOTIONS (public — storefront banner) ──────────────────────
 export const promotionsApi = {
   list: () => api.get('/public/promotions'),
+}
+
+// ── HERO CARDS (public read — storefront hero CoverFlow) ─────────
+export const heroCardsApi = {
+  list: () => api.get('/public/hero-cards'),
+}
+
+// ── HERO CARDS (admin write) ─────────────────────────────────────
+export const heroCardAdminApi = {
+  list:   ()         => api.get('/admin/hero-cards'),
+  create: (data)     => api.post('/admin/hero-cards', data),
+  update: (id, data) => api.put(`/admin/hero-cards/${id}`, data),
+  toggle: (id)       => api.patch(`/admin/hero-cards/${id}/toggle`),
+  remove: (id)       => api.delete(`/admin/hero-cards/${id}`),
 }
 
 // ── COUPONS (admin write) ─────────────────────────────────────────

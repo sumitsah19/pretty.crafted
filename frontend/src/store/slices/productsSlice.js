@@ -16,6 +16,15 @@ const DEMO_PRODUCTS = [
   { id:12, name:"Fairy Light Terrarium",       category:"Plants",             price:52, recipient:"kids", emoji:"🏮", bg:"#C0D4D0", tag:"",          handcrafted:true,  rating:4.7, ratingCount:62,  stock:11, description:"Glass globe with moss, pebbles, and warm micro LED fairy lights." },
 ]
 
+// Fallback hampers, used when the backend has none seeded yet (mirrors the
+// "Hampers" category seeded in DataSeeder).
+const DEMO_HAMPERS = [
+  { id:13, name:"Radiant Morning Hamper", category:"Hampers", price:1499, recipient:"her", emoji:"🧺", bg:"#EDD5C0", tag:"Bestseller", rating:4.5, ratingCount:76,  stock:30, description:"Soy candle, rose clay mask, linen print & more." },
+  { id:14, name:"Artisan Coffee Ritual",  category:"Hampers", price:1199, recipient:"him", emoji:"☕", bg:"#D4C5B5", tag:"New",        rating:5,   ratingCount:93,  stock:30, description:"Specialty brew, stoneware mug, spiced honey & journal." },
+  { id:15, name:"Garden & Bloom Box",     category:"Hampers", price:1349, recipient:"all", emoji:"🌿", bg:"#C8D8C0", tag:"Bestseller", rating:5,   ratingCount:110, stock:30, description:"Terrarium kit, botanicals ring, wildflower candle." },
+  { id:16, name:"Golden Hour Luxe Set",   category:"Hampers", price:1899, recipient:"her", emoji:"✨", bg:"#E4D8B0", tag:"",          rating:4.5, ratingCount:27,  stock:30, description:"Gold ear cuff, watercolor print, leather journal." },
+]
+
 // Maps backend ProductDto fields to the shape the UI components expect.
 // Backend uses `categoryName`; UI uses `category`.
 // Backend `price` is BigDecimal → comes as a number in JSON, kept as-is.
@@ -47,11 +56,23 @@ export const fetchPopular = createAsyncThunk('products/popular', async () => {
   }
 })
 
+export const fetchHampers = createAsyncThunk('products/hampers', async () => {
+  try {
+    const { data } = await productsApi.hampers()
+    const raw = Array.isArray(data) ? data : []
+    if (!raw.length) return DEMO_HAMPERS
+    return raw.map(normalize)
+  } catch {
+    return DEMO_HAMPERS
+  }
+})
+
 const productsSlice = createSlice({
   name: 'products',
   initialState: {
     items: DEMO_PRODUCTS,
     popular: DEMO_PRODUCTS.filter((p) => p.tag === 'Bestseller'),
+    hampers: DEMO_HAMPERS,
     loading: false,
     isDemo: true,
   },
@@ -68,10 +89,14 @@ const productsSlice = createSlice({
       .addCase(fetchPopular.fulfilled, (state, action) => {
         state.popular = action.payload
       })
+      .addCase(fetchHampers.fulfilled, (state, action) => {
+        state.hampers = action.payload
+      })
   },
 })
 
 export const selectProducts = (state) => state.products.items
 export const selectPopular = (state) => state.products.popular
+export const selectHampers = (state) => state.products.hampers
 export const selectProductsLoading = (state) => state.products.loading
 export default productsSlice.reducer

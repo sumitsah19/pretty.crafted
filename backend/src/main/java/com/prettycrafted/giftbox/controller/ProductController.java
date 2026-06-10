@@ -41,6 +41,11 @@ public class ProductController {
         return service.popular();
     }
 
+    @GetMapping("/hampers")
+    public List<ProductDto> hampers() {
+        return service.hampers();
+    }
+
     @GetMapping("/{id}")
     public ProductDto byId(@PathVariable Long id) {
         return service.findById(id);

@@ -1,10 +1,13 @@
 package com.prettycrafted.giftbox.seed;
 
 import com.prettycrafted.giftbox.domain.Category;
+import com.prettycrafted.giftbox.domain.HeroCard;
+import com.prettycrafted.giftbox.domain.HeroCardType;
 import com.prettycrafted.giftbox.domain.Product;
 import com.prettycrafted.giftbox.domain.Role;
 import com.prettycrafted.giftbox.domain.User;
 import com.prettycrafted.giftbox.repository.CategoryRepository;
+import com.prettycrafted.giftbox.repository.HeroCardRepository;
 import com.prettycrafted.giftbox.repository.ProductRepository;
 import com.prettycrafted.giftbox.repository.UserRepository;
 import java.math.BigDecimal;
@@ -23,6 +26,7 @@ public class DataSeeder implements CommandLineRunner {
     private final CategoryRepository categoryRepo;
     private final ProductRepository productRepo;
     private final UserRepository userRepo;
+    private final HeroCardRepository heroCardRepo;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.seed.admin-password:}")
@@ -40,6 +44,8 @@ public class DataSeeder implements CommandLineRunner {
         seedAdmin();
         promoteAdminEmail();
         seedCatalog();
+        seedHampers();
+        seedHeroCards();
     }
 
     private void seedAdmin() {
@@ -130,6 +136,69 @@ public class DataSeeder implements CommandLineRunner {
             .stock(stock)
             .category(c)
             .popularityScore(0)
+            .build());
+    }
+
+    /**
+     * Seeds the curated "Hampers" collection shown in the storefront's
+     * "Hamper For You" / "Gift Hampers" sections. Idempotent and independent of
+     * {@link #seedCatalog()} so it also back-fills databases seeded before
+     * hampers existed.
+     */
+    private void seedHampers() {
+        if (categoryRepo.existsByName("Hampers")) return;
+        log.info("Seeding hampers...");
+
+        Category hampers = categoryRepo.save(Category.builder()
+            .name("Hampers").slug("hampers")
+            .description("Curated gift hampers, ready to gift.").build());
+
+        seedHamper(hampers, "Radiant Morning Hamper", "Soy candle, rose clay mask, linen print & more.", "1499.00", 30, "her", "Bestseller");
+        seedHamper(hampers, "Artisan Coffee Ritual", "Specialty brew, stoneware mug, spiced honey & journal.", "1199.00", 30, "him", "New");
+        seedHamper(hampers, "Garden & Bloom Box", "Terrarium kit, botanicals ring, wildflower candle.", "1349.00", 30, "all", "Bestseller");
+        seedHamper(hampers, "Golden Hour Luxe Set", "Gold ear cuff, watercolor print, leather journal.", "1899.00", 30, "her", "");
+
+        log.info("Seed complete: hampers category with {} products", productRepo.count());
+    }
+
+    private void seedHamper(Category c, String name, String desc, String price, int stock, String recipient, String tag) {
+        productRepo.save(Product.builder()
+            .name(name)
+            .description(desc)
+            .price(new BigDecimal(price))
+            .stock(stock)
+            .category(c)
+            .recipient(recipient)
+            .tag(tag)
+            .popularityScore(0)
+            .build());
+    }
+
+    /**
+     * Seeds a handful of cards for the storefront hero CoverFlow so the carousel
+     * renders real images out of the box. Idempotent — admins replace these via
+     * the /api/admin/hero-cards endpoints.
+     */
+    private void seedHeroCards() {
+        if (heroCardRepo.count() > 0) return;
+        log.info("Seeding hero cards...");
+
+        seedHeroCard("https://res.cloudinary.com/demo/image/upload/v1/giftbox/hero/velvet-box.jpg",      "Velvet Box",     HeroCardType.PRODUCT, 0);
+        seedHeroCard("https://res.cloudinary.com/demo/image/upload/v1/giftbox/hero/blossom-crate.jpg",    "Blossom Crate",  HeroCardType.HAMPER,  1);
+        seedHeroCard("https://res.cloudinary.com/demo/image/upload/v1/giftbox/hero/golden-hour.jpg",      "Golden Hour",    HeroCardType.PRODUCT, 2);
+        seedHeroCard("https://res.cloudinary.com/demo/image/upload/v1/giftbox/hero/petal-pine.jpg",       "Petal & Pine",   HeroCardType.HAMPER,  3);
+        seedHeroCard("https://res.cloudinary.com/demo/image/upload/v1/giftbox/hero/copper-dream.jpg",     "Copper Dream",   HeroCardType.PRODUCT, 4);
+
+        log.info("Seed complete: {} hero cards", heroCardRepo.count());
+    }
+
+    private void seedHeroCard(String imageUrl, String title, HeroCardType type, int order) {
+        heroCardRepo.save(HeroCard.builder()
+            .imageUrl(imageUrl)
+            .title(title)
+            .type(type)
+            .displayOrder(order)
+            .active(true)
             .build());
     }
 }

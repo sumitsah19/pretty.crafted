@@ -1,18 +1,18 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import { closeHamperShop } from '../../store/slices/uiSlice'
 import { setActiveProduct } from '../../store/slices/uiSlice'
+import { selectHampers } from '../../store/slices/productsSlice'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
 import ProductCard from '../ui/ProductCard'
-import { HAMPERS } from '../../data/hampers'
 
 const TC = '#C4704A'
-const FIXED_FILTERS = ['ALL', 'BESTSELLER', 'NEW IN']
+const FILTERS = ['ALL', 'BESTSELLER', 'NEW IN']
 const SORT_OPTIONS = ['Featured', 'Price: Low to High', 'Price: High to Low', 'Most Reviews']
 
 export default function HamperShopModal() {
   const dispatch = useDispatch()
-  const products = HAMPERS
+  const products = useSelector(selectHampers)
   const ww = useWindowWidth()
   const isMobile = ww < 640
   const isTablet = ww >= 640 && ww < 1024
@@ -34,11 +34,7 @@ export default function HamperShopModal() {
     return () => { document.body.style.overflow = prev }
   }, [])
 
-  // Build dynamic category filters from products
-  const filters = useMemo(() => {
-    const cats = [...new Set(products.map(p => p.category).filter(Boolean))]
-    return [...FIXED_FILTERS, ...cats]
-  }, [products])
+  const filters = FILTERS
 
   const filtered = useMemo(() => {
     return products.filter(p => {

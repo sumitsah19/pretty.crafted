@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchMe, logout, selectUser, resendVerification } from './store/slices/authSlice'
-import { fetchProducts } from './store/slices/productsSlice'
+import { fetchProducts, fetchHampers } from './store/slices/productsSlice'
 import { selectUI, selectCartOpen, selectWishlistOpen } from './store/slices/uiSlice'
 import { useWindowWidth } from './hooks/useWindowWidth'
 import { useOnlineStatus } from './hooks/useOnlineStatus'
@@ -63,6 +63,7 @@ export default function App() {
   useEffect(() => {
     dispatch(fetchMe())
     dispatch(fetchProducts())
+    dispatch(fetchHampers())
   }, [dispatch])
 
   useEffect(() => {

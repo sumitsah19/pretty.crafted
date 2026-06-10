@@ -13,6 +13,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findByCategoryId(Long categoryId, Pageable pageable);
     Page<Product> findByNameContainingIgnoreCase(String name, Pageable pageable);
     List<Product> findTop6ByOrderByPopularityScoreDesc();
+    List<Product> findByCategory_NameIgnoreCaseOrderByIdAsc(String categoryName);
     long countByStockLessThanEqual(int threshold);
 
     /** Atomically decrement stock and increment popularityScore.

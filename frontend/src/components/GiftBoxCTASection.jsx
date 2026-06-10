@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useDispatch } from 'react-redux'
 import { openBoxBuilder, openHamperShop, setActiveProduct } from '../store/slices/uiSlice'
+import { heroCardsApi, productsApi } from '../api/services'
 
 const TC = '#C4704A'
 
@@ -73,13 +74,13 @@ const BOX_PRODUCTS = SONGS.map((song, i) => {
 })
 
 /* ── Reflection ──────────────────────────────────────────── */
-function Reflection({ gradient }) {
-  if (!gradient) return null
+function Reflection({ gradient, imageUrl }) {
+  if (!gradient && !imageUrl) return null
   return (
     <div style={{
       position: 'absolute', top: '100%', left: 0, width: '100%', height: '100%',
       borderRadius: 8, pointerEvents: 'none', userSelect: 'none',
-      background: gradient,
+      background: imageUrl ? `#EDE4D8 url(${imageUrl}) center/cover` : gradient,
       transform: 'scaleY(-1)', opacity: 0.3,
       WebkitMaskImage: 'linear-gradient(to top, rgba(255,255,255,0.5) 0%, transparent 55%)',
       maskImage: 'linear-gradient(to top, rgba(255,255,255,0.5) 0%, transparent 55%)',
@@ -249,6 +250,8 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
       >
         {songs.map((song, index) => {
           const cover = getBoxCover(song)
+          const hasImage = !!song.imageUrl
+          const cardTitle = song.title || cover.title
           return (
             <div
               key={song.id}
@@ -275,24 +278,33 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
                 {/* Box cover art */}
                 <div style={{
                   width: '100%', height: '100%', borderRadius: 8,
-                  background: cover.gradient,
+                  background: hasImage ? '#EDE4D8' : cover.gradient,
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   boxShadow: '0 25px 50px -12px rgba(0,0,0,0.6), 0 8px 32px rgba(0,0,0,0.4)',
                   border: '1px solid rgba(255,255,255,0.12)',
                   position: 'relative', overflow: 'hidden',
                 }}>
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 30%, transparent 60%)', borderRadius: 8 }} />
-                  {/* Ribbon decoration */}
-                  <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 2, height: '100%', background: 'rgba(255,255,255,0.2)' }} />
-                  <div style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', height: 2, width: '100%', background: 'rgba(255,255,255,0.2)' }} />
-                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: albumSize * 0.22, height: albumSize * 0.22, borderRadius: '50%', background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: albumSize * 0.12, zIndex: 2 }}>🎀</div>
+                  {hasImage ? (
+                    <img src={song.imageUrl} alt={cardTitle} draggable={false}
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, userSelect: 'none', pointerEvents: 'none' }} />
+                  ) : (
+                    <>
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 30%, transparent 60%)', borderRadius: 8 }} />
+                      {/* Ribbon decoration */}
+                      <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 2, height: '100%', background: 'rgba(255,255,255,0.2)' }} />
+                      <div style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', height: 2, width: '100%', background: 'rgba(255,255,255,0.2)' }} />
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: albumSize * 0.22, height: albumSize * 0.22, borderRadius: '50%', background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: albumSize * 0.12, zIndex: 2 }}>🎀</div>
+                    </>
+                  )}
                   {/* Title */}
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px 8px 8px', background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)', borderRadius: '0 0 8px 8px' }}>
-                    <p style={{ margin: 0, fontSize: Math.max(9, albumSize * 0.07), fontWeight: 700, color: '#fff', textAlign: 'center', letterSpacing: '0.04em', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', padding: '0 6px' }}>{cover.title}</p>
-                  </div>
+                  {cardTitle && (
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px 8px 8px', background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)', borderRadius: '0 0 8px 8px', zIndex: 3 }}>
+                      <p style={{ margin: 0, fontSize: Math.max(9, albumSize * 0.07), fontWeight: 700, color: '#fff', textAlign: 'center', letterSpacing: '0.04em', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', padding: '0 6px' }}>{cardTitle}</p>
+                    </div>
+                  )}
                 </div>
 
-                <Reflection gradient={cover.gradient} />
+                <Reflection gradient={hasImage ? null : cover.gradient} imageUrl={hasImage ? song.imageUrl : null} />
               </div>
             </div>
           )
@@ -305,6 +317,7 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
 /* ── GiftBoxCTASection ───────────────────────────────────── */
 export default function GiftBoxCTASection({ isHero = true }) {
   const dispatch = useDispatch()
+  const [heroCards, setHeroCards] = useState(null)
   const [boxIdx, setBoxIdx] = useState(Math.floor(SONGS.length / 2))
   const [mobile, setMobile] = useState(window.innerWidth < 768)
 
@@ -314,10 +327,48 @@ export default function GiftBoxCTASection({ isHero = true }) {
     return () => window.removeEventListener('resize', fn)
   }, [])
 
+  // Fetch admin-managed hero cards; fall back to the built-in gradient boxes on error/empty.
+  useEffect(() => {
+    let cancelled = false
+    heroCardsApi.list()
+      .then(({ data }) => {
+        if (cancelled || !Array.isArray(data) || data.length === 0) return
+        setHeroCards(data)
+        setBoxIdx(Math.floor(data.length / 2))
+      })
+      .catch(() => { /* keep gradient fallback */ })
+    return () => { cancelled = true }
+  }, [])
+
   const albumSize = mobile ? 140 : 172
 
-  const handleCardClick = (song) => {
-    const idx = SONGS.findIndex(s => s.id === song.id)
+  // Map hero-card DTOs into the CoverFlow's card shape, or use the gradient SONGS fallback.
+  const cards = useMemo(() => {
+    if (heroCards && heroCards.length) {
+      return heroCards.map(c => ({
+        id: 'hero-' + c.id,
+        title: c.title || '',
+        imageUrl: c.imageUrl,
+        type: c.type,
+        linkedProductId: c.linkedProductId,
+      }))
+    }
+    return SONGS
+  }, [heroCards])
+
+  const handleCardClick = async (card) => {
+    // Hero cards (real images) deep-link to a product or open the hamper shop.
+    if (card.imageUrl) {
+      if (card.type === 'HAMPER') { dispatch(openHamperShop()); return }
+      if (card.linkedProductId) {
+        try {
+          const { data } = await productsApi.byId(card.linkedProductId)
+          dispatch(setActiveProduct(data))
+        } catch { /* product unavailable — no-op */ }
+      }
+      return
+    }
+    const idx = SONGS.findIndex(s => s.id === card.id)
     if (idx >= 0) dispatch(setActiveProduct(BOX_PRODUCTS[idx]))
   }
 
@@ -363,7 +414,7 @@ export default function GiftBoxCTASection({ isHero = true }) {
       {/* CoverFlow */}
       <div style={{ marginTop: isHero ? 20 : 0 }}>
         <CoverFlow
-          songs={SONGS}
+          songs={cards}
           currentIndex={boxIdx}
           setCurrentIndex={setBoxIdx}
           onSongSelect={(_, idx) => { if (idx != null) setBoxIdx(idx) }}

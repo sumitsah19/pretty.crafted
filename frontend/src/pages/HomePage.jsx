@@ -1,13 +1,12 @@
 import { useRef, useState, useEffect, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { selectProducts, selectProductsLoading } from '../store/slices/productsSlice'
+import { selectProducts, selectProductsLoading, selectHampers } from '../store/slices/productsSlice'
 import { selectUI, openBoxBuilder, openOccasions, openUserAccount, openLogin, openHamperShop, openShop, setActiveProduct, setActiveOccasion } from '../store/slices/uiSlice'
 import { selectIsLoggedIn } from '../store/slices/authSlice'
 import { useWindowWidth } from '../hooks/useWindowWidth'
 import Hero from '../components/Hero'
 import GiftBoxCTASection from '../components/GiftBoxCTASection'
 import ProductCard, { ProductSkeleton } from '../components/ui/ProductCard'
-import { HAMPERS } from '../data/hampers'
 
 const TC = '#C4704A'
 
@@ -107,6 +106,7 @@ export default function HomePage() {
   const loading = useSelector(selectProductsLoading)
   const ui = useSelector(selectUI)
   const isLoggedIn = useSelector(selectIsLoggedIn)
+  const hampers = useSelector(selectHampers)
   const ww = useWindowWidth()
   const isMobile = ww < 640
   const isTablet = ww >= 640 && ww < 1024
@@ -316,7 +316,7 @@ export default function HomePage() {
           <button onClick={() => dispatch(openHamperShop())} style={{ padding: '8px 18px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Show All →</button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? '1fr 1fr' : 'repeat(4,1fr)', gap: isMobile ? 12 : 20 }}>
-          {HAMPERS.map((h, i) => (
+          {hampers.slice(0, 4).map((h, i) => (
             <div key={h.id} style={{ animation: `fadeUp 0.5s ease ${i * 0.08}s backwards` }}>
               <ProductCard product={h} onClick={() => dispatch(setActiveProduct(h))} />
             </div>
