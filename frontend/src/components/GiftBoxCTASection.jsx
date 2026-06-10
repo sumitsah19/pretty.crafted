@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useDispatch } from 'react-redux'
 import { openBoxBuilder, openHamperShop, setActiveProduct } from '../store/slices/uiSlice'
-import { heroCardsApi, productsApi } from '../api/services'
+import { heroCardsApi, buildBoxApi, productsApi } from '../api/services'
 
 const TC = '#C4704A'
 
@@ -318,6 +318,7 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
 export default function GiftBoxCTASection({ isHero = true }) {
   const dispatch = useDispatch()
   const [heroCards, setHeroCards] = useState(null)
+  const [buildBoxes, setBuildBoxes] = useState(null)
   const [boxIdx, setBoxIdx] = useState(Math.floor(SONGS.length / 2))
   const [mobile, setMobile] = useState(window.innerWidth < 768)
 
@@ -327,24 +328,29 @@ export default function GiftBoxCTASection({ isHero = true }) {
     return () => window.removeEventListener('resize', fn)
   }, [])
 
-  // Fetch admin-managed hero cards; fall back to the built-in gradient boxes on error/empty.
+  // Fetch the admin-managed cards for this section: hero cards (products & hampers) in the hero
+  // section, or "Build Your Own Box" boxes in the build section. Both fall back to the built-in
+  // gradient boxes on error/empty.
   useEffect(() => {
     let cancelled = false
-    heroCardsApi.list()
+    const request = isHero ? heroCardsApi.list() : buildBoxApi.list()
+    request
       .then(({ data }) => {
         if (cancelled || !Array.isArray(data) || data.length === 0) return
-        setHeroCards(data)
+        if (isHero) setHeroCards(data)
+        else setBuildBoxes(data)
         setBoxIdx(Math.floor(data.length / 2))
       })
       .catch(() => { /* keep gradient fallback */ })
     return () => { cancelled = true }
-  }, [])
+  }, [isHero])
 
   const albumSize = mobile ? 140 : 172
 
-  // Map hero-card DTOs into the CoverFlow's card shape, or use the gradient SONGS fallback.
+  // Hero section maps hero-card DTOs into the CoverFlow's card shape; the build section maps
+  // build-box DTOs. Either falls back to the gradient SONGS boxes when no admin cards exist.
   const cards = useMemo(() => {
-    if (heroCards && heroCards.length) {
+    if (isHero && heroCards && heroCards.length) {
       return heroCards.map(c => ({
         id: 'hero-' + c.id,
         title: c.title || '',
@@ -353,10 +359,20 @@ export default function GiftBoxCTASection({ isHero = true }) {
         linkedProductId: c.linkedProductId,
       }))
     }
+    if (!isHero && buildBoxes && buildBoxes.length) {
+      return buildBoxes.map(b => ({
+        id: 'box-' + b.id,
+        title: b.title || '',
+        imageUrl: b.imageUrl,
+      }))
+    }
     return SONGS
-  }, [heroCards])
+  }, [isHero, heroCards, buildBoxes])
 
   const handleCardClick = async (card) => {
+    // Build-your-box section: every card is a box → open the builder.
+    if (!isHero) { dispatch(openBoxBuilder()); return }
+
     // Hero cards (real images) deep-link to a product or open the hamper shop.
     if (card.imageUrl) {
       if (card.type === 'HAMPER') { dispatch(openHamperShop()); return }

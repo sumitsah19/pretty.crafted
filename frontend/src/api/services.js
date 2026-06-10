@@ -85,6 +85,20 @@ export const heroCardAdminApi = {
   remove: (id)       => api.delete(`/admin/hero-cards/${id}`),
 }
 
+// ── BUILD BOXES (public read — "Build Your Own Box" CoverFlow) ───
+export const buildBoxApi = {
+  list: () => api.get('/public/build-boxes'),
+}
+
+// ── BUILD BOXES (admin write) ────────────────────────────────────
+export const buildBoxAdminApi = {
+  list:   ()         => api.get('/admin/build-boxes'),
+  create: (data)     => api.post('/admin/build-boxes', data),
+  update: (id, data) => api.put(`/admin/build-boxes/${id}`, data),
+  toggle: (id)       => api.patch(`/admin/build-boxes/${id}/toggle`),
+  remove: (id)       => api.delete(`/admin/build-boxes/${id}`),
+}
+
 // ── COUPONS (admin write) ─────────────────────────────────────────
 export const couponAdminApi = {
   list:   ()     => api.get('/admin/coupons'),
