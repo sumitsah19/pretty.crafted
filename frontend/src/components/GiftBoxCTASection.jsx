@@ -110,6 +110,7 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
 
   const posRef        = useRef(typeof currentIndex === 'number' ? currentIndex : 0)
   const snapTargetRef = useRef(null)
+  const dragMovedRef  = useRef(false) // distinguishes a swipe from a tap
   const isDraggingRef = useRef(false)
   const dragStartXRef = useRef(0)
   const dragStartPos  = useRef(0)
@@ -196,6 +197,7 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
 
   const startDrag = (x) => {
     isDraggingRef.current = true
+    dragMovedRef.current  = false
     dragStartXRef.current = x
     dragStartPos.current  = posRef.current
     snapTargetRef.current = null
@@ -204,6 +206,7 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
   }
   const moveDrag = (x) => {
     if (!isDraggingRef.current) return
+    if (Math.abs(x - dragStartXRef.current) > 8) dragMovedRef.current = true
     const delta = -(x - dragStartXRef.current) / Math.max(albumSize * 0.55, 60)
     posRef.current = ((dragStartPos.current + delta) % N + N) % N
   }
@@ -214,7 +217,8 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
     const nearest = (Math.round(posRef.current) % N + N) % N
     snapTargetRef.current = nearest
     scheduleResume()
-    if (onCardClick) onCardClick(songs[nearest], nearest)
+    // No onCardClick here: scrolling/swiping must never select a card.
+    // Selection happens only through a real tap/click (the card's onClick below).
   }
 
   const handleWheel = (e) => {
@@ -260,7 +264,7 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
               ref={getCardCb(index)}
               style={{ position: 'absolute', userSelect: 'none', transformOrigin: 'center center', transformStyle: 'preserve-3d' }}
               onClick={() => {
-                if (!isDraggingRef.current) {
+                if (!isDraggingRef.current && !dragMovedRef.current) {
                   pause()
                   snapTargetRef.current = index
                   if (onCardClick) onCardClick({ ...song, cover: cover.gradient }, index)
