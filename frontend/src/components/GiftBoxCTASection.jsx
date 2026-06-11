@@ -230,8 +230,10 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
   const getCardCb = (i) => (_cardCbs.current[i] ??= (el) => { cardRefs.current[i] = el })
   const getSelCb  = (i) => (_selCbs.current[i]  ??= (el) => { selectedElRefs.current[i] = el })
 
+  // zIndex must stay below the sticky Nav (200) — this wrapper is its own stacking
+  // context, so the cards' internal z-indexes (up to ~2000) can't escape it.
   return (
-    <div style={{ width: '100%', maxWidth: 1280, margin: '0 auto', position: 'relative', zIndex: 300 }}>
+    <div style={{ width: '100%', maxWidth: 1280, margin: '0 auto', position: 'relative', zIndex: 100 }}>
       <div
         ref={stageRef}
         style={{

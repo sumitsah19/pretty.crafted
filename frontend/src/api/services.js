@@ -88,6 +88,8 @@ export const heroCardAdminApi = {
 // ── BUILD BOXES (public read — "Build Your Own Box" CoverFlow) ───
 export const buildBoxApi = {
   list: () => api.get('/public/build-boxes'),
+  // Box-size base fees + wrap costs, straight from the backend enums
+  config: () => api.get('/public/box-config'),
 }
 
 // ── BUILD BOXES (admin write) ────────────────────────────────────

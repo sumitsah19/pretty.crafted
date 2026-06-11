@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { toggleWishlist, selectWishlistIds } from '../../store/slices/wishlistSlice'
+import { toggleWishlist, selectWishlistIds, wishlistKey } from '../../store/slices/wishlistSlice'
 
 const SparklesSvg = () => (
   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -31,18 +31,19 @@ export default function ProductCard({ product, onClick }) {
   const [wishHover, setWishHover] = useState(false)
   const dispatch = useDispatch()
   const wishlistIds = useSelector(selectWishlistIds)
-  const wishlisted = wishlistIds.includes(product.id)
+  const wishlisted = wishlistIds.includes(wishlistKey(product))
 
-  // Rating + review count come from the product data (backend); fall back to a stable
-  // placeholder only when the data hasn't set them yet.
-  const reviews  = product.reviewCount ?? product.ratingCount ?? product.reviews ?? ((product.id * 31 + 17) % 120 + 20)
-  const rating   = product.rating    ?? (product.id % 3 === 0 ? 4.5 : 5)
+  // Rating + review count come from the product data (backend or demo catalog).
+  // No fabricated fallbacks: products without ratings simply don't show stars.
+  const reviews  = product.reviewCount ?? product.ratingCount ?? null
+  const rating   = product.rating != null ? Number(product.rating) : null
+  const hasRating = rating != null
   // Actual MRP from the product data. Only treat it as a discount when it's a real number
   // strictly above the selling price; otherwise show the selling price on its own.
   const orig     = Number(product.originalPrice ?? product.origPrice)
   const hasMrp   = Number.isFinite(orig) && orig > product.price
   const save     = hasMrp ? Math.round((1 - product.price / orig) * 100) : 0
-  const pct      = Math.max(0, Math.min(100, rating / 5 * 100))
+  const pct      = hasRating ? Math.max(0, Math.min(100, rating / 5 * 100)) : 0
   const rs       = (n) => 'Rs. ' + Number(n).toLocaleString('en-IN') + '.00'
 
   return (
@@ -80,7 +81,7 @@ export default function ProductCard({ product, onClick }) {
 
         {/* Wishlist button */}
         <button
-          onClick={(e) => { e.stopPropagation(); dispatch(toggleWishlist(product.id)) }}
+          onClick={(e) => { e.stopPropagation(); dispatch(toggleWishlist(wishlistKey(product))) }}
           onMouseEnter={() => setWishHover(true)}
           onMouseLeave={() => setWishHover(false)}
           style={{
@@ -106,14 +107,16 @@ export default function ProductCard({ product, onClick }) {
         {product.name}
       </h4>
 
-      {/* Stars */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 8 }}>
-        <span style={{ position: 'relative', display: 'inline-block', fontSize: 13, lineHeight: 1, letterSpacing: 1, whiteSpace: 'nowrap' }}>
-          <span style={{ color: 'rgba(0,0,0,0.16)' }}>★★★★★</span>
-          <span style={{ position: 'absolute', left: 0, top: 0, width: pct + '%', overflow: 'hidden', color: '#C08A1E' }}>★★★★★</span>
-        </span>
-        <span style={{ fontSize: 12, color: '#555555', whiteSpace: 'nowrap' }}>{reviews} reviews</span>
-      </div>
+      {/* Stars — only when the product actually has rating data */}
+      {hasRating && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 8 }}>
+          <span style={{ position: 'relative', display: 'inline-block', fontSize: 13, lineHeight: 1, letterSpacing: 1, whiteSpace: 'nowrap' }}>
+            <span style={{ color: 'rgba(0,0,0,0.16)' }}>★★★★★</span>
+            <span style={{ position: 'absolute', left: 0, top: 0, width: pct + '%', overflow: 'hidden', color: '#C08A1E' }}>★★★★★</span>
+          </span>
+          {reviews != null && <span style={{ fontSize: 12, color: '#555555', whiteSpace: 'nowrap' }}>{reviews} reviews</span>}
+        </div>
+      )}
 
       {/* Prices */}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 7, whiteSpace: 'nowrap' }}>

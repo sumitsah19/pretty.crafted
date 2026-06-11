@@ -29,6 +29,15 @@ export default function LoginModal() {
 
   const hiddenGoogleBtn = useRef(null)
 
+  // Close on Escape + lock body scroll while open (restoring whatever was set before)
+  useEffect(() => {
+    const k = (e) => { if (e.key === 'Escape') dispatch(closeLogin()) }
+    window.addEventListener('keydown', k)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev }
+  }, [dispatch])
+
   // ── Google credential callback ─────────────────────────────────
   const handleGoogleCredential = useCallback(async (response) => {
     setGoogleLoading(true)

@@ -3,8 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { clearActiveProduct, setActiveProduct, openCart, openLogin } from '../../store/slices/uiSlice'
 import SEO from '../SEO'
 import { addLocal } from '../../store/slices/cartSlice'
-import { toggleWishlist } from '../../store/slices/wishlistSlice'
-import { selectWishlistIds } from '../../store/slices/wishlistSlice'
+import { toggleWishlist, selectWishlistIds, wishlistKey } from '../../store/slices/wishlistSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
 import { selectIsLoggedIn } from '../../store/slices/authSlice'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
@@ -40,7 +39,7 @@ export default function ProductDetailModal({ product }) {
   const isMobile = ww < 768
   // Match the live nav height so the full-screen page starts right below it
   const navH = ww < 640 ? 60 : 72
-  const isWishlisted = wishlistIds.includes(product.id)
+  const isWishlisted = wishlistIds.includes(wishlistKey(product))
 
   useEffect(() => { analytics.productView(product) }, [product])
 
@@ -56,7 +55,7 @@ export default function ProductDetailModal({ product }) {
 
   // ── Reviews state ────────────────────────────────────────────────
   const [reviews, setReviews] = useState([])
-  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewsLoading, setReviewsLoading] = useState(true) // fetch starts on mount
   const [canReview, setCanReview] = useState(false)
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewBody, setReviewBody] = useState('')
@@ -87,27 +86,25 @@ export default function ProductDetailModal({ product }) {
   useEffect(() => {
     const k = e => { if (e.key === 'Escape') dispatch(clearActiveProduct()) }
     window.addEventListener('keydown', k)
+    const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = '' }
+    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev }
   }, [dispatch])
 
-  useEffect(() => {
-    setQty(1); setActiveImage(0); setActiveTab('description'); backdropRef.current?.scrollTo({ top: 0 })
-    setReviews([]); setCanReview(false); setSubmitDone(false); setSubmitError(null); setReviewBody(''); setReviewRating(5)
-  }, [product.id])
+  // No reset-on-product-change effect needed: App keys this modal by product id,
+  // so switching products remounts it with fresh initial state.
 
   useEffect(() => {
     let cancelled = false
-    setReviewsLoading(true)
     reviewsApi.list(product.id)
       .then(res => { if (!cancelled) setReviews(res.data) })
-      .catch(() => {})
+      .catch(() => { /* reviews stay empty */ })
       .finally(() => { if (!cancelled) setReviewsLoading(false) })
     return () => { cancelled = true }
   }, [product.id])
 
   useEffect(() => {
-    if (!isLoggedIn) { setCanReview(false); return }
+    if (!isLoggedIn) return // render-guarded: the review form also checks isLoggedIn
     reviewsApi.canReview(product.id)
       .then(res => setCanReview(res.data.canReview))
       .catch(() => setCanReview(false))
@@ -218,7 +215,7 @@ export default function ProductDetailModal({ product }) {
                 </div>
               )}
               {/* Wishlist heart — top-right of gallery image */}
-              <button onClick={() => dispatch(toggleWishlist(product.id))}
+              <button onClick={() => dispatch(toggleWishlist(wishlistKey(product)))}
                 style={{ position: 'absolute', top: 10, right: 10, zIndex: 3, background: 'rgba(255,255,255,0.92)', border: 'none', borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(44,26,14,0.12)', transition: 'transform 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
@@ -345,8 +342,8 @@ export default function ProductDetailModal({ product }) {
                   </div>
                 )}
 
-                {/* Write a Review form */}
-                {canReview && !submitDone && (
+                {/* Write a Review form — isLoggedIn guard covers logout while the modal is open */}
+                {isLoggedIn && canReview && !submitDone && (
                   <form onSubmit={handleSubmitReview} style={{ background: 'white', borderRadius: 18, padding: '20px 22px', border: `1px solid ${TC}33`, marginBottom: 24 }}>
                     <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 15, fontWeight: 700, color: '#2C1A0E', marginBottom: 14 }}>Write a Review</div>
                     {/* Star picker */}

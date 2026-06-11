@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { selectUser, logoutThunk, setUser } from '../../store/slices/authSlice'
-import { closeUserAccount } from '../../store/slices/uiSlice'
-import { selectWishlistIds, toggleWishlist } from '../../store/slices/wishlistSlice'
+import { closeUserAccount, selectUI } from '../../store/slices/uiSlice'
+import { selectWishlistIds, toggleWishlist, wishlistKey } from '../../store/slices/wishlistSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
 import { addLocal } from '../../store/slices/cartSlice'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
@@ -304,7 +304,7 @@ function WishlistPage({ onToast }) {
   const dispatch = useDispatch()
   const wishlistIds = useSelector(selectWishlistIds)
   const products = useSelector(selectProducts)
-  const wishlisted = products.filter(p => wishlistIds.includes(p.id))
+  const wishlisted = products.filter(p => wishlistIds.includes(wishlistKey(p)))
 
   if (wishlisted.length === 0) return (
     <div style={{ textAlign:'center', padding:'60px 20px' }}>
@@ -319,7 +319,7 @@ function WishlistPage({ onToast }) {
       {wishlisted.map(p => (
         <div key={p.id} style={{ background:'white', borderRadius:16, overflow:'hidden', border:'1px solid #EDE4D8' }}>
           <div style={{ height:120, background:p.bg || '#EDE4D8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:48, position:'relative' }}>
-            <button onClick={() => { dispatch(toggleWishlist(p.id)); onToast('Removed from wishlist') }} style={{ position:'absolute', top:6, right:6, background:'rgba(255,255,255,0.9)', border:'none', borderRadius:'50%', width:26, height:26, cursor:'pointer', fontSize:13, color:'#A02A2A', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+            <button onClick={() => { dispatch(toggleWishlist(wishlistKey(p))); onToast('Removed from wishlist') }} style={{ position:'absolute', top:6, right:6, background:'rgba(255,255,255,0.9)', border:'none', borderRadius:'50%', width:26, height:26, cursor:'pointer', fontSize:13, color:'#A02A2A', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
             {p.emoji}
           </div>
           <div style={{ padding:'12px 14px' }}>
@@ -610,7 +610,10 @@ export default function UserAccountModal() {
   const user = useSelector(selectUser)
   const ww = useWindowWidth()
   const isMobile = ww < 768
-  const [view, setView] = useState('home')
+  // The modal is unmounted when closed, so the requested screen (e.g. the /orders
+  // route dispatches openUserAccount('orders')) is picked up fresh on every open.
+  const initialView = useSelector(selectUI).userAccountView
+  const [view, setView] = useState(initialView || 'home')
   const [toast, setToast] = useState(null)
 
   const isAdmin = user?.role === 'ADMIN'
@@ -623,8 +626,9 @@ export default function UserAccountModal() {
       }
     }
     window.addEventListener('keydown', k)
+    const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = '' }
+    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev }
   }, [view, dispatch])
 
   useEffect(() => {

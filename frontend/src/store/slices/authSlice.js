@@ -5,7 +5,7 @@ import { analytics, identify, reset } from '../../analytics'
 
 export const logoutThunk = createAsyncThunk('auth/logout', async () => {
   // Tell the backend to clear its HttpOnly cookie; ignore errors (cookie cleared either way)
-  try { await authApi.logout() } catch (_) { /* no-op */ }
+  try { await authApi.logout() } catch { /* no-op: cookie cleared either way */ }
   clearToken()
 })
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { clearActiveOccasion } from '../../store/slices/uiSlice'
-import { selectWishlistIds, toggleWishlist } from '../../store/slices/wishlistSlice'
+import { selectWishlistIds, toggleWishlist, wishlistKey } from '../../store/slices/wishlistSlice'
 import { addLocal } from '../../store/slices/cartSlice'
 import { productsApi } from '../../api/services'
 
@@ -33,7 +33,8 @@ const OC_PRODUCTS = [
   { id:122, name:'Kids Art Supply Kit',          category:'Toys & Crafts',       price:36, originalPrice:46, rating:4.9, rc:203, emoji:'🎨', bg:'#E8D8C0', tag:'Bestseller', hc:false, occ:['kids','birthday','christmas','graduation'] },
   { id:123, name:'Letterpress Card Set',         category:'Books & Stationery',  price:22,                  rating:4.8, rc:144, emoji:'💌', bg:'#E0CCB8', tag:'',           hc:true,  occ:['wedding','anniversary','birthday','thankyou','friendship'] },
   { id:124, name:'Aromatherapy Diffuser',        category:'Wellness',            price:48,                  rating:4.7, rc:176, emoji:'🌿', bg:'#D0DCC8', tag:'',           hc:false, occ:['mothers','housewarming','birthday','corporate','her'] },
-]
+  // `demo: true` — these only exist in this local fallback catalog, not in the backend.
+].map(p => ({ ...p, demo: true }))
 
 // ── PER-OCCASION HERO CONFIG ─────────────────────────────────────
 const OCC_CFG = {
@@ -83,7 +84,7 @@ function OcSkeleton({ isMobile }) {
 
 // ── OcCard — defined OUTSIDE the main component to avoid re-mount issues
 function OcCard({ p, onPreview, wishlist, onWishlist, tc, isMobile, onAddToCart }) {
-  const inWl = wishlist.has(p.id)
+  const inWl = wishlist.has(wishlistKey(p))
   const disc = p.originalPrice ? Math.round((1 - p.price / p.originalPrice) * 100) : 0
   const [added, setAdded] = useState(false)
 
@@ -103,7 +104,7 @@ function OcCard({ p, onPreview, wishlist, onWishlist, tc, isMobile, onAddToCart 
         {disc > 0 && <div style={{ position:'absolute', top:10, left:10, background:'#7A9A6B', color:'white', fontSize:9, fontWeight:700, padding:'3px 8px', borderRadius:99 }}>-{disc}%</div>}
         {p.tag && <div style={{ position:'absolute', top:10, left: disc > 0 ? 52 : 10, background: p.tag === 'New' ? '#7A9A6B' : tc, color:'white', fontSize:9, fontWeight:700, padding:'3px 8px', borderRadius:99 }}>{p.tag}</div>}
         {p.hc && <div style={{ position:'absolute', bottom:8, left:8, background:'rgba(255,255,255,0.88)', backdropFilter:'blur(4px)', fontSize:9, fontWeight:600, color:'#6B4F3A', padding:'3px 8px', borderRadius:99 }}>🤲 Handcrafted</div>}
-        <button onClick={e => { e.stopPropagation(); onWishlist(p.id) }}
+        <button onClick={e => { e.stopPropagation(); onWishlist(p) }}
           style={{ position:'absolute', top:8, right:8, background:'rgba(255,255,255,0.92)', border:'none', borderRadius:'50%', width:30, height:30, cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', justifyContent:'center', transition:'transform 0.2s' }}
           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.2)'}
           onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
@@ -223,8 +224,9 @@ export default function OccasionPage({ occasion }) {
   useEffect(() => {
     const r = () => setWw(window.innerWidth)
     window.addEventListener('resize', r)
+    const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('resize', r); document.body.style.overflow = '' }
+    return () => { window.removeEventListener('resize', r); document.body.style.overflow = prev }
   }, [])
 
   useEffect(() => {
@@ -233,10 +235,9 @@ export default function OccasionPage({ occasion }) {
     return () => window.removeEventListener('keydown', k)
   }, [quickView, dispatch])
 
-  // Fetch — fall back to OC_PRODUCTS demo data
+  // Fetch — fall back to OC_PRODUCTS demo data. No loading/products reset needed:
+  // App keys this page by occasion id, so it remounts fresh (loading=true, products=[]).
   useEffect(() => {
-    setLoading(true)
-    setProducts([])
     productsApi.list({ occasion: occasion.id })
       .then(({ data }) => {
         const items = Array.isArray(data) ? data : data?.content || []
@@ -266,7 +267,7 @@ export default function OccasionPage({ occasion }) {
   const handmade = products.filter(p => p.hc).slice(0, 4)
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))]
 
-  const onWishlist = useCallback(id => dispatch(toggleWishlist(id)), [dispatch])
+  const onWishlist = useCallback(p => dispatch(toggleWishlist(wishlistKey(p))), [dispatch])
   const onAddToCart = useCallback(p => dispatch(addLocal(p)), [dispatch])
 
   // grid and skeletonGrid as inline functions (same pattern as design)
@@ -426,7 +427,7 @@ export default function OccasionPage({ occasion }) {
             <div style={{ fontSize:10, color:TC, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:6 }}>Your picks</div>
             <div style={{ fontFamily:"'Playfair Display',serif", fontSize: isMobile ? 18 : 22, fontWeight:700, color:'#2C1A0E', marginBottom:16 }}>Wishlisted ({wishlist.size})</div>
             <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-              {products.filter(p => wishlist.has(p.id)).map(p => (
+              {products.filter(p => wishlist.has(wishlistKey(p))).map(p => (
                 <div key={p.id} onClick={() => setQuickView(p)}
                   style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:14, background:'#FAF7F2', cursor:'pointer', border:'1px solid #EDE4D8', transition:'box-shadow 0.2s' }}
                   onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(44,26,14,0.1)'}

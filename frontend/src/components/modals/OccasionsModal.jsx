@@ -39,10 +39,11 @@ export default function OccasionsModal() {
   const popRef = useRef(null)
 
   useEffect(() => {
+    const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const k = e => { if (e.key === 'Escape') dispatch(closeOccasions()) }
     window.addEventListener('keydown', k)
-    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = '' }
+    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev }
   }, [dispatch])
 
   const featured = OCCASIONS.find(o => o.featured) || OCCASIONS[1]

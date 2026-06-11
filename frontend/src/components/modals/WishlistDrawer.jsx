@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { selectWishlistIds, toggleWishlist } from '../../store/slices/wishlistSlice'
+import { selectWishlistIds, toggleWishlist, wishlistKey } from '../../store/slices/wishlistSlice'
 import { closeWishlist } from '../../store/slices/uiSlice'
 import { selectProducts, selectHampers } from '../../store/slices/productsSlice'
 import { addLocal } from '../../store/slices/cartSlice'
@@ -14,13 +14,14 @@ export default function WishlistDrawer() {
   const hampers = useSelector(selectHampers)
   // Hampers come from a separate fetch (the "Hampers" category), so include
   // them when resolving saved wishlist ids.
-  const wishlisted = [...products, ...hampers].filter((p) => wishlistIds.includes(p.id))
+  const wishlisted = [...products, ...hampers].filter((p) => wishlistIds.includes(wishlistKey(p)))
 
   useEffect(() => {
+    const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const k = (e) => { if (e.key === 'Escape') dispatch(closeWishlist()) }
     window.addEventListener('keydown', k)
-    return () => { document.body.style.overflow = ''; window.removeEventListener('keydown', k) }
+    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', k) }
   }, [dispatch])
 
   return (
@@ -54,7 +55,7 @@ export default function WishlistDrawer() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
                     <button onClick={() => { dispatch(addLocal(p)); dispatch(closeWishlist()) }} style={{ padding: '7px 14px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Add to Cart</button>
-                    <button onClick={() => dispatch(toggleWishlist(p.id))} style={{ padding: '5px 14px', borderRadius: 99, border: '1.5px solid #EDE4D8', background: 'white', color: '#9C7A63', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Remove</button>
+                    <button onClick={() => dispatch(toggleWishlist(wishlistKey(p)))} style={{ padding: '5px 14px', borderRadius: 99, border: '1.5px solid #EDE4D8', background: 'white', color: '#9C7A63', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Remove</button>
                   </div>
                 </div>
               ))}

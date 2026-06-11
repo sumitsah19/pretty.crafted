@@ -14,7 +14,9 @@ const DEMO_PRODUCTS = [
   { id:10, name:"Gold Vermeil Ear Cuff",       category:"Handmade Jewelry",   price:34, originalPrice:44, recipient:"her",  emoji:"✨", bg:"#E4D8B0", tag:"",          handcrafted:true,  rating:4.9, ratingCount:201, stock:19, description:"18k gold-plated 925 silver ear cuff — no piercing needed." },
   { id:11, name:"Spiced Honey Gift Set",       category:"Food & Gourmet",     price:38, originalPrice:48, recipient:"him",  emoji:"🍯", bg:"#E0C890", tag:"Bestseller", handcrafted:false, rating:4.8, ratingCount:167, stock:42, description:"Three raw honeys infused with cardamom, chili, and lemon thyme." },
   { id:12, name:"Fairy Light Terrarium",       category:"Plants",             price:52, originalPrice:65, recipient:"kids", emoji:"🏮", bg:"#C0D4D0", tag:"",          handcrafted:true,  rating:4.7, ratingCount:62,  stock:11, description:"Glass globe with moss, pebbles, and warm micro LED fairy lights." },
-]
+  // `demo: true` marks items that don't exist in the backend, so checkout / the box
+  // builder can refuse them instead of sending fake ids to the server.
+].map((p) => ({ ...p, demo: true }))
 
 // Fallback hampers, used when the backend has none seeded yet (mirrors the
 // "Hampers" category seeded in DataSeeder).
@@ -23,7 +25,7 @@ const DEMO_HAMPERS = [
   { id:14, name:"Artisan Coffee Ritual",  category:"Hampers", price:1199, originalPrice:1499, recipient:"him", emoji:"☕", bg:"#D4C5B5", tag:"New",        rating:5,   ratingCount:93,  stock:30, description:"Specialty brew, stoneware mug, spiced honey & journal." },
   { id:15, name:"Garden & Bloom Box",     category:"Hampers", price:1349, originalPrice:1699, recipient:"all", emoji:"🌿", bg:"#C8D8C0", tag:"Bestseller", rating:5,   ratingCount:110, stock:30, description:"Terrarium kit, botanicals ring, wildflower candle." },
   { id:16, name:"Golden Hour Luxe Set",   category:"Hampers", price:1899, originalPrice:2499, recipient:"her", emoji:"✨", bg:"#E4D8B0", tag:"",          rating:4.5, ratingCount:27,  stock:30, description:"Gold ear cuff, watercolor print, leather journal." },
-]
+].map((p) => ({ ...p, demo: true }))
 
 // Maps backend ProductDto fields to the shape the UI components expect.
 // Backend uses `categoryName`; UI uses `category`.

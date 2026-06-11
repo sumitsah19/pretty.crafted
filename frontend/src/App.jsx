@@ -3,7 +3,7 @@ import { Routes, Route, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchMe, logout, selectUser, resendVerification } from './store/slices/authSlice'
 import { fetchProducts, fetchHampers } from './store/slices/productsSlice'
-import { selectUI, selectCartOpen, selectWishlistOpen } from './store/slices/uiSlice'
+import { selectUI, selectCartOpen, selectWishlistOpen, openUserAccount } from './store/slices/uiSlice'
 import { useWindowWidth } from './hooks/useWindowWidth'
 import { useOnlineStatus } from './hooks/useOnlineStatus'
 import { promotionsApi } from './api/services'
@@ -31,12 +31,26 @@ const WishlistDrawer = lazy(() => import('./components/modals/WishlistDrawer'))
 const OccasionsModal = lazy(() => import('./components/modals/OccasionsModal'))
 const OccasionPage = lazy(() => import('./components/modals/OccasionPage'))
 const ProductDetailModal = lazy(() => import('./components/modals/ProductDetailModal'))
-const PersonalizationModal = lazy(() => import('./components/modals/PersonalizationModal'))
 const UserAccountModal = lazy(() => import('./components/modals/UserAccountModal'))
 const HamperShopModal = lazy(() => import('./components/modals/HamperShopModal'))
 const ShopModal = lazy(() => import('./components/modals/ShopModal'))
 
 const TC = '#C4704A'
+
+// Storefront announcement banner — evergreen brand lines, prepended with active coupons
+const BANNER_BASE = [
+  '✦ Free gift wrapping on orders over ₹5000',
+  '🎁 Handcrafted with love, delivered across India',
+  '✦ New arrivals every week',
+]
+
+// Deep-link target for /account and /orders: renders the storefront and opens the
+// account modal on the requested screen instead of a dead-end placeholder page.
+function AccountRoute({ view }) {
+  const dispatch = useDispatch()
+  useEffect(() => { dispatch(openUserAccount(view)) }, [dispatch, view])
+  return <HomePage />
+}
 
 export default function App() {
   const dispatch = useDispatch()
@@ -52,12 +66,6 @@ export default function App() {
   const user = useSelector(selectUser)
   const [resendState, setResendState] = useState('idle') // idle | loading | sent | error
 
-  // Storefront announcement banner — active coupons (from backend) + evergreen brand lines
-  const BANNER_BASE = [
-    '✦ Free gift wrapping on orders over ₹5000',
-    '🎁 Handcrafted with love, delivered across India',
-    '✦ New arrivals every week',
-  ]
   const [bannerMessages, setBannerMessages] = useState(BANNER_BASE)
 
   useEffect(() => {
@@ -162,7 +170,7 @@ export default function App() {
     },
   }
   const currentSEO = routeSEO[pathname]
-    || (pathname.startsWith('/occasions/') ? routeSEO[pathname] || routeSEO['/occasions'] : null)
+    || (pathname.startsWith('/occasions/') ? routeSEO['/occasions'] : null)
     || routeSEO['/']
 
   // Verify-email page is standalone — no nav or storefront shell
@@ -272,9 +280,7 @@ export default function App() {
             path="/account"
             element={
               <ProtectedRoute>
-                <div style={{ padding: isMobile ? '40px 20px' : '60px 48px', textAlign: 'center' }}>
-                  <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 24 : 32, fontWeight: 700 }}>My Account</h1>
-                </div>
+                <AccountRoute view="home" />
               </ProtectedRoute>
             }
           />
@@ -282,9 +288,7 @@ export default function App() {
             path="/orders"
             element={
               <ProtectedRoute>
-                <div style={{ padding: isMobile ? '40px 20px' : '60px 48px', textAlign: 'center' }}>
-                  <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 24 : 32, fontWeight: 700 }}>My Orders</h1>
-                </div>
+                <AccountRoute view="orders" />
               </ProtectedRoute>
             }
           />
@@ -295,7 +299,8 @@ export default function App() {
         {/* Modals — each in its own Suspense+ErrorBoundary so one crash
             or load failure never takes down the whole storefront */}
         {[
-          [ui.activeOccasion,         <OccasionPage occasion={ui.activeOccasion} />],
+          // key remounts the page/modal when the subject changes, resetting all internal state
+          [ui.activeOccasion,         <OccasionPage key={ui.activeOccasion?.id} occasion={ui.activeOccasion} />],
           [ui.showLogin,              <LoginModal />],
           [cartOpen,                  <CartDrawer />],
           [ui.showCheckout,           <CheckoutModal />],
@@ -303,8 +308,7 @@ export default function App() {
           [ui.showSearch,             <SearchModal />],
           [wishlistOpen,              <WishlistDrawer />],
           [ui.showOccasions,          <OccasionsModal />],
-          [ui.activeProduct,          <ProductDetailModal product={ui.activeProduct} />],
-          [ui.personalizationProduct, <PersonalizationModal />],
+          [ui.activeProduct,          <ProductDetailModal key={ui.activeProduct?.id} product={ui.activeProduct} />],
           [ui.showUserAccount,        <UserAccountModal />],
           [ui.showHamperShop,         <HamperShopModal />],
           [ui.showShop,               <ShopModal />],

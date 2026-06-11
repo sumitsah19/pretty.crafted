@@ -55,13 +55,15 @@ const BOX_COVERS = [
   'linear-gradient(135deg,#191970,#4169E1)',
 ]
 
+/* Fallback box fees, used until /public/box-config loads (values mirror the backend
+   BoxSize enum). The total charged is base + design surcharge + wrap + products. */
 const BOX_CONFIG = {
-  Small:  { max: 2, price: 1499, desc: 'Perfect for a personal touch', apiKey: 'SMALL' },
-  Medium: { max: 4, price: 2999, desc: 'A complete curated experience', apiKey: 'MEDIUM' },
-  Large:  { max: 6, price: 4999, desc: 'The ultimate gift collection',  apiKey: 'LARGE' },
+  Small:  { max: 2, price: 199, desc: 'Perfect for a personal touch', apiKey: 'SMALL' },
+  Medium: { max: 4, price: 349, desc: 'A complete curated experience', apiKey: 'MEDIUM' },
+  Large:  { max: 6, price: 549, desc: 'The ultimate gift collection',  apiKey: 'LARGE' },
 }
 
-/* Wrap options — keys/names/costs mirror the backend WrapType enum. */
+/* Fallback wrap options, used until /public/box-config loads (mirror WrapType). */
 const WRAPS = [
   { key: 'STANDARD',  name: 'Standard Pink',  price: 0 },
   { key: 'ROSE_GOLD', name: 'Rose Gold Foil', price: 79 },
@@ -344,6 +346,7 @@ export default function GiftBoxModal() {
   const [selectedCard, setSelectedCard] = useState(null)
   const [selectedCoverIdx, setSelectedCoverIdx] = useState(null)
   const [buildBoxes, setBuildBoxes]     = useState(null)
+  const [serverCfg, setServerCfg]       = useState(null) // live BoxSize/WrapType pricing
   const [boxIdx, setBoxIdx]             = useState(Math.floor(SONGS.length / 2))
   const [recipient, setRecipient]       = useState('everyone')
   const [activeCategory, setActiveCategory] = useState(null)
@@ -383,6 +386,10 @@ export default function GiftBoxModal() {
         setBoxIdx(Math.floor(data.length / 2))
       })
       .catch(() => { /* keep gradient fallback */ })
+    // Live box/wrap pricing from the backend enums (local constants bridge the gap)
+    buildBoxApi.config()
+      .then(({ data }) => { if (!cancelled) setServerCfg(data) })
+      .catch(() => { /* keep fallback constants */ })
     return () => { cancelled = true }
   }, [])
 
@@ -400,9 +407,27 @@ export default function GiftBoxModal() {
     return SONGS
   }, [buildBoxes])
 
-  const BOX_MAX   = BOX_CONFIG[boxSize].max
-  const wrapPrice = WRAPS.find(w => w.key === wrapType)?.price || 0
-  const boxPrice  = BOX_CONFIG[boxSize].price + (selectedCard?.boxPrice || 0) + wrapPrice
+  // Live pricing from the backend enums; the local constants only bridge the fetch.
+  const boxConfig = useMemo(() => {
+    if (!serverCfg?.sizes?.length) return BOX_CONFIG
+    const byKey = Object.fromEntries(serverCfg.sizes.map(s => [s.key, s]))
+    return Object.fromEntries(Object.entries(BOX_CONFIG).map(([label, c]) => {
+      const s = byKey[c.apiKey]
+      return [label, s ? { ...c, max: s.capacity, price: Number(s.basePrice) } : c]
+    }))
+  }, [serverCfg])
+  const wraps = useMemo(() => {
+    if (!serverCfg?.wraps?.length) return WRAPS
+    return serverCfg.wraps.map(w => ({ key: w.key, name: w.displayName, price: Number(w.extraCost) }))
+  }, [serverCfg])
+
+  const BOX_MAX   = boxConfig[boxSize].max
+  const wrapPrice = wraps.find(w => w.key === wrapType)?.price || 0
+  // Mirrors GiftBoxService's total: (size base + design surcharge) + wrap + selected products.
+  // This is what the backend will charge, so the displayed price always matches the cart.
+  const basePrice     = boxConfig[boxSize].price + (selectedCard?.boxPrice || 0)
+  const productsTotal = selectedProducts.reduce((s, p) => s + Number(p.price || 0), 0)
+  const boxPrice      = basePrice + wrapPrice + productsTotal
 
   /* Filter products by recipient + category */
   const byRecipient = products.filter(p => {
@@ -443,10 +468,15 @@ export default function GiftBoxModal() {
       dispatch(openLogin())
       return
     }
+    // Demo items only exist in the local catalog fallback — their ids would 404 on the server.
+    if (selectedProducts.some(p => p.demo)) {
+      setError('These are showcase samples — gift boxes with them cannot be ordered yet.')
+      return
+    }
     setSaving(true); setError('')
     try {
       const { data } = await giftBoxApi.create({
-        size: BOX_CONFIG[boxSize].apiKey,
+        size: boxConfig[boxSize].apiKey,
         wrapType,
         customMessage: giftMessage.trim() || null,
         productIds: selectedProducts.map(p => p.id),
@@ -529,7 +559,7 @@ export default function GiftBoxModal() {
             <div style={{ padding: '20px clamp(20px,5vw,72px) 16px' }}>
               <div style={{ display: 'flex', gap: 2, background: 'rgba(0,0,0,0.06)', borderRadius: 12, padding: 3 }}>
                 {['Small', 'Medium', 'Large'].map(s => {
-                  const bc = BOX_CONFIG[s]
+                  const bc = boxConfig[s]
                   return (
                     <button key={s} onClick={() => {
                       const newMax = bc.max
@@ -550,7 +580,7 @@ export default function GiftBoxModal() {
                   <span style={{ color: selectedProducts.length >= BOX_MAX ? GOLD : '#1a1a1a', fontWeight: 700 }}>{selectedProducts.length}</span>
                   <span style={{ color: '#888' }}>/{BOX_MAX} Items</span>
                 </span>
-                <span style={{ fontSize: 11, color: '#888' }}>{BOX_CONFIG[boxSize].desc}</span>
+                <span style={{ fontSize: 11, color: '#888' }}>{boxConfig[boxSize].desc}</span>
                 <span style={{ fontSize: 13, color: GOLD, fontWeight: 700 }}>{fmtInr(boxPrice)}</span>
               </div>
             </div>
@@ -574,7 +604,10 @@ export default function GiftBoxModal() {
                   <div key={i} style={{ minHeight: 52, borderRadius: 9, border: `1px dashed ${selectedProducts[i] ? GOLD : 'rgba(0,0,0,0.1)'}`, background: selectedProducts[i] ? 'rgba(192,138,30,0.08)' : 'rgba(0,0,0,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 8px', textAlign: 'center', position: 'relative' }}>
                     {selectedProducts[i] ? (
                       <>
-                        <span style={{ fontSize: 11, color: GOLD, fontWeight: 500, lineHeight: 1.3 }}>{selectedProducts[i].name}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <span style={{ fontSize: 11, color: GOLD, fontWeight: 500, lineHeight: 1.3 }}>{selectedProducts[i].name}</span>
+                          <span style={{ fontSize: 10, color: '#888' }}>{fmtInr(selectedProducts[i].price)}</span>
+                        </div>
                         <button type="button" onClick={() => setSelectedProducts(prev => prev.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 4, right: 4, width: 14, height: 14, borderRadius: '50%', background: 'rgba(212,155,35,0.3)', border: 'none', cursor: 'pointer', color: GOLD, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
                       </>
                     ) : (
@@ -635,6 +668,14 @@ export default function GiftBoxModal() {
                   const atMax      = selectedProducts.length >= BOX_MAX
                   const disabled   = atMax && !isSelected
                   const catGrad    = CAT_GRADIENT[p.category] || 'linear-gradient(135deg,#f5eee6,#c9956b)'
+                  // Same pricing/rating treatment as ProductCard, compacted for the picker grid:
+                  // MRP strike-through + save % only when it's a real discount, stars only when rated.
+                  const orig      = Number(p.originalPrice ?? p.origPrice)
+                  const hasMrp    = Number.isFinite(orig) && orig > p.price
+                  const save      = hasMrp ? Math.round((1 - p.price / orig) * 100) : 0
+                  const rating    = p.rating != null ? Number(p.rating) : null
+                  const reviews   = p.reviewCount ?? p.ratingCount ?? null
+                  const pct       = rating != null ? Math.max(0, Math.min(100, rating / 5 * 100)) : 0
                   return (
                     <div key={p.id}
                       onClick={() => !disabled && toggleProduct(p)}
@@ -642,14 +683,35 @@ export default function GiftBoxModal() {
                       onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.transform = 'none' }}
                       style={{ display: 'flex', flexDirection: 'column', cursor: disabled ? 'not-allowed' : 'pointer', transition: 'all 0.2s', opacity: disabled ? 0.4 : 1, transform: isSelected ? 'translateY(-3px)' : 'none' }}>
                       <div style={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: 14, background: catGrad, overflow: 'hidden', marginBottom: 8, boxShadow: isSelected ? `0 0 0 2.5px ${GOLD}, 0 8px 22px rgba(192,138,30,0.22)` : '0 1px 4px rgba(44,26,14,0.08)', transition: 'box-shadow 0.25s ease' }}>
-                        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34 }}>{p.emoji}</div>
+                        {p.imageUrl
+                          ? <img src={p.imageUrl} alt={p.name} draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34 }}>{p.emoji}</div>}
+                        {p.tag && (
+                          <span style={{ position: 'absolute', top: 8, left: 8, padding: '3px 8px', borderRadius: 6, background: '#1a1a1a', color: '#fff', fontSize: 9, fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>
+                            {p.tag === 'New' ? 'New In' : p.tag}
+                          </span>
+                        )}
                         {isSelected && (
                           <div style={{ position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: '50%', background: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                           </div>
                         )}
                       </div>
-                      <h4 style={{ margin: 0, textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', fontFamily: "'Playfair Display',serif", lineHeight: 1.3 }}>{p.name}</h4>
+                      <h4 style={{ margin: '0 0 4px', textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', fontFamily: "'Playfair Display',serif", lineHeight: 1.3 }}>{p.name}</h4>
+                      {rating != null && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 4 }}>
+                          <span style={{ position: 'relative', display: 'inline-block', fontSize: 10, lineHeight: 1, letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
+                            <span style={{ color: 'rgba(0,0,0,0.16)' }}>★★★★★</span>
+                            <span style={{ position: 'absolute', left: 0, top: 0, width: pct + '%', overflow: 'hidden', color: '#C08A1E' }}>★★★★★</span>
+                          </span>
+                          {reviews != null && <span style={{ fontSize: 10, color: '#555', whiteSpace: 'nowrap' }}>({reviews})</span>}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 5, whiteSpace: 'nowrap' }}>
+                        {hasMrp && <span style={{ fontSize: 10.5, color: '#888', textDecoration: 'line-through' }}>{fmtInr(orig)}</span>}
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a' }}>{fmtInr(p.price)}</span>
+                        {save > 0 && <span style={{ fontSize: 10.5, fontWeight: 600, color: '#dc2626' }}>{save}% off</span>}
+                      </div>
                     </div>
                   )
                 })}
@@ -697,12 +759,15 @@ export default function GiftBoxModal() {
               <p style={{ fontSize: 12, color: '#888', margin: 0 }}>No products selected yet.</p>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(selectedProducts.length, 4)}, 1fr)`, gap: 8 }}>
-                {selectedProducts.map((prod, i) => (
-                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {selectedProducts.map((prod) => (
+                  <div key={prod.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div style={{ aspectRatio: '1 / 1', borderRadius: 9, overflow: 'hidden', position: 'relative', background: CAT_GRADIENT[prod.category] || 'linear-gradient(135deg,#f5eee6,#c9956b)' }}>
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>{prod.emoji}</div>
+                      {prod.imageUrl
+                        ? <img src={prod.imageUrl} alt={prod.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>{prod.emoji}</div>}
                     </div>
                     <span style={{ fontSize: 11, color: '#555', lineHeight: 1.25, textAlign: 'center', wordBreak: 'break-word' }}>{prod.name}</span>
+                    <span style={{ fontSize: 11, color: '#888', textAlign: 'center' }}>{fmtInr(prod.price)}</span>
                   </div>
                 ))}
               </div>
@@ -713,7 +778,7 @@ export default function GiftBoxModal() {
           <div>
             <p style={{ fontSize: 11, color: '#888', margin: '0 0 8px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Gift Wrap</p>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 8 }}>
-              {WRAPS.map(w => {
+              {wraps.map(w => {
                 const on = wrapType === w.key
                 return (
                   <button key={w.key} type="button" onClick={() => setWrapType(w.key)}
@@ -736,6 +801,26 @@ export default function GiftBoxModal() {
               rows={3} placeholder="Add a personal note to include in the box…"
               style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', padding: '10px 12px', borderRadius: 10, border: '1.5px solid rgba(0,0,0,0.1)', fontSize: 13, fontFamily: 'inherit', color: '#1a1a1a', outline: 'none', lineHeight: 1.4 }}
               onFocus={(e) => e.target.style.borderColor = TC} onBlur={(e) => e.target.style.borderColor = 'rgba(0,0,0,0.1)'} />
+          </div>
+
+          {/* Price summary — same breakdown the backend returns in GiftBoxDto */}
+          <div style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.03)', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#555' }}>
+              <span>{boxSize} box{selectedCard?.boxPrice ? ` · ${selectedCard.title}` : ''}</span>
+              <span>{fmtInr(basePrice)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#555' }}>
+              <span>Gift wrap</span>
+              <span>{wrapPrice === 0 ? 'Free' : fmtInr(wrapPrice)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#555' }}>
+              <span>{selectedProducts.length} item{selectedProducts.length !== 1 ? 's' : ''}</span>
+              <span>{fmtInr(productsTotal)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#1a1a1a', borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: 6, marginTop: 2 }}>
+              <span>Total</span>
+              <span>{fmtInr(boxPrice)}</span>
+            </div>
           </div>
 
           {/* Action buttons */}

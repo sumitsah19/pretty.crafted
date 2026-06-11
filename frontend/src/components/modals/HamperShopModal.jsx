@@ -49,7 +49,7 @@ export default function HamperShopModal() {
     const arr = [...filtered]
     if (sort === 'Price: Low to High') arr.sort((a, b) => a.price - b.price)
     else if (sort === 'Price: High to Low') arr.sort((a, b) => b.price - a.price)
-    else if (sort === 'Most Reviews') arr.sort((a, b) => ((b.reviews ?? 0) - (a.reviews ?? 0)))
+    else if (sort === 'Most Reviews') arr.sort((a, b) => ((b.reviewCount ?? b.ratingCount ?? 0) - (a.reviewCount ?? a.ratingCount ?? 0)))
     return arr
   }, [filtered, sort])
 

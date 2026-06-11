@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { selectCart, updateLocal, removeLocal, addLocal, removeBox } from '../../store/slices/cartSlice'
 import { openCheckout, closeCart } from '../../store/slices/uiSlice'
@@ -11,11 +11,16 @@ export default function CartDrawer() {
   const dispatch = useDispatch()
   const { items, boxes } = useSelector(selectCart)
   const products = useSelector(selectProducts)
-  const [promo, setPromo] = useState('')
-  const [promoApplied, setPromoApplied] = useState(false)
-  const [promoError, setPromoError] = useState('')
-  const [giftWrap, setGiftWrap] = useState(false)
   const [savedItems, setSavedItems] = useState([])
+
+  // Close on Escape + lock body scroll while open (restoring whatever was set before)
+  useEffect(() => {
+    const k = (e) => { if (e.key === 'Escape') dispatch(closeCart()) }
+    window.addEventListener('keydown', k)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev }
+  }, [dispatch])
 
   const isEmpty = items.length === 0 && boxes.length === 0
   const boxesTotal = boxes.reduce((s, b) => s + Number(b.totalPrice || 0), 0)
@@ -23,14 +28,11 @@ export default function CartDrawer() {
 
   const removeGiftBox = async (id) => {
     dispatch(removeBox(id))
-    try { await giftBoxApi.remove(id) } catch {}
+    try { await giftBoxApi.remove(id) } catch { /* already removed locally; server row is cleaned up on next sync */ }
   }
-  const discount = promoApplied ? Math.round(subtotal * 0.15) : 0
-  const shipping = subtotal >= 60 ? 0 : 5.99
-  const giftWrapFee = giftWrap ? 4 : 0
-  const total = subtotal - discount + shipping + giftWrapFee
-  const FREE_SHIPPING_AT = 60
-  const progress = Math.min(100, (subtotal / FREE_SHIPPING_AT) * 100)
+  // No client-side fees: delivery is free and the server computes the order total,
+  // so the drawer total must equal the checkout total (= subtotal).
+  const total = subtotal
 
   const suggestions = products.filter((p) => p.tag === 'Bestseller' && !items.find((i) => i.product.id === p.id)).slice(0, 3)
 
@@ -42,10 +44,6 @@ export default function CartDrawer() {
   const moveToCart = (p) => {
     setSavedItems((prev) => prev.filter((x) => x.id !== p.id))
     dispatch(addLocal(p))
-  }
-  const applyPromo = () => {
-    if (promo.trim().toUpperCase() === 'PRETTY15') { setPromoApplied(true); setPromoError('') }
-    else { setPromoError('Invalid code. Try PRETTY15'); setPromoApplied(false) }
   }
 
   return (
@@ -61,17 +59,9 @@ export default function CartDrawer() {
           <button onClick={() => dispatch(closeCart())} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
 
-        {/* Free shipping bar */}
-        {!isEmpty && subtotal < FREE_SHIPPING_AT && (
-          <div style={{ padding: '12px 24px', background: '#F5EEE6', flexShrink: 0 }}>
-            <div style={{ fontSize: 12, color: '#6B4F3A', marginBottom: 6, fontWeight: 500 }}>Add <b style={{ color: TC }}>₹{(FREE_SHIPPING_AT - subtotal).toFixed(0)}</b> more for free shipping 🚚</div>
-            <div style={{ height: 6, background: '#EDE4D8', borderRadius: 99, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${progress}%`, background: TC, borderRadius: 99, transition: 'width 0.4s ease' }} />
-            </div>
-          </div>
-        )}
-        {!isEmpty && subtotal >= FREE_SHIPPING_AT && (
-          <div style={{ padding: '10px 24px', background: '#EAF2E8', fontSize: 12, color: '#4A8A3A', fontWeight: 600, flexShrink: 0 }}>✓ You've unlocked free shipping! 🎉</div>
+        {/* Free delivery note */}
+        {!isEmpty && (
+          <div style={{ padding: '10px 24px', background: '#EAF2E8', fontSize: 12, color: '#4A8A3A', fontWeight: 600, flexShrink: 0 }}>✓ Free delivery on every order 🚚</div>
         )}
 
         {/* Items */}
@@ -163,35 +153,11 @@ export default function CartDrawer() {
         {/* Footer */}
         {!isEmpty && (
           <div style={{ padding: '16px 24px 28px', borderTop: '1px solid #EDE4D8', flexShrink: 0, background: '#FAF7F2' }}>
-            <div onClick={() => setGiftWrap(g => !g)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 14, border: `1.5px solid ${giftWrap ? TC : '#EDE4D8'}`, background: giftWrap ? '#FDF6F1' : 'white', cursor: 'pointer', marginBottom: 14, transition: 'all 0.2s' }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F5EEE6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎀</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#2C1A0E' }}>Premium Gift Wrapping</div>
-                <div style={{ fontSize: 11, color: '#9C7A63' }}>Kraft paper, ribbon bow & handwritten card</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: giftWrap ? TC : '#9C7A63' }}>+₹4</span>
-                <div style={{ width: 40, height: 22, borderRadius: 99, background: giftWrap ? TC : '#EDE4D8', position: 'relative', transition: 'background 0.3s', flexShrink: 0 }}>
-                  <div style={{ width: 16, height: 16, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: giftWrap ? 21 : 3, transition: 'left 0.3s', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }} />
-                </div>
-              </div>
-            </div>
 
-            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-              <input value={promo} onChange={(e) => { setPromo(e.target.value); setPromoError('') }} placeholder="Promo code (try PRETTY15)"
-                style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #EDE4D8', fontSize: 13, background: '#FDFAF7', color: '#2C1A0E', outline: 'none' }}
-                onFocus={(e) => e.target.style.borderColor = TC} onBlur={(e) => e.target.style.borderColor = promoApplied ? '#7A9A6B' : '#EDE4D8'} />
-              <button onClick={applyPromo} style={{ padding: '10px 16px', borderRadius: 10, border: 'none', background: promoApplied ? '#7A9A6B' : TC, color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                {promoApplied ? '✓ Applied' : 'Apply'}
-              </button>
-            </div>
-            {promoError && <div style={{ fontSize: 12, color: '#C44A4A', marginBottom: 10, marginTop: -8 }}>{promoError}</div>}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
               <Row label="Subtotal" value={`₹${subtotal.toFixed(2)}`} />
-              {discount > 0 && <Row label="Discount (15%)" value={`−₹${discount.toFixed(2)}`} color="#7A9A6B" />}
-              {giftWrap && <Row label="Gift Wrapping" value="+₹4.00" />}
-              <Row label="Shipping" value={shipping === 0 ? 'FREE' : `₹${shipping.toFixed(2)}`} color={shipping === 0 ? '#7A9A6B' : undefined} />
+              <Row label="Delivery" value="FREE" color="#7A9A6B" />
               <div style={{ height: 1, background: '#EDE4D8', margin: '4px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700 }}>
                 <span>Total</span><span style={{ color: TC }}>₹{total.toFixed(2)}</span>

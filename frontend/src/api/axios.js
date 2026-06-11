@@ -32,15 +32,23 @@ api.interceptors.response.use(
     const config = err.config
 
     if (err.response?.status === 401) {
-      clearToken()
-      window.dispatchEvent(new Event('pc:logout'))
+      // A 401 from a credential endpoint just means "wrong credentials" — it must not
+      // nuke an existing session or fire a global logout (e.g. a failed login attempt).
+      const isCredentialAttempt = /\/auth\/(login|register|google|forgot-password|reset-password)/.test(config?.url || '')
+      if (!isCredentialAttempt) {
+        clearToken()
+        window.dispatchEvent(new Event('pc:logout'))
+      }
       return Promise.reject(err)
     }
 
     const isNetworkError = !err.response
     const isRetryable = isNetworkError || RETRYABLE.has(err.response?.status)
+    // Only retry idempotent requests. A timed-out POST (order create, payment verify…)
+    // may already have been processed server-side — retrying it can double-submit.
+    const isIdempotent = ['get', 'head', 'options'].includes((config?.method || 'get').toLowerCase())
 
-    if (isRetryable && config && config._retryCount < MAX_RETRIES) {
+    if (isRetryable && isIdempotent && config && config._retryCount < MAX_RETRIES) {
       config._retryCount += 1
       const delay = Math.min(1000 * 2 ** (config._retryCount - 1), 8000)
       await new Promise((r) => setTimeout(r, delay))

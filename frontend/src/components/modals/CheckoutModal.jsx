@@ -38,39 +38,41 @@ export default function CheckoutModal() {
   const [step, setStep] = useState(1)
   const [addr, setAddr] = useState({ name: '', phone: '', line1: '', line2: '', city: '', state: '', zip: '', country: 'India' })
   const [payMethod, setPayMethod] = useState('online')
-  const [card, setCard] = useState({ number: '', name: '', expiry: '', cvv: '' })
   const [placing, setPlacing] = useState(false)
   const [placed, setPlaced] = useState(false)
   const [orderError, setOrderError] = useState('')
   const [serverOrderId, setServerOrderId] = useState(null)
-  const [upiId, setUpiId] = useState('')
+  // An order created on a previous attempt whose Razorpay payment wasn't completed
+  // (popup dismissed, payment failed…). Reused on retry so we never create duplicates.
+  const [pendingOrder, setPendingOrder] = useState(null) // { res, sig }
 
   useEffect(() => { analytics.checkoutStart() }, [])
   useEffect(() => { analytics.checkoutStep(step) }, [step])
+
+  // Close on Escape (never mid-payment) + lock body scroll while open
+  useEffect(() => {
+    const k = (e) => { if (e.key === 'Escape' && !placing) dispatch(closeCheckout()) }
+    window.addEventListener('keydown', k)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev }
+  }, [dispatch, placing])
 
   const boxesTotal = boxes.reduce((s, b) => s + Number(b.totalPrice || 0), 0)
   const subtotalItems = items.reduce((s, i) => s + i.product.price * i.qty, 0) + boxesTotal
   const total = subtotalItems
 
   const setA = (k, v) => setAddr((p) => ({ ...p, [k]: v }))
-  const setC = (k, v) => setCard((p) => ({ ...p, [k]: v }))
-  const fmtCard = (v) => v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
-  const fmtExpiry = (v) => { const d = v.replace(/\D/g, '').slice(0, 4); return d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d }
   const addrValid = addr.name && addr.phone && addr.line1 && addr.city && addr.zip
-  const isExpiryValid = (expiry) => {
-    if (expiry.length !== 5) return false
-    const [mm, yy] = expiry.split('/')
-    const month = parseInt(mm, 10)
-    const year = 2000 + parseInt(yy, 10)
-    if (month < 1 || month > 12) return false
-    const now = new Date()
-    return year > now.getFullYear() || (year === now.getFullYear() && month >= now.getMonth() + 1)
-  }
   const payValid = payMethod === 'cod' || payMethod === 'online'
 
   const inputSt = { width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: 13, border: '1.5px solid #EDE4D8', background: '#FDFAF7', color: '#2C1A0E', outline: 'none', fontFamily: "'DM Sans',sans-serif", transition: 'border-color 0.2s' }
   const focus = (e) => e.target.style.borderColor = TC
   const blur = (e) => e.target.style.borderColor = '#EDE4D8'
+
+  // What the current checkout attempt depends on; if any of it changes, a previously
+  // created (unpaid) order is stale and a fresh one must be created.
+  const checkoutSig = JSON.stringify([items.map((i) => [i.product.id, i.qty]), boxes.map((b) => b.id), addr])
 
   const placeOrder = async () => {
     if (!isLoggedIn) {
@@ -78,51 +80,71 @@ export default function CheckoutModal() {
       dispatch(openLogin())
       return
     }
+    if (items.length === 0 && boxes.length === 0) {
+      setOrderError('Your cart is empty — add something first.')
+      return
+    }
+    // Demo items only exist in the local catalog fallback, not in the backend —
+    // syncing their ids to the server cart would fail with confusing errors.
+    if (items.some((i) => i.product.demo)) {
+      setOrderError('Some items in your cart are showcase samples and cannot be purchased yet. Please remove them and try again.')
+      return
+    }
 
     setPlacing(true)
     setOrderError('')
 
     try {
-      // Non-destructive cart sync: fetch server cart and apply minimal diffs
-      const serverRes = await cartApi.get()
-      const serverItems = serverRes.data?.items || []
-
-      const serverByProduct = new Map()
-      for (const si of serverItems) serverByProduct.set(Number(si.productId), si)
-
-      const localByProduct = new Map()
-      for (const li of items) localByProduct.set(Number(li.product.id), li.qty)
-
-      // Add or update local items on server
-      for (const [productId, qty] of localByProduct.entries()) {
-        const serverItem = serverByProduct.get(productId)
-        if (serverItem) {
-          if (serverItem.quantity !== qty) {
-            await cartApi.update(serverItem.id, qty)
-          }
-          serverByProduct.delete(productId)
-        } else {
-          await cartApi.add(productId, qty)
-        }
-      }
-
-      // Any remaining server items are not present locally — remove them
-      for (const si of serverByProduct.values()) {
-        await cartApi.remove(si.id)
-      }
-
-      const shippingAddress = [
-        addr.name, addr.line1, addr.line2,
-        addr.city, addr.state, addr.zip, addr.country,
-      ].filter(Boolean).join(', ')
-
       const backendPaymentMethod = payMethod === 'cod' ? 'COD' : 'RAZORPAY'
 
-      const res = await ordersApi.create({
-        shippingAddress,
-        contactPhone: addr.phone,
-        paymentMethod: backendPaymentMethod,
-      })
+      // Reuse the order from a previous attempt (e.g. the Razorpay popup was dismissed)
+      // as long as the cart and address haven't changed — avoids duplicate orders.
+      let res
+      if (backendPaymentMethod === 'RAZORPAY' && pendingOrder?.sig === checkoutSig) {
+        res = pendingOrder.res
+      } else {
+        // Non-destructive cart sync: fetch server cart and apply minimal diffs
+        const serverRes = await cartApi.get()
+        const serverItems = serverRes.data?.items || []
+
+        const serverByProduct = new Map()
+        for (const si of serverItems) serverByProduct.set(Number(si.productId), si)
+
+        const localByProduct = new Map()
+        for (const li of items) localByProduct.set(Number(li.product.id), li.qty)
+
+        // Add or update local items on server
+        for (const [productId, qty] of localByProduct.entries()) {
+          const serverItem = serverByProduct.get(productId)
+          if (serverItem) {
+            if (serverItem.quantity !== qty) {
+              await cartApi.update(serverItem.id, qty)
+            }
+            serverByProduct.delete(productId)
+          } else {
+            await cartApi.add(productId, qty)
+          }
+        }
+
+        // Any remaining server items are not present locally — remove them
+        for (const si of serverByProduct.values()) {
+          await cartApi.remove(si.id)
+        }
+
+        const shippingAddress = [
+          addr.name, addr.line1, addr.line2,
+          addr.city, addr.state, addr.zip, addr.country,
+        ].filter(Boolean).join(', ')
+
+        res = await ordersApi.create({
+          shippingAddress,
+          contactPhone: addr.phone,
+          paymentMethod: backendPaymentMethod,
+        })
+        if (backendPaymentMethod === 'RAZORPAY') {
+          setPendingOrder({ res, sig: checkoutSig })
+        }
+      }
 
       const order = res.data?.order
       const orderId = order?.id || res.data?.id || res.data?.orderNumber || null
@@ -176,6 +198,9 @@ export default function CheckoutModal() {
 
           checkout.open()
         })
+
+        // Payment verified — the pending order is settled, nothing to reuse anymore.
+        setPendingOrder(null)
       }
 
       analytics.orderPlaced(orderId, total)
@@ -193,7 +218,7 @@ export default function CheckoutModal() {
   }
 
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && dispatch(closeCheckout())}>
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && !placing && dispatch(closeCheckout())}>
       <div style={{ background: '#FAF7F2', borderRadius: 24, width: '100%', maxWidth: 520, maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(44,26,14,0.25)' }} className="animate-fade-up">
 
         {/* Header */}
@@ -281,8 +306,8 @@ export default function CheckoutModal() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Review Your Order</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {items.map((item, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'white', borderRadius: 12, border: '1px solid #EDE4D8' }}>
+                {items.map((item) => (
+                  <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'white', borderRadius: 12, border: '1px solid #EDE4D8' }}>
                     <div style={{ width: 44, height: 44, borderRadius: 10, background: item.product.bg || '#EDE4D8', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {item.product.imageUrl ? <img src={item.product.imageUrl} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
                     </div>

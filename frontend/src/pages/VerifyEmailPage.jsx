@@ -9,16 +9,13 @@ export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams()
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const [status, setStatus] = useState('verifying') // verifying | success | error
-  const [errorMsg, setErrorMsg] = useState('')
+  // A missing token is known before the first render — start in the error state directly.
+  const token = searchParams.get('token')
+  const [status, setStatus] = useState(token ? 'verifying' : 'error') // verifying | success | error
+  const [errorMsg, setErrorMsg] = useState(token ? '' : 'Missing verification token.')
 
   useEffect(() => {
-    const token = searchParams.get('token')
-    if (!token) {
-      setStatus('error')
-      setErrorMsg('Missing verification token.')
-      return
-    }
+    if (!token) return
 
     dispatch(verifyEmail(token))
       .unwrap()

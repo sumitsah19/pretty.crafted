@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { closeSearch, setActiveProduct } from '../../store/slices/uiSlice'
 import { addLocal } from '../../store/slices/cartSlice'
@@ -13,8 +13,6 @@ export default function SearchModal() {
   const dispatch = useDispatch()
   const products = useSelector(selectProducts)
   const [q, setQ] = useState('')
-  const [results, setResults] = useState([])
-  const [loading, setLoading] = useState(false)
   const [recentSearches, setRecentSearches] = useState(() => {
     try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') } catch { return [] }
   })
@@ -32,15 +30,9 @@ export default function SearchModal() {
     return () => window.removeEventListener('keydown', k)
   }, [dispatch])
 
-  // Show loading spinner immediately on keystroke for responsive feel
-  useEffect(() => {
-    if (q.trim()) setLoading(true)
-    else { setResults([]); setLoading(false) }
-  }, [q])
-
-  // Run the actual filter only after debounce settles
-  useEffect(() => {
-    if (!debouncedQ.trim()) { setResults([]); setLoading(false); return }
+  // Results are derived, not state: filter + sort run when the debounced query settles.
+  const results = useMemo(() => {
+    if (!debouncedQ.trim()) return []
 
     const filtered = products.filter((p) => {
       const text = (p.name + ' ' + p.category + ' ' + (p.tag || '')).toLowerCase()
@@ -52,20 +44,28 @@ export default function SearchModal() {
     const sorted = [...filtered]
     if (sortBy === 'price_asc') sorted.sort((a, b) => a.price - b.price)
     else if (sortBy === 'price_desc') sorted.sort((a, b) => b.price - a.price)
-
-    setResults(sorted)
-    setLoading(false)
+    return sorted
   }, [debouncedQ, category, sortBy, products])
 
-  // Save to recent searches and fire analytics event
+  // "Loading" = the debounce hasn't settled yet (filtering itself is synchronous).
+  const loading = q.trim() !== '' && q.trim() !== debouncedQ.trim()
+
+  // Save to recent searches and fire analytics once the query settles. Deferred a tick so
+  // the state update is an async side effect, and read the result count through a ref so
+  // sort/category changes don't re-record the search.
+  const resultsRef = useRef(results)
+  useEffect(() => { resultsRef.current = results }, [results])
   useEffect(() => {
     if (!debouncedQ.trim()) return
-    setRecentSearches((prev) => {
-      const saved = [debouncedQ, ...prev.filter((s) => s !== debouncedQ)].slice(0, 6)
-      try { localStorage.setItem(RECENT_KEY, JSON.stringify(saved)) } catch {}
-      return saved
-    })
-    analytics.search(debouncedQ, results.length)
+    const t = setTimeout(() => {
+      setRecentSearches((prev) => {
+        const saved = [debouncedQ, ...prev.filter((s) => s !== debouncedQ)].slice(0, 6)
+        try { localStorage.setItem(RECENT_KEY, JSON.stringify(saved)) } catch { /* storage unavailable */ }
+        return saved
+      })
+      analytics.search(debouncedQ, resultsRef.current.length)
+    }, 0)
+    return () => clearTimeout(t)
   }, [debouncedQ])
 
   const categories = ['All', ...Array.from(new Set(products.map((p) => p.category)))]
@@ -80,7 +80,7 @@ export default function SearchModal() {
               <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search gifts, occasions, categories..." style={{ flex: 1, border: 'none', background: 'none', fontSize: 16, color: '#2C1A0E', outline: 'none', fontFamily: "'DM Sans',sans-serif" }} />
-            {q && <button onClick={() => { setQ(''); setResults([]) }} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 14, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>}
+            {q && <button onClick={() => setQ('')} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 14, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>}
             <button onClick={() => dispatch(closeSearch())} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#9C7A63', fontWeight: 600 }}>ESC</button>
           </div>
 

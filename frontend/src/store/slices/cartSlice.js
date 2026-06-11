@@ -1,11 +1,12 @@
 import { createSlice } from '@reduxjs/toolkit'
+import { fetchProducts, fetchHampers } from './productsSlice'
 
 const localKey = 'pc_cart'
 const boxesKey = 'pc_cart_boxes'
 const loadLocal = () => { try { return JSON.parse(localStorage.getItem(localKey) || '[]') } catch { return [] } }
-const saveLocal = (items) => { try { localStorage.setItem(localKey, JSON.stringify(items)) } catch {} }
+const saveLocal = (items) => { try { localStorage.setItem(localKey, JSON.stringify(items)) } catch { /* storage unavailable — cart stays in-memory */ } }
 const loadBoxes = () => { try { return JSON.parse(localStorage.getItem(boxesKey) || '[]') } catch { return [] } }
-const saveBoxes = (boxes) => { try { localStorage.setItem(boxesKey, JSON.stringify(boxes)) } catch {} }
+const saveBoxes = (boxes) => { try { localStorage.setItem(boxesKey, JSON.stringify(boxes)) } catch { /* storage unavailable — cart stays in-memory */ } }
 
 const cartSlice = createSlice({
   name: 'cart',
@@ -55,6 +56,30 @@ const cartSlice = createSlice({
       saveLocal([])
       saveBoxes([])
     },
+  },
+  extraReducers: (builder) => {
+    // Cart items persist a full product snapshot in localStorage, so a price/name/image
+    // changed by the admin would otherwise show stale until the item is re-added. Whenever
+    // fresh catalog data lands, swap in the up-to-date product for matching ids.
+    // Demo payload items are skipped (their ids don't refer to real backend products),
+    // and demo cart items are left untouched rather than silently swapped for real ones.
+    const refreshFromCatalog = (state, action) => {
+      const fresh = new Map()
+      for (const p of action.payload) if (!p.demo) fresh.set(p.id, p)
+      let changed = false
+      for (const item of state.items) {
+        if (item.product.demo) continue
+        const p = fresh.get(item.product.id)
+        if (p) {
+          item.product = p
+          changed = true
+        }
+      }
+      if (changed) saveLocal(state.items)
+    }
+    builder
+      .addCase(fetchProducts.fulfilled, refreshFromCatalog)
+      .addCase(fetchHampers.fulfilled, refreshFromCatalog)
   },
 })
 

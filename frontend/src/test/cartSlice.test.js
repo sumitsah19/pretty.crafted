@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import cartReducer, { addLocal, updateLocal, removeLocal, clearCart } from '../store/slices/cartSlice'
 
 const product = (id, price = 100) => ({ id, name: `Product ${id}`, price, category: 'Test', emoji: '🎁' })
