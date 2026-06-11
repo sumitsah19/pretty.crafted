@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { selectCart, clearCart } from '../../store/slices/cartSlice'
 import { closeCheckout, openLogin } from '../../store/slices/uiSlice'
@@ -35,6 +35,7 @@ export default function CheckoutModal() {
   const dispatch = useDispatch()
   const { items, boxes } = useSelector(selectCart)
   const isLoggedIn = useSelector(selectIsLoggedIn)
+  const showLogin = useSelector(s => s.ui.showLogin) // login can open ON TOP of checkout
   const [step, setStep] = useState(1)
   const [addr, setAddr] = useState({ name: '', phone: '', line1: '', line2: '', city: '', state: '', zip: '', country: 'India' })
   const [payMethod, setPayMethod] = useState('online')
@@ -45,18 +46,20 @@ export default function CheckoutModal() {
   // An order created on a previous attempt whose Razorpay payment wasn't completed
   // (popup dismissed, payment failed…). Reused on retry so we never create duplicates.
   const [pendingOrder, setPendingOrder] = useState(null) // { res, sig }
+  // Set when "Place Order" was interrupted by login; the order resumes once logged in.
+  const [pendingPlace, setPendingPlace] = useState(false)
 
   useEffect(() => { analytics.checkoutStart() }, [])
   useEffect(() => { analytics.checkoutStep(step) }, [step])
 
-  // Close on Escape (never mid-payment) + lock body scroll while open
+  // Close on Escape (never mid-payment, nor while login is stacked on top) + lock body scroll
   useEffect(() => {
-    const k = (e) => { if (e.key === 'Escape' && !placing) dispatch(closeCheckout()) }
+    const k = (e) => { if (e.key === 'Escape' && !placing && !showLogin) dispatch(closeCheckout()) }
     window.addEventListener('keydown', k)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev }
-  }, [dispatch, placing])
+  }, [dispatch, placing, showLogin])
 
   const boxesTotal = boxes.reduce((s, b) => s + Number(b.totalPrice || 0), 0)
   const subtotalItems = items.reduce((s, i) => s + i.product.price * i.qty, 0) + boxesTotal
@@ -76,7 +79,9 @@ export default function CheckoutModal() {
 
   const placeOrder = async () => {
     if (!isLoggedIn) {
-      dispatch(closeCheckout())
+      // Keep checkout mounted so the address/step survive; login opens on top
+      // (zIndex 1300) and the order resumes automatically once signed in.
+      setPendingPlace(true)
       dispatch(openLogin())
       return
     }
@@ -212,13 +217,30 @@ export default function CheckoutModal() {
     }
   }
 
+  const placeOrderRef = useRef()
+  // eslint-disable-next-line react-hooks/refs
+  placeOrderRef.current = placeOrder
+  useEffect(() => {
+    if (!pendingPlace) return
+    if (isLoggedIn) {
+      // Deferred a tick: resuming is an async side effect of the login completing.
+      const t = setTimeout(() => { setPendingPlace(false); placeOrderRef.current() }, 0)
+      return () => clearTimeout(t)
+    }
+    if (!showLogin) {
+      // Login dismissed without signing in — don't place a surprise order later.
+      const t = setTimeout(() => setPendingPlace(false), 0)
+      return () => clearTimeout(t)
+    }
+  }, [pendingPlace, isLoggedIn, showLogin])
+
   const handleSuccess = () => {
     dispatch(clearCart())
     dispatch(closeCheckout())
   }
 
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && !placing && dispatch(closeCheckout())}>
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && !placing && !showLogin && dispatch(closeCheckout())}>
       <div style={{ background: '#FAF7F2', borderRadius: 24, width: '100%', maxWidth: 520, maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(44,26,14,0.25)' }} className="animate-fade-up">
 
         {/* Header */}

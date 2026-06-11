@@ -146,8 +146,10 @@ export default function LoginModal() {
     outline: 'none', fontFamily: "'DM Sans',sans-serif", transition: 'border-color 0.2s',
   }
 
+  // zIndex above every other modal (box builder 1200, drawers 1201): login can be
+  // requested mid-flow and must overlay the still-mounted modal underneath.
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && dispatch(closeLogin())}>
+    <div className="modal-backdrop" style={{ zIndex: 1300 }} onClick={(e) => e.target === e.currentTarget && dispatch(closeLogin())}>
       <div style={{ background: '#FAF7F2', borderRadius: 24, width: '100%', maxWidth: 420, boxShadow: '0 32px 80px rgba(44,26,14,0.22)', overflow: 'hidden' }} className="animate-fade-up">
 
         {/* Brand strip */}

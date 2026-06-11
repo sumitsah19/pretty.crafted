@@ -341,6 +341,7 @@ export default function GiftBoxModal() {
   const dispatch    = useDispatch()
   const products    = useSelector(selectProducts)
   const isLoggedIn  = useSelector(selectIsLoggedIn)
+  const showLogin   = useSelector(s => s.ui.showLogin) // login can open ON TOP of the builder
   const ww          = useWindowWidth()
   const isMobile    = ww < 640
   const navH        = isMobile ? 60 : 72
@@ -363,6 +364,8 @@ export default function GiftBoxModal() {
   const [giftMessage, setGiftMessage]   = useState('')
   const [saving, setSaving]             = useState(false)
   const [error, setError]               = useState('')
+  // Set when "Add to Cart" was interrupted by login; the add resumes once logged in.
+  const [pendingAdd, setPendingAdd]     = useState(false)
 
   const boxRef     = useRef(null)
   const productRef = useRef(null)
@@ -374,10 +377,10 @@ export default function GiftBoxModal() {
   }, [])
 
   useEffect(() => {
-    const fn = (e) => { if (e.key === 'Escape') dispatch(closeBoxBuilder()) }
+    const fn = (e) => { if (e.key === 'Escape' && !showLogin) dispatch(closeBoxBuilder()) }
     window.addEventListener('keydown', fn)
     return () => window.removeEventListener('keydown', fn)
-  }, [dispatch])
+  }, [dispatch, showLogin])
 
   // Load the admin-curated "Build Your Own Box" designs; fall back to the built-in gradient boxes
   // when none are configured (or on error) so the builder always has something to pick.
@@ -468,7 +471,9 @@ export default function GiftBoxModal() {
 
   const handleAddToCart = async () => {
     if (!isLoggedIn) {
-      dispatch(closeBoxBuilder())
+      // Keep the builder mounted so the box survives; login opens on top (zIndex 1300)
+      // and the add resumes automatically once the user is signed in.
+      setPendingAdd(true)
       dispatch(openLogin())
       return
     }
@@ -497,6 +502,23 @@ export default function GiftBoxModal() {
       setSaving(false)
     }
   }
+
+  const addToCartRef = useRef()
+  // eslint-disable-next-line react-hooks/refs
+  addToCartRef.current = handleAddToCart
+  useEffect(() => {
+    if (!pendingAdd) return
+    if (isLoggedIn) {
+      // Deferred a tick: resuming is an async side effect of the login completing.
+      const t = setTimeout(() => { setPendingAdd(false); addToCartRef.current() }, 0)
+      return () => clearTimeout(t)
+    }
+    if (!showLogin) {
+      // Login dismissed without signing in — don't fire a surprise add later.
+      const t = setTimeout(() => setPendingAdd(false), 0)
+      return () => clearTimeout(t)
+    }
+  }, [pendingAdd, isLoggedIn, showLogin])
 
   return (
     <div style={{ position: 'fixed', inset: 0, top: navH, zIndex: 1200, background: '#FAF7F2', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
