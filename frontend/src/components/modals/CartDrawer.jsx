@@ -108,10 +108,10 @@ export default function CartDrawer() {
               {/* Gift boxes */}
               {boxes.map((box) => (
                 <div key={`box-${box.id}`} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '14px', background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(44,26,14,0.06)', border: `1.5px solid ${TC}22` }}>
-                  <div style={{ width: 60, height: 60, borderRadius: 12, background: '#FDF6F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>🎁</div>
+                  <div style={{ width: 60, height: 60, borderRadius: 12, background: box.boxImageUrl ? `#FDF6F1 url(${box.boxImageUrl}) center/cover` : '#FDF6F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>{box.boxImageUrl ? '' : '🎁'}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 10, color: TC, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>Custom Gift Box</div>
-                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 14, fontWeight: 600, lineHeight: 1.3, marginBottom: 4 }}>{box.size} Box · {box.items?.length || 0} items</div>
+                    <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 14, fontWeight: 600, lineHeight: 1.3, marginBottom: 4 }}>{box.boxTitle ? `${box.boxTitle} · ` : ''}{box.size} Box · {box.items?.length || 0} items</div>
                     {box.customMessage && <div style={{ fontSize: 11, color: '#9C7A63', fontStyle: 'italic', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{box.customMessage}"</div>}
                     <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>₹{Number(box.totalPrice).toFixed(2)}</div>
                   </div>

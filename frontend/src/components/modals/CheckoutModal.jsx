@@ -295,9 +295,9 @@ export default function CheckoutModal() {
                 ))}
                 {boxes.map((box) => (
                   <div key={`box-${box.id}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'white', borderRadius: 12, border: `1px solid ${TC}22` }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 10, background: '#FDF6F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🎁</div>
+                    <div style={{ width: 44, height: 44, borderRadius: 10, background: box.boxImageUrl ? `#FDF6F1 url(${box.boxImageUrl}) center/cover` : '#FDF6F1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>{box.boxImageUrl ? '' : '🎁'}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{box.size} Gift Box</div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{box.boxTitle ? `${box.boxTitle} · ` : ''}{box.size} Gift Box</div>
                       <div style={{ fontSize: 11, color: '#9C7A63' }}>{box.items?.length || 0} items</div>
                     </div>
                     <div style={{ fontWeight: 700, color: TC, fontSize: 14 }}>₹{Number(box.totalPrice).toFixed(2)}</div>

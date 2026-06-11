@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { closeBoxBuilder, openCart, openLogin } from '../../store/slices/uiSlice'
+import { closeBoxBuilder, openCart, openLogin, openHamperShop } from '../../store/slices/uiSlice'
 import { addBox } from '../../store/slices/cartSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
 import { selectIsLoggedIn } from '../../store/slices/authSlice'
-import { giftBoxApi } from '../../api/services'
+import { giftBoxApi, buildBoxApi } from '../../api/services'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
 
 const TC = '#C4704A'
@@ -61,6 +61,15 @@ const BOX_CONFIG = {
   Large:  { max: 6, price: 4999, desc: 'The ultimate gift collection',  apiKey: 'LARGE' },
 }
 
+/* Wrap options — keys/names/costs mirror the backend WrapType enum. */
+const WRAPS = [
+  { key: 'STANDARD',  name: 'Standard Pink',  price: 0 },
+  { key: 'ROSE_GOLD', name: 'Rose Gold Foil', price: 79 },
+  { key: 'FLORAL',    name: 'Floral Ribbon',  price: 49 },
+  { key: 'LUXURY',    name: 'Luxury Velvet',  price: 129 },
+]
+const MSG_MAX = 150
+
 /* ── Category gradient for product tiles ────────────────── */
 const CAT_GRADIENT = {
   'Candles & Scents':   'linear-gradient(135deg,#f7e4c1,#e8c97a)',
@@ -73,40 +82,26 @@ const CAT_GRADIENT = {
   'Plants':             'linear-gradient(135deg,#e8f0e8,#b5d4b5)',
 }
 
-/* ── Hampers catalog ("Shop Curated Box" view) ──────────── */
-const HAMPER_CATS = ['ALL', 'BESTSELLER', 'NEW IN', 'PERSONALISED', 'CARICATURES', 'FRAMES', 'HAMPERS', 'FUN & GAMES']
-const HAMPERS = [
-  { name: 'Open When',            img: 'linear-gradient(135deg,#C4704A,#8B3A2A)', rating: 4.6, reviews: 144, price: 2990, orig: 3290, best: true,  cat: 'HAMPERS' },
-  { name: '90s Kid Gift',         img: 'linear-gradient(135deg,#D4956A,#F0C8A0)', rating: 4.5, reviews: 38,  price: 1590, orig: 2390, best: false, cat: 'FUN & GAMES' },
-  { name: 'My Man Hamper',        img: 'linear-gradient(135deg,#2C1A0E,#6B4F3A)', rating: 4.7, reviews: 44,  price: 6090, orig: null, best: false, cat: 'HAMPERS' },
-  { name: 'Spice Things Up',      img: 'linear-gradient(135deg,#DC143C,#FF8FA0)', rating: 4.6, reviews: 38,  price: 1690, orig: null, best: true,  cat: 'HAMPERS' },
-  { name: "7 Days of Valentine's",img: 'linear-gradient(135deg,#C4704A,#E8A070)', rating: 4.8, reviews: 92,  price: 2690, orig: 3290, best: false, cat: 'NEW IN' },
-  { name: "Gentleman's Crate",    img: 'linear-gradient(135deg,#4A6B7A,#8AACB8)', rating: 4.7, reviews: 56,  price: 4490, orig: null, best: false, cat: 'HAMPERS' },
-  { name: 'Bloom & Bask',         img: 'linear-gradient(135deg,#7A9A6B,#B8D4A8)', rating: 4.5, reviews: 27,  price: 1890, orig: 2290, best: false, cat: 'NEW IN' },
-  { name: 'Pampered Petals',      img: 'linear-gradient(135deg,#9A6B4A,#C4956A)', rating: 4.6, reviews: 63,  price: 2290, orig: null, best: false, cat: 'PERSONALISED' },
-  { name: 'Caricature Duo',       img: 'linear-gradient(135deg,#C08A1E,#F0D060)', rating: 4.9, reviews: 110, price: 1490, orig: null, best: true,  cat: 'CARICATURES' },
-  { name: 'Memory Lane Frame',    img: 'linear-gradient(135deg,#6B4F8A,#B8A0D4)', rating: 4.7, reviews: 41,  price: 1990, orig: 2490, best: false, cat: 'FRAMES' },
-  { name: 'Game Night Box',       img: 'linear-gradient(135deg,#20B2AA,#7AD4CC)', rating: 4.4, reviews: 35,  price: 1390, orig: null, best: false, cat: 'FUN & GAMES' },
-  { name: 'Sweet Tooth Hamper',   img: 'linear-gradient(135deg,#B05F3C,#E8B080)', rating: 4.6, reviews: 77,  price: 1290, orig: 1690, best: true,  cat: 'PERSONALISED' },
-]
-
 /* ── Helpers ────────────────────────────────────────────── */
 function getBoxCover(song) {
-  const idx = (parseInt(song.id) - 1) % BOX_COVERS.length
+  // Built-in boxes have numeric ids; admin boxes use "box-<id>" and carry buildBoxId. Either way,
+  // derive a stable gradient (only shown as a backdrop when there's no uploaded image).
+  const raw = song.buildBoxId ?? parseInt(song.id, 10)
+  const n = Number(raw)
+  const idx = ((Number.isFinite(n) ? n : 1) - 1 + BOX_COVERS.length) % BOX_COVERS.length
   return { gradient: BOX_COVERS[idx], title: song.title }
 }
 
-function fmtRs(n) { return 'Rs. ' + n.toLocaleString('en-IN') + '.00' }
 function fmtInr(n) { return '₹' + n.toLocaleString('en-IN') }
 
 /* ── Reflection ─────────────────────────────────────────── */
-function Reflection({ gradient }) {
-  if (!gradient) return null
+function Reflection({ gradient, imageUrl }) {
+  if (!gradient && !imageUrl) return null
   return (
     <div style={{
       position: 'absolute', top: '100%', left: 0, width: '100%', height: '100%',
       borderRadius: 8, pointerEvents: 'none', userSelect: 'none',
-      background: gradient,
+      background: imageUrl ? `#EDE4D8 url(${imageUrl}) center/cover` : gradient,
       transform: 'scaleY(-1)', opacity: 0.3,
       WebkitMaskImage: 'linear-gradient(to top, rgba(255,255,255,0.5) 0%, transparent 55%)',
       maskImage:       'linear-gradient(to top, rgba(255,255,255,0.5) 0%, transparent 55%)',
@@ -273,6 +268,8 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
       >
         {songs.map((song, index) => {
           const cover = getBoxCover(song)
+          const hasImage = !!song.imageUrl
+          const cardTitle = song.title || cover.title
           return (
             <div
               key={song.id}
@@ -299,75 +296,36 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
                 {/* Box cover art */}
                 <div style={{
                   width: '100%', height: '100%', borderRadius: 8,
-                  background: cover.gradient,
+                  background: hasImage ? '#EDE4D8' : cover.gradient,
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   boxShadow: '0 25px 50px -12px rgba(0,0,0,0.6), 0 8px 32px rgba(0,0,0,0.4)',
                   border: '1px solid rgba(255,255,255,0.12)',
                   position: 'relative', overflow: 'hidden',
                 }}>
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 30%, transparent 60%)', borderRadius: 8 }} />
-                  <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 2, height: '100%', background: 'rgba(255,255,255,0.2)' }} />
-                  <div style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', height: 2, width: '100%', background: 'rgba(255,255,255,0.2)' }} />
-                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: albumSize * 0.22, height: albumSize * 0.22, borderRadius: '50%', background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: albumSize * 0.12, zIndex: 2 }}>🎀</div>
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px 8px 8px', background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)', borderRadius: '0 0 8px 8px' }}>
-                    <p style={{ margin: 0, fontSize: Math.max(9, albumSize * 0.07), fontWeight: 700, color: '#fff', textAlign: 'center', letterSpacing: '0.04em', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', padding: '0 6px' }}>{cover.title}</p>
-                  </div>
+                  {hasImage ? (
+                    <img src={song.imageUrl} alt={cardTitle} draggable={false}
+                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, userSelect: 'none', pointerEvents: 'none' }} />
+                  ) : (
+                    <>
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.04) 30%, transparent 60%)', borderRadius: 8 }} />
+                      <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 2, height: '100%', background: 'rgba(255,255,255,0.2)' }} />
+                      <div style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', height: 2, width: '100%', background: 'rgba(255,255,255,0.2)' }} />
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: albumSize * 0.22, height: albumSize * 0.22, borderRadius: '50%', background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: albumSize * 0.12, zIndex: 2 }}>🎀</div>
+                    </>
+                  )}
+                  {cardTitle && (
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '20px 8px 8px', background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)', borderRadius: '0 0 8px 8px', zIndex: 3 }}>
+                      <p style={{ margin: 0, fontSize: Math.max(9, albumSize * 0.07), fontWeight: 700, color: '#fff', textAlign: 'center', letterSpacing: '0.04em', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', padding: '0 6px' }}>{cardTitle}</p>
+                    </div>
+                  )}
                 </div>
 
-                <Reflection gradient={cover.gradient} />
+                <Reflection gradient={hasImage ? null : cover.gradient} imageUrl={hasImage ? song.imageUrl : null} />
               </div>
             </div>
           )
         })}
       </div>
-    </div>
-  )
-}
-
-/* ── Star rating ─────────────────────────────────────────── */
-function StarRating({ rating, reviews, mobile }) {
-  const pct = Math.max(0, Math.min(100, rating / 5 * 100))
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: mobile ? 5 : 7 }}>
-      <span style={{ position: 'relative', display: 'inline-block', fontSize: mobile ? 11 : 13, lineHeight: 1, letterSpacing: mobile ? 0.5 : 1, whiteSpace: 'nowrap' }}>
-        <span style={{ color: 'rgba(0,0,0,0.16)' }}>★★★★★</span>
-        <span style={{ position: 'absolute', left: 0, top: 0, width: pct + '%', overflow: 'hidden', color: GOLD }}>★★★★★</span>
-      </span>
-      <span style={{ fontSize: mobile ? 10.5 : 12, color: '#555', whiteSpace: 'nowrap' }}>{reviews} reviews</span>
-    </div>
-  )
-}
-
-/* ── Hamper card (for Shop Curated Box view) ─────────────── */
-function HamperCard({ p, mobile }) {
-  const [hover, setHover] = useState(false)
-  const save = p.orig ? Math.round((1 - p.price / p.orig) * 100) : 0
-  return (
-    <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
-      <div style={{
-        position: 'relative', aspectRatio: '1 / 1', borderRadius: mobile ? 12 : 14, background: p.img,
-        overflow: 'hidden', marginBottom: mobile ? 9 : 12,
-        boxShadow: hover ? '0 10px 28px rgba(44,26,14,0.18)' : '0 1px 4px rgba(44,26,14,0.08)',
-        transform: hover ? 'translateY(-3px)' : 'none', transition: 'all 0.25s ease',
-      }}>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: mobile ? 28 : 34, opacity: 0.85 }}>✨</div>
-        {p.best && (
-          <span style={{
-            position: 'absolute', top: mobile ? 8 : 10, right: mobile ? 8 : 10,
-            padding: mobile ? '4px 8px' : '5px 10px', borderRadius: 7,
-            background: '#1a1a1a', color: '#fff', fontSize: mobile ? 9.5 : 10.5,
-            fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap',
-          }}>Best Seller</span>
-        )}
-      </div>
-      <h4 style={{ margin: '0 0 6px', textAlign: 'center', fontSize: mobile ? 13 : 15, fontWeight: 600, color: '#1a1a1a', fontFamily: "'Playfair Display', serif" }}>{p.name}</h4>
-      <div style={{ marginBottom: mobile ? 6 : 8 }}><StarRating rating={p.rating} reviews={p.reviews} mobile={mobile} /></div>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: mobile ? 5 : 7, whiteSpace: 'nowrap' }}>
-        {p.orig && <span style={{ fontSize: mobile ? 11 : 12.5, color: '#888', textDecoration: 'line-through' }}>{fmtRs(p.orig)}</span>}
-        <span style={{ fontSize: mobile ? 12.5 : 14, fontWeight: 600, color: '#1a1a1a' }}>{fmtRs(p.price)}</span>
-      </div>
-      {save > 0 && <div style={{ textAlign: 'center', marginTop: 5, fontSize: mobile ? 11 : 12.5, fontWeight: 600, color: '#dc2626', whiteSpace: 'nowrap' }}>Save {save}%</div>}
     </div>
   )
 }
@@ -381,10 +339,11 @@ export default function GiftBoxModal() {
   const isMobile    = ww < 640
   const navH        = isMobile ? 60 : 72
 
-  const [view, setView]                 = useState('form') // 'form' | 'history' | 'preview'
+  const [view, setView]                 = useState('form') // 'form' | 'preview'
   const [boxSize, setBoxSize]           = useState('Medium')
   const [selectedCard, setSelectedCard] = useState(null)
   const [selectedCoverIdx, setSelectedCoverIdx] = useState(null)
+  const [buildBoxes, setBuildBoxes]     = useState(null)
   const [boxIdx, setBoxIdx]             = useState(Math.floor(SONGS.length / 2))
   const [recipient, setRecipient]       = useState('everyone')
   const [activeCategory, setActiveCategory] = useState(null)
@@ -393,8 +352,8 @@ export default function GiftBoxModal() {
   const [shakeBox, setShakeBox]         = useState(false)
   const [shakeProds, setShakeProds]     = useState(false)
   const [sizeWarning, setSizeWarning]   = useState(null)
-  const [histCat, setHistCat]           = useState('ALL')
-  const [histSort, setHistSort]         = useState('featured')
+  const [wrapType, setWrapType]         = useState('STANDARD')
+  const [giftMessage, setGiftMessage]   = useState('')
   const [saving, setSaving]             = useState(false)
   const [error, setError]               = useState('')
 
@@ -413,8 +372,37 @@ export default function GiftBoxModal() {
     return () => window.removeEventListener('keydown', fn)
   }, [dispatch])
 
-  const BOX_MAX  = BOX_CONFIG[boxSize].max
-  const boxPrice = BOX_CONFIG[boxSize].price + (selectedCard ? (Number(selectedCard.id) || 0) % 10 * 100 : 0)
+  // Load the admin-curated "Build Your Own Box" designs; fall back to the built-in gradient boxes
+  // when none are configured (or on error) so the builder always has something to pick.
+  useEffect(() => {
+    let cancelled = false
+    buildBoxApi.list()
+      .then(({ data }) => {
+        if (cancelled || !Array.isArray(data) || data.length === 0) return
+        setBuildBoxes(data)
+        setBoxIdx(Math.floor(data.length / 2))
+      })
+      .catch(() => { /* keep gradient fallback */ })
+    return () => { cancelled = true }
+  }, [])
+
+  // CoverFlow cards: real admin boxes (carrying buildBoxId + image) or the gradient SONGS fallback.
+  const cards = useMemo(() => {
+    if (buildBoxes && buildBoxes.length) {
+      return buildBoxes.map(b => ({
+        id: 'box-' + b.id,
+        buildBoxId: b.id,
+        title: b.title || 'Gift Box',
+        imageUrl: b.imageUrl,
+        boxPrice: Number(b.price) || 0,
+      }))
+    }
+    return SONGS
+  }, [buildBoxes])
+
+  const BOX_MAX   = BOX_CONFIG[boxSize].max
+  const wrapPrice = WRAPS.find(w => w.key === wrapType)?.price || 0
+  const boxPrice  = BOX_CONFIG[boxSize].price + (selectedCard?.boxPrice || 0) + wrapPrice
 
   /* Filter products by recipient + category */
   const byRecipient = products.filter(p => {
@@ -459,9 +447,13 @@ export default function GiftBoxModal() {
     try {
       const { data } = await giftBoxApi.create({
         size: BOX_CONFIG[boxSize].apiKey,
-        wrapType: 'STANDARD',
-        customMessage: null,
+        wrapType,
+        customMessage: giftMessage.trim() || null,
         productIds: selectedProducts.map(p => p.id),
+        // Persist the chosen box. Admin boxes send buildBoxId (server snapshots title/image);
+        // built-in gradient boxes have no DB row, so just send their label.
+        buildBoxId: selectedCard?.buildBoxId ?? null,
+        boxTitle: selectedCard?.title ?? null,
       })
       dispatch(addBox(data))
       dispatch(closeBoxBuilder())
@@ -472,16 +464,6 @@ export default function GiftBoxModal() {
     }
   }
 
-  /* History data */
-  const histBase = histCat === 'ALL' ? HAMPERS
-    : histCat === 'BESTSELLER' ? HAMPERS.filter(p => p.best)
-    : HAMPERS.filter(p => p.cat === histCat)
-  const histSorted = [...histBase].sort((a, b) =>
-    histSort === 'priceAsc' ? a.price - b.price
-    : histSort === 'priceDesc' ? b.price - a.price
-    : histSort === 'rating' ? b.rating - a.rating : 0
-  )
-
   return (
     <div style={{ position: 'fixed', inset: 0, top: navH, zIndex: 1200, background: '#FAF7F2', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       <style>{`@keyframes pc-shake{0%,100%{transform:translateX(0)}15%{transform:translateX(-6px)}30%{transform:translateX(6px)}45%{transform:translateX(-5px)}60%{transform:translateX(5px)}75%{transform:translateX(-3px)}90%{transform:translateX(3px)}}.pc-shake{animation:pc-shake 0.6s ease;border:2px solid #e53e3e!important;background:rgba(229,62,62,0.04)!important;}.gb-pills::-webkit-scrollbar{display:none}`}</style>
@@ -491,63 +473,6 @@ export default function GiftBoxModal() {
         onClick={() => dispatch(closeBoxBuilder())}
         style={{ position: 'fixed', top: navH + 14, right: 20, zIndex: 1210, width: 36, height: 36, borderRadius: '50%', background: '#fff', border: '1px solid rgba(0,0,0,0.12)', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', cursor: 'pointer', fontSize: 20, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
       >×</button>
-
-      {/* ── HISTORY VIEW ──────────────────────────────────────── */}
-      {view === 'history' && (
-        <div style={{ flex: 1, color: '#1a1a1a' }}>
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', padding: isMobile ? '16px 14px' : '20px 24px 22px', borderBottom: '1px solid rgba(0,0,0,0.07)', flexShrink: 0, position: 'relative' }}>
-            <button type="button" onClick={() => setView('form')}
-              style={{ position: 'absolute', left: isMobile ? 12 : 20, top: '50%', transform: 'translateY(-50%)', width: 34, height: 34, borderRadius: 99, border: '1px solid rgba(0,0,0,0.1)', background: '#fff', cursor: 'pointer', color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.18s' }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="m19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
-            </button>
-            <span style={{ flex: 1, textAlign: 'center', fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#1a1a1a', fontFamily: "'Playfair Display', serif", letterSpacing: '-0.01em' }}>Gift Hampers</span>
-          </div>
-
-          {/* Body */}
-          <div style={{ padding: isMobile ? '4px 14px 22px' : '4px 48px 40px', display: 'flex', flexDirection: 'column', gap: isMobile ? 14 : 18, maxWidth: 1440, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-            {/* Count + sort */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 16 }}>
-              <span style={{ fontSize: isMobile ? 13 : 14, color: '#555', fontWeight: 500 }}>{histSorted.length} Products</span>
-              <div style={{ position: 'relative', flexShrink: 0 }}>
-                <select value={histSort} onChange={(e) => setHistSort(e.target.value)} style={{ appearance: 'none', WebkitAppearance: 'none', width: 164, height: 30, paddingLeft: 10, paddingRight: 26, borderRadius: 8, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(0,0,0,0.05)', color: '#1a1a1a', fontSize: 12, cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }}>
-                  <option value="featured">Featured</option>
-                  <option value="priceAsc">Price: Low to High</option>
-                  <option value="priceDesc">Price: High to Low</option>
-                  <option value="rating">Top Rated</option>
-                </select>
-                <div style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#888', display: 'flex' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Category pills */}
-            <div style={{ display: 'flex', gap: isMobile ? 8 : 10, overflowX: 'auto', paddingBottom: 10, borderBottom: '1px solid rgba(0,0,0,0.07)', scrollbarWidth: 'thin', WebkitOverflowScrolling: 'touch' }}>
-              {HAMPER_CATS.map(cat => {
-                const on = histCat === cat
-                return (
-                  <button key={cat} onClick={() => setHistCat(cat)}
-                    style={{ flexShrink: 0, padding: isMobile ? '8px 14px' : '9px 18px', borderRadius: 99, cursor: 'pointer', fontFamily: 'inherit', fontSize: isMobile ? 11.5 : 12.5, fontWeight: 600, letterSpacing: '0.03em', whiteSpace: 'nowrap', transition: 'all 0.18s', border: on ? '1px solid transparent' : '1px solid rgba(0,0,0,0.1)', background: on ? 'rgba(196,112,74,0.12)' : '#fff', color: on ? '#B05F3C' : '#555' }}>
-                    {cat}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Product grid */}
-            {histSorted.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#888' }}>
-                <p style={{ fontSize: 13, margin: 0 }}>No hampers in this category</p>
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(196px, 1fr))', gap: isMobile ? '20px 12px' : '26px 18px' }}>
-                {histSorted.map(p => <HamperCard key={p.name} p={p} mobile={isMobile} />)}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ── FORM VIEW ─────────────────────────────────────────── */}
       {view === 'form' && (
@@ -560,7 +485,7 @@ export default function GiftBoxModal() {
                 <span style={{ fontSize: 18 }}>🎁</span>
                 <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', letterSpacing: '-0.01em', fontFamily: "'Playfair Display',serif" }}>Build Your Gift Box</span>
               </div>
-              <button type="button" onClick={() => setView('history')}
+              <button type="button" onClick={() => { dispatch(closeBoxBuilder()); dispatch(openHamperShop()) }}
                 style={{ padding: '9px 16px', borderRadius: 99, border: '1px solid rgba(196,112,74,0.35)', background: 'rgba(196,112,74,0.06)', cursor: 'pointer', color: TC, fontSize: 12, fontWeight: 600, fontFamily: 'inherit', letterSpacing: '0.01em', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(196,112,74,0.14)'; e.currentTarget.style.borderColor = TC }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(196,112,74,0.06)'; e.currentTarget.style.borderColor = 'rgba(196,112,74,0.35)' }}>
@@ -572,7 +497,7 @@ export default function GiftBoxModal() {
             <div style={{ margin: '14px clamp(20px,5vw,72px) 0', padding: '12px 16px', borderRadius: 12, border: `2px dashed ${selectedCard ? 'rgba(196,112,74,0.4)' : 'rgba(0,0,0,0.15)'}`, background: selectedCard ? 'rgba(196,112,74,0.04)' : 'rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 44, transition: 'all 0.2s' }}>
               {selectedCard ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 6, background: selectedCard.cover, flexShrink: 0 }} />
+                  <div style={{ width: 28, height: 28, borderRadius: 6, background: selectedCard.imageUrl ? `#EDE4D8 url(${selectedCard.imageUrl}) center/cover` : selectedCard.cover, flexShrink: 0 }} />
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', fontFamily: "'Playfair Display',serif" }}>{selectedCard.title}</span>
                   <span style={{ fontSize: 11, color: TC, fontWeight: 500 }}>✓ Selected</span>
                 </div>
@@ -584,7 +509,7 @@ export default function GiftBoxModal() {
             {/* CoverFlow */}
             <div ref={boxRef} className={shakeBox ? 'pc-shake' : ''} style={{ margin: '20px 0 0', borderRadius: 12 }}>
               <CoverFlow
-                songs={SONGS}
+                songs={cards}
                 currentIndex={boxIdx}
                 setCurrentIndex={setBoxIdx}
                 onSongSelect={(_, idx) => { if (idx != null) setBoxIdx(idx) }}
@@ -745,8 +670,15 @@ export default function GiftBoxModal() {
         <div style={{ padding: isMobile ? '20px 16px' : '24px 32px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
           {/* Box cover image */}
           <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: selectedCard?.cover || TC, aspectRatio: '16 / 9' }}>
-            <div style={{ position: 'absolute', inset: 0, background: selectedCard?.cover }} />
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56, opacity: 0.2 }}>🎀</div>
+            {selectedCard?.imageUrl ? (
+              <img src={selectedCard.imageUrl} alt={selectedCard.title || 'Selected box'}
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <>
+                <div style={{ position: 'absolute', inset: 0, background: selectedCard?.cover }} />
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56, opacity: 0.2 }}>🎀</div>
+              </>
+            )}
             <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '26px 14px 12px', background: 'linear-gradient(to top, rgba(0,0,0,0.78) 0%, transparent 100%)', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 }}>
               <div style={{ minWidth: 0 }}>
                 <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: GOLD, margin: '0 0 3px' }}>{boxSize} Box</p>
@@ -775,6 +707,35 @@ export default function GiftBoxModal() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Wrap selection */}
+          <div>
+            <p style={{ fontSize: 11, color: '#888', margin: '0 0 8px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Gift Wrap</p>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 8 }}>
+              {WRAPS.map(w => {
+                const on = wrapType === w.key
+                return (
+                  <button key={w.key} type="button" onClick={() => setWrapType(w.key)}
+                    style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '9px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', border: `1.5px solid ${on ? TC : 'rgba(0,0,0,0.1)'}`, background: on ? 'rgba(196,112,74,0.07)' : '#fff', transition: 'all 0.17s' }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: on ? TC : '#1a1a1a' }}>{w.name}</span>
+                    <span style={{ fontSize: 11, color: '#888' }}>{w.price === 0 ? 'Free' : `+${fmtInr(w.price)}`}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Gift message */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 8px' }}>
+              <p style={{ fontSize: 11, color: '#888', margin: 0, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Gift Message <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></p>
+              <span style={{ fontSize: 11, color: giftMessage.length >= MSG_MAX ? GOLD : '#888' }}>{giftMessage.length}/{MSG_MAX}</span>
+            </div>
+            <textarea value={giftMessage} onChange={(e) => setGiftMessage(e.target.value.slice(0, MSG_MAX))} maxLength={MSG_MAX}
+              rows={3} placeholder="Add a personal note to include in the box…"
+              style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', padding: '10px 12px', borderRadius: 10, border: '1.5px solid rgba(0,0,0,0.1)', fontSize: 13, fontFamily: 'inherit', color: '#1a1a1a', outline: 'none', lineHeight: 1.4 }}
+              onFocus={(e) => e.target.style.borderColor = TC} onBlur={(e) => e.target.style.borderColor = 'rgba(0,0,0,0.1)'} />
           </div>
 
           {/* Action buttons */}

@@ -390,7 +390,7 @@ function ProductsView({ onToast }) {
   const [uploading, setUploading] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [editItem, setEditItem] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', materials: '', care: '', shippingAndReturns: '', price: '', stock: '', categoryId: '', imageUrls: [], tag: '', recipient: '' })
+  const [form, setForm] = useState({ name: '', description: '', materials: '', care: '', shippingAndReturns: '', price: '', originalPrice: '', rating: '', reviewCount: '', stock: '', categoryId: '', imageUrls: [], tag: '', recipient: '' })
 
   useEffect(() => {
     Promise.all([
@@ -415,19 +415,19 @@ function ProductsView({ onToast }) {
 
   const openAdd = () => {
     setEditItem(null)
-    setForm({ name: '', description: '', materials: '', care: '', shippingAndReturns: '', price: '', stock: '', categoryId: categories[0]?.id || '', imageUrls: [], tag: '', recipient: '' })
+    setForm({ name: '', description: '', materials: '', care: '', shippingAndReturns: '', price: '', originalPrice: '', rating: '', reviewCount: '', stock: '', categoryId: categories[0]?.id || '', imageUrls: [], tag: '', recipient: '' })
     setShowAdd(true)
   }
   const openEdit = (p) => {
     setEditItem(p)
-    setForm({ name: p.name, description: p.description || '', materials: p.materials || '', care: p.care || '', shippingAndReturns: p.shippingAndReturns || '', price: p.price, stock: p.stock, categoryId: p.categoryId, imageUrls: p.imageUrls?.length ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []), tag: p.tag || '', recipient: p.recipient || '' })
+    setForm({ name: p.name, description: p.description || '', materials: p.materials || '', care: p.care || '', shippingAndReturns: p.shippingAndReturns || '', price: p.price, originalPrice: p.originalPrice ?? '', rating: p.rating ?? '', reviewCount: p.reviewCount ?? '', stock: p.stock, categoryId: p.categoryId, imageUrls: p.imageUrls?.length ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []), tag: p.tag || '', recipient: p.recipient || '' })
     setShowAdd(true)
   }
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const payload = { name: form.name, description: form.description, materials: form.materials, care: form.care, shippingAndReturns: form.shippingAndReturns, price: Number(form.price), stock: Number(form.stock), categoryId: Number(form.categoryId), imageUrls: form.imageUrls, tag: form.tag, recipient: form.recipient }
+      const payload = { name: form.name, description: form.description, materials: form.materials, care: form.care, shippingAndReturns: form.shippingAndReturns, price: Number(form.price), originalPrice: form.originalPrice === '' ? null : Number(form.originalPrice), rating: form.rating === '' ? null : Math.round(Number(form.rating) * 10) / 10, reviewCount: form.reviewCount === '' ? null : Number(form.reviewCount), stock: Number(form.stock), categoryId: Number(form.categoryId), imageUrls: form.imageUrls, tag: form.tag, recipient: form.recipient }
       if (editItem) {
         const { data } = await productAdminApi.update(editItem.id, payload)
         setProducts(ps => ps.map(p => p.id === data.id ? data : p))
@@ -540,6 +540,9 @@ function ProductsView({ onToast }) {
               { label: 'Care', key: 'care', type: 'textarea', hint: 'Shown in the Care tab. Line breaks are preserved.' },
               { label: 'Shipping & Returns', key: 'shippingAndReturns', type: 'textarea', hint: 'Shown in the Shipping & Returns tab. Line breaks are preserved.' },
               { label: 'Price (₹)', key: 'price', type: 'number' },
+              { label: 'Original Price / MRP (₹)', key: 'originalPrice', type: 'number', hint: 'Optional. Shown struck-through with a Save % badge when higher than the price.' },
+              { label: 'Rating (0–5)', key: 'rating', type: 'number', hint: 'Optional. Average star rating shown on the product card.' },
+              { label: 'Review count', key: 'reviewCount', type: 'number', hint: 'Optional. Number of reviews shown next to the stars.' },
               { label: 'Stock', key: 'stock', type: 'number' },
             ].map(({ label, key, type, hint }) => (
               <div key={key} style={{ marginBottom: 14 }}>
@@ -1337,7 +1340,7 @@ function BuildBoxesView({ onToast }) {
   const [busyId, setBusyId] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState(null)
-  const [form, setForm] = useState({ imageUrl: '', title: '', displayOrder: '', active: true })
+  const [form, setForm] = useState({ imageUrl: '', title: '', price: '', displayOrder: '', active: true })
 
   const inp = { width: '100%', padding: '10px 14px', borderRadius: 12, border: `1.5px solid ${BEIGE}`, fontSize: 13, background: 'white', fontFamily: "'DM Sans',sans-serif", outline: 'none', color: DARK }
 
@@ -1350,13 +1353,13 @@ function BuildBoxesView({ onToast }) {
 
   const openAdd = () => {
     setEditItem(null)
-    setForm({ imageUrl: '', title: '', displayOrder: String(boxes.length), active: true })
+    setForm({ imageUrl: '', title: '', price: '', displayOrder: String(boxes.length), active: true })
     setShowForm(true)
   }
 
   const openEdit = (b) => {
     setEditItem(b)
-    setForm({ imageUrl: b.imageUrl, title: b.title || '', displayOrder: b.displayOrder ?? '', active: b.active })
+    setForm({ imageUrl: b.imageUrl, title: b.title || '', price: b.price ?? '', displayOrder: b.displayOrder ?? '', active: b.active })
     setShowForm(true)
   }
 
@@ -1381,6 +1384,7 @@ function BuildBoxesView({ onToast }) {
       const payload = {
         imageUrl: form.imageUrl,
         title: form.title || null,
+        price: form.price === '' ? null : Number(form.price),
         displayOrder: form.displayOrder === '' ? 0 : Number(form.displayOrder),
         active: form.active,
       }
@@ -1431,7 +1435,10 @@ function BuildBoxesView({ onToast }) {
               {!b.active && <span style={{ position: 'absolute', bottom: 8, left: 8, background: BEIGE, color: MID, fontSize: 9, fontWeight: 700, padding: '3px 9px', borderRadius: 99 }}>Hidden</span>}
             </div>
             <div style={{ padding: '12px 14px' }}>
-              <div style={{ fontWeight: 700, color: DARK, fontSize: 13, marginBottom: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.title || <span style={{ color: LIGHT, fontWeight: 400 }}>Untitled</span>}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
+                <div style={{ fontWeight: 700, color: DARK, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.title || <span style={{ color: LIGHT, fontWeight: 400 }}>Untitled</span>}</div>
+                {b.price != null && Number(b.price) > 0 && <div style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: TC }}>+₹{Number(b.price).toLocaleString('en-IN')}</div>}
+              </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => openEdit(b)} style={{ flex: 1, padding: '6px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
                 <button onClick={() => toggle(b)} style={{ flex: 1, padding: '6px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{b.active ? 'Hide' : 'Show'}</button>
@@ -1480,6 +1487,13 @@ function BuildBoxesView({ onToast }) {
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Title (optional)</label>
               <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Velvet Box" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+            </div>
+
+            {/* Price (design surcharge) */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Price (₹, optional)</label>
+              <input type="number" min="0" step="1" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="0" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+              <div style={{ fontSize: 10, color: LIGHT, marginTop: 6 }}>Added on top of the box size, wrap and product prices.</div>
             </div>
 
             {/* Display order */}

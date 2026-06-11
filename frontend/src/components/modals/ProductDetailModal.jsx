@@ -268,8 +268,9 @@ export default function ProductDetailModal({ product }) {
             {/* Price */}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 20 }}>
               <span style={{ fontFamily: "'Playfair Display',serif", fontSize: 32, fontWeight: 700, color: TC }}>₹{product.price}</span>
-              {product.originalPrice && <span style={{ fontSize: 16, color: '#B8A090', textDecoration: 'line-through' }}>₹{product.originalPrice}</span>}
-              {product.originalPrice && <span style={{ fontSize: 12, background: '#EAF2E8', color: '#2A7A3B', padding: '2px 8px', borderRadius: 99, fontWeight: 700 }}>Save {Math.round((1 - product.price / product.originalPrice) * 100)}%</span>}
+              {/* Only treat the MRP as a discount when it's strictly above the selling price (matches ProductCard) */}
+              {product.originalPrice > product.price && <span style={{ fontSize: 16, color: '#B8A090', textDecoration: 'line-through' }}>₹{product.originalPrice}</span>}
+              {product.originalPrice > product.price && <span style={{ fontSize: 12, background: '#EAF2E8', color: '#2A7A3B', padding: '2px 8px', borderRadius: 99, fontWeight: 700 }}>Save {Math.round((1 - product.price / product.originalPrice) * 100)}%</span>}
             </div>
 
             {/* Qty + Add to Cart + Buy Now */}

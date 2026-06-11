@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -36,6 +37,13 @@ public class BuildBox {
     /** Optional caption rendered on the box. */
     @Column(length = 160)
     private String title;
+
+    /**
+     * Design surcharge for choosing this box, added on top of the size base price, wrap and
+     * products when the order total is computed. Null/0 means no extra charge.
+     */
+    @Column(precision = 10, scale = 2)
+    private BigDecimal price;
 
     /** Lower numbers render first. */
     @Column(name = "display_order", columnDefinition = "INT NOT NULL DEFAULT 0")

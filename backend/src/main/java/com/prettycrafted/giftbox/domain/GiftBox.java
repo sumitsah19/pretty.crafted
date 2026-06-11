@@ -51,6 +51,21 @@ public class GiftBox {
     @Column(name = "custom_message", length = 150)
     private String customMessage;
 
+    /**
+     * Which "Build Your Own Box" design the customer picked, plus a denormalized snapshot of its
+     * title/image. The snapshot keeps the order self-contained if the admin later edits or deletes
+     * the {@link BuildBox}; {@code buildBoxId} is a soft reference (no FK) so admin deletes never
+     * fail. All three are null when the customer kept a built-in gradient box with no DB row.
+     */
+    @Column(name = "build_box_id")
+    private Long buildBoxId;
+
+    @Column(name = "box_title", length = 160)
+    private String boxTitle;
+
+    @Column(name = "box_image_url", length = 500)
+    private String boxImageUrl;
+
     @Column(name = "base_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal basePrice;
 

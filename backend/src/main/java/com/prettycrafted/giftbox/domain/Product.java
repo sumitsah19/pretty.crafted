@@ -55,6 +55,13 @@ public class Product {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
+    /**
+     * The original price / MRP shown struck-through next to {@link #price}. Optional — when null or
+     * not greater than {@code price}, the UI hides the strike-through and discount badge.
+     */
+    @Column(name = "original_price", precision = 10, scale = 2)
+    private BigDecimal originalPrice;
+
     @Column(nullable = false)
     private Integer stock;
 
@@ -78,6 +85,17 @@ public class Product {
     @Column(name = "tag", columnDefinition = "VARCHAR(30) NOT NULL DEFAULT ''")
     @Builder.Default
     private String tag = "";
+
+    /**
+     * Average star rating (0–5) and the number of reviews behind it. Admin-managed snapshots
+     * surfaced on product cards; the product detail page computes its own figures from live
+     * {@link Review} rows, so these are display defaults, not derived values. Null when not set.
+     */
+    @Column(precision = 2, scale = 1)
+    private BigDecimal rating;
+
+    @Column(name = "review_count")
+    private Integer reviewCount;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")

@@ -1,6 +1,7 @@
 package com.prettycrafted.giftbox.service;
 
 import com.prettycrafted.giftbox.domain.BoxSize;
+import com.prettycrafted.giftbox.domain.BuildBox;
 import com.prettycrafted.giftbox.domain.GiftBox;
 import com.prettycrafted.giftbox.domain.GiftBoxItem;
 import com.prettycrafted.giftbox.domain.GiftBoxStatus;
@@ -12,6 +13,7 @@ import com.prettycrafted.giftbox.dto.GiftBoxDto;
 import com.prettycrafted.giftbox.exception.BadRequestException;
 import com.prettycrafted.giftbox.exception.ConflictException;
 import com.prettycrafted.giftbox.exception.NotFoundException;
+import com.prettycrafted.giftbox.repository.BuildBoxRepository;
 import com.prettycrafted.giftbox.repository.GiftBoxRepository;
 import com.prettycrafted.giftbox.repository.ProductRepository;
 import com.prettycrafted.giftbox.repository.UserRepository;
@@ -28,6 +30,7 @@ public class GiftBoxService {
     private final GiftBoxRepository giftBoxRepo;
     private final ProductRepository productRepo;
     private final UserRepository userRepo;
+    private final BuildBoxRepository buildBoxRepo;
 
     public GiftBoxDto create(Long userId, CreateGiftBoxRequest req) {
         BoxSize size = req.size();
@@ -63,7 +66,23 @@ public class GiftBoxService {
             }
         }
 
-        BigDecimal basePrice = size.basePrice();
+        // Snapshot the chosen box. A real admin box (buildBoxId) is authoritative — copy its
+        // current title/image and design surcharge; a built-in gradient box has no DB row, so keep
+        // just its label and charge no surcharge.
+        Long buildBoxId = req.buildBoxId();
+        String boxTitle = req.boxTitle();
+        String boxImageUrl = null;
+        BigDecimal boxSurcharge = BigDecimal.ZERO;
+        if (buildBoxId != null) {
+            BuildBox source = buildBoxRepo.findById(buildBoxId)
+                .orElseThrow(() -> new NotFoundException("Build box not found: " + req.buildBoxId()));
+            boxTitle = source.getTitle();
+            boxImageUrl = source.getImageUrl();
+            if (source.getPrice() != null) boxSurcharge = source.getPrice();
+        }
+
+        // The box design surcharge is folded into the base so base + wrap + products == total.
+        BigDecimal basePrice = size.basePrice().add(boxSurcharge);
         BigDecimal wrapPrice = wrap.extraCost();
         BigDecimal productsTotal = products.stream()
             .map(Product::getPrice)
@@ -75,6 +94,9 @@ public class GiftBoxService {
             .size(size)
             .wrapType(wrap)
             .customMessage(req.customMessage())
+            .buildBoxId(buildBoxId)
+            .boxTitle(boxTitle)
+            .boxImageUrl(boxImageUrl)
             .basePrice(basePrice)
             .wrapPrice(wrapPrice)
             .productsTotal(productsTotal)

@@ -65,11 +65,14 @@ public class ProductService {
                 .care(req.care())
                 .shippingAndReturns(req.shippingAndReturns())
                 .price(req.price())
+                .originalPrice(req.originalPrice())
                 .stock(req.stock())
                 .imageUrl(primary)
                 .category(category)
                 .recipient(req.recipient() != null ? req.recipient() : "all")
                 .tag(req.tag() != null ? req.tag() : "")
+                .rating(req.rating())
+                .reviewCount(req.reviewCount())
                 .build();
 
         addImages(product, urls);
@@ -92,11 +95,14 @@ public class ProductService {
         product.setCare(req.care());
         product.setShippingAndReturns(req.shippingAndReturns());
         product.setPrice(req.price());
+        product.setOriginalPrice(req.originalPrice());
         product.setStock(req.stock());
         product.setImageUrl(primary);
         product.setCategory(category);
         if (req.recipient() != null) product.setRecipient(req.recipient());
         if (req.tag() != null) product.setTag(req.tag());
+        product.setRating(req.rating());
+        product.setReviewCount(req.reviewCount());
 
         product.getImages().clear();
         addImages(product, urls);

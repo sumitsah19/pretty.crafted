@@ -11,6 +11,7 @@ import com.prettycrafted.giftbox.repository.HeroCardRepository;
 import com.prettycrafted.giftbox.repository.ProductRepository;
 import com.prettycrafted.giftbox.repository.UserRepository;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,6 +46,7 @@ public class DataSeeder implements CommandLineRunner {
         promoteAdminEmail();
         seedCatalog();
         seedHampers();
+        backfillProductMetrics();
         seedHeroCards();
     }
 
@@ -129,14 +131,16 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seed(Category c, String name, String desc, String price, int stock) {
-        productRepo.save(Product.builder()
+        Product p = Product.builder()
             .name(name)
             .description(desc)
             .price(new BigDecimal(price))
             .stock(stock)
             .category(c)
             .popularityScore(0)
-            .build());
+            .build();
+        applyMetrics(p);
+        productRepo.save(p);
     }
 
     /**
@@ -162,7 +166,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedHamper(Category c, String name, String desc, String price, int stock, String recipient, String tag) {
-        productRepo.save(Product.builder()
+        Product p = Product.builder()
             .name(name)
             .description(desc)
             .price(new BigDecimal(price))
@@ -171,7 +175,53 @@ public class DataSeeder implements CommandLineRunner {
             .recipient(recipient)
             .tag(tag)
             .popularityScore(0)
-            .build());
+            .build();
+        applyMetrics(p);
+        productRepo.save(p);
+    }
+
+    /**
+     * Fills in the MRP / rating / review-count snapshot for a product when those fields are unset.
+     * Only touches null fields, so it's safe to call on both fresh seeds and existing rows, and it
+     * never clobbers values an admin set via the dashboard.
+     *
+     * <ul>
+     *   <li>MRP ≈ 25% above the selling price (so cards show a ~20% "Save" badge).</li>
+     *   <li>rating: a deterministic pleasant value in [4.3, 5.0], derived from the name.</li>
+     *   <li>reviewCount: a deterministic value in [24, 243], derived from the name.</li>
+     * </ul>
+     */
+    private void applyMetrics(Product p) {
+        if (p.getOriginalPrice() == null && p.getPrice() != null) {
+            p.setOriginalPrice(p.getPrice()
+                .multiply(new BigDecimal("1.25"))
+                .setScale(0, java.math.RoundingMode.HALF_UP));
+        }
+        int seed = p.getName() == null ? 0 : Math.abs(p.getName().hashCode());
+        if (p.getRating() == null) {
+            p.setRating(BigDecimal.valueOf(4.3 + (seed % 8) * 0.1)
+                .setScale(1, java.math.RoundingMode.HALF_UP));
+        }
+        if (p.getReviewCount() == null) {
+            p.setReviewCount(24 + (seed % 220));
+        }
+    }
+
+    /**
+     * Back-fills MRP / rating / review-count on products seeded before those columns existed, so
+     * the storefront shows discounts and ratings without a manual edit. Only rows where all three
+     * fields are still null are treated as legacy and filled — a row where an admin deliberately
+     * cleared one field (leaving the others set) is left alone, so clears survive restarts.
+     */
+    private void backfillProductMetrics() {
+        List<Product> legacy = productRepo.findAll().stream()
+            .filter(p -> p.getOriginalPrice() == null && p.getRating() == null && p.getReviewCount() == null)
+            .toList();
+        if (!legacy.isEmpty()) {
+            legacy.forEach(this::applyMetrics);
+            productRepo.saveAll(legacy);
+            log.info("Back-filled MRP/rating/review metrics on {} product(s)", legacy.size());
+        }
     }
 
     /**

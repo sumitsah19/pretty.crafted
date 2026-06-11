@@ -33,10 +33,15 @@ export default function ProductCard({ product, onClick }) {
   const wishlistIds = useSelector(selectWishlistIds)
   const wishlisted = wishlistIds.includes(product.id)
 
-  const reviews  = product.reviews   ?? ((product.id * 31 + 17) % 120 + 20)
+  // Rating + review count come from the product data (backend); fall back to a stable
+  // placeholder only when the data hasn't set them yet.
+  const reviews  = product.reviewCount ?? product.ratingCount ?? product.reviews ?? ((product.id * 31 + 17) % 120 + 20)
   const rating   = product.rating    ?? (product.id % 3 === 0 ? 4.5 : 5)
-  const orig     = product.origPrice ?? Math.round(product.price * (1.22 + (product.id % 3) * 0.07) / 10) * 10
-  const save     = Math.round((1 - product.price / orig) * 100)
+  // Actual MRP from the product data. Only treat it as a discount when it's a real number
+  // strictly above the selling price; otherwise show the selling price on its own.
+  const orig     = Number(product.originalPrice ?? product.origPrice)
+  const hasMrp   = Number.isFinite(orig) && orig > product.price
+  const save     = hasMrp ? Math.round((1 - product.price / orig) * 100) : 0
   const pct      = Math.max(0, Math.min(100, rating / 5 * 100))
   const rs       = (n) => 'Rs. ' + Number(n).toLocaleString('en-IN') + '.00'
 
@@ -112,7 +117,7 @@ export default function ProductCard({ product, onClick }) {
 
       {/* Prices */}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 7, whiteSpace: 'nowrap' }}>
-        <span style={{ fontSize: 12.5, color: '#888888', textDecoration: 'line-through' }}>{rs(orig)}</span>
+        {hasMrp && <span style={{ fontSize: 12.5, color: '#888888', textDecoration: 'line-through' }}>{rs(orig)}</span>}
         <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{rs(product.price)}</span>
       </div>
 

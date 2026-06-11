@@ -12,6 +12,7 @@ public record ProductDto(
     String care,
     String shippingAndReturns,
     BigDecimal price,
+    BigDecimal originalPrice,
     Integer stock,
     String imageUrl,
     List<String> imageUrls,
@@ -19,7 +20,9 @@ public record ProductDto(
     String categoryName,
     Integer popularityScore,
     String recipient,
-    String tag
+    String tag,
+    BigDecimal rating,
+    Integer reviewCount
 ) {
     public static ProductDto from(Product p) {
         List<String> urls = p.getImages().stream()
@@ -34,6 +37,7 @@ public record ProductDto(
             p.getCare(),
             p.getShippingAndReturns(),
             p.getPrice(),
+            p.getOriginalPrice(),
             p.getStock(),
             primary,
             urls,
@@ -41,7 +45,9 @@ public record ProductDto(
             p.getCategory().getName(),
             p.getPopularityScore(),
             p.getRecipient(),
-            p.getTag()
+            p.getTag(),
+            p.getRating(),
+            p.getReviewCount()
         );
     }
 }
