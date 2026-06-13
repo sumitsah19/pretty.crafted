@@ -19,16 +19,35 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     // 5 requests per minute per IP
     private static final int CAPACITY = 5;
     private static final Duration REFILL_PERIOD = Duration.ofMinutes(1);
+    // Sweep idle IPs once the map grows past this; keeps memory bounded under
+    // traffic from many distinct IPs (real or spoofed X-Forwarded-For).
+    private static final int SWEEP_THRESHOLD = 10_000;
+    private static final long IDLE_EVICT_MILLIS = REFILL_PERIOD.toMillis() * 2;
 
-    private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    /** Bucket plus its last-seen time, so idle entries can be evicted. */
+    private static final class Entry {
+        final Bucket bucket;
+        volatile long lastAccess;
+        Entry(Bucket bucket) {
+            this.bucket = bucket;
+            this.lastAccess = System.currentTimeMillis();
+        }
+    }
+
+    private final Map<String, Entry> buckets = new ConcurrentHashMap<>();
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response,
                              Object handler) throws IOException {
+        long now = System.currentTimeMillis();
+        if (buckets.size() > SWEEP_THRESHOLD) {
+            evictIdle(now);
+        }
         String ip = resolveClientIp(request);
-        Bucket bucket = buckets.computeIfAbsent(ip, k -> newBucket());
+        Entry entry = buckets.computeIfAbsent(ip, k -> new Entry(newBucket()));
+        entry.lastAccess = now;
 
-        if (bucket.tryConsume(1)) {
+        if (entry.bucket.tryConsume(1)) {
             return true;
         }
 
@@ -37,6 +56,15 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         response.getWriter().write("{\"code\":\"rate_limited\",\"message\":\"Too many requests. Please try again in a minute.\"}");
         response.setHeader("Retry-After", "60");
         return false;
+    }
+
+    /**
+     * Drops entries idle longer than two refill periods. Safe: an evicted bucket
+     * would have refilled to full capacity by then, so a returning IP simply gets
+     * a fresh full bucket — identical to what eviction-then-recreate produces.
+     */
+    private void evictIdle(long now) {
+        buckets.entrySet().removeIf(e -> now - e.getValue().lastAccess > IDLE_EVICT_MILLIS);
     }
 
     private Bucket newBucket() {

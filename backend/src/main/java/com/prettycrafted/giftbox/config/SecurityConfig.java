@@ -58,31 +58,36 @@ public class SecurityConfig {
     @Order(1)
     public SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher(
-                        // ── Product & category reads ───────────────────────────
-                        "/api/products/**",
-                        "/api/categories/**",
-                        "/api/public/**",
-                        // ── Auth endpoints (no token needed) ─────────────────
-                        "/api/auth/register",
-                        "/api/auth/login",
-                        "/api/auth/google",
-                        "/api/auth/logout",
-                        "/api/auth/forgot-password",
-                        "/api/auth/reset-password",
-                        "/api/auth/unsubscribe",
-                        "/api/auth/verify-email",
-                        // resend-verification intentionally excluded — needs JWT to identify the user
-                        // (falls through to secured chain where @AuthenticationPrincipal is populated)
-                        // ── Other public endpoints ────────────────────────────
-                        "/api/payments/webhook",
-                        "/api/sentry-test",
-                        "/api/dev/**",
-                        // ── OpenAPI / Swagger (only active when enabled) ──────
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html",
-                        "/uploads/**")
+                .securityMatchers(matchers -> matchers
+                        // ── Product & category READS only ─────────────────────
+                        // GET-only on purpose: POST/PUT/PATCH/DELETE must fall
+                        // through to Chain 2 where ROLE_ADMIN is enforced. A
+                        // plain path matcher here would permitAll() writes too.
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/products/**",
+                                "/api/categories/**")
+                        .requestMatchers(
+                                "/api/public/**",
+                                // ── Auth endpoints (no token needed) ─────────
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/google",
+                                "/api/auth/logout",
+                                "/api/auth/forgot-password",
+                                "/api/auth/reset-password",
+                                "/api/auth/unsubscribe",
+                                "/api/auth/verify-email",
+                                // resend-verification intentionally excluded — needs JWT to identify the user
+                                // (falls through to secured chain where @AuthenticationPrincipal is populated)
+                                // ── Other public endpoints ───────────────────
+                                "/api/payments/webhook",
+                                "/api/sentry-test",
+                                "/api/dev/**",
+                                // ── OpenAPI / Swagger (only active when enabled) ──
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/uploads/**"))
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {
                 })

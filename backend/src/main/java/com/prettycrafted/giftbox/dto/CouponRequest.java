@@ -9,5 +9,6 @@ import jakarta.validation.constraints.Size;
 public record CouponRequest(
     @NotBlank @Size(max = 40) String code,
     @NotNull @Min(1) @Max(100) Integer discountPercent,
-    @Size(max = 40) String expires
+    @Size(max = 40) String expires,
+    @Min(1) Integer maxUses
 ) {}

@@ -408,7 +408,12 @@ export default function GiftBoxModal() {
         buildBoxId: b.id,
         title: b.title || 'Gift Box',
         imageUrl: b.imageUrl,
-        boxPrice: Number(b.price) || 0,
+        // Admin per-size base price; replaces the size fee. null → fall back to the size base.
+        prices: {
+          SMALL:  b.priceSmall  != null ? Number(b.priceSmall)  : null,
+          MEDIUM: b.priceMedium != null ? Number(b.priceMedium) : null,
+          LARGE:  b.priceLarge  != null ? Number(b.priceLarge)  : null,
+        },
       }))
     }
     return SONGS
@@ -430,9 +435,11 @@ export default function GiftBoxModal() {
 
   const BOX_MAX   = boxConfig[boxSize].max
   const wrapPrice = wraps.find(w => w.key === wrapType)?.price || 0
-  // Mirrors GiftBoxService's total: (size base + design surcharge) + wrap + selected products.
-  // This is what the backend will charge, so the displayed price always matches the cart.
-  const basePrice     = boxConfig[boxSize].price + (selectedCard?.boxPrice || 0)
+  // Mirrors GiftBoxService's total: box base + wrap + selected products. For an admin
+  // box the base is its per-size price (replacing the size fee); built-in gradient boxes
+  // use the BoxSize base. This is what the backend charges, so the display always matches.
+  const adminBase     = selectedCard?.prices?.[boxConfig[boxSize].apiKey]
+  const basePrice     = (adminBase != null) ? adminBase : boxConfig[boxSize].price
   const productsTotal = selectedProducts.reduce((s, p) => s + Number(p.price || 0), 0)
   const boxPrice      = basePrice + wrapPrice + productsTotal
 
@@ -832,7 +839,7 @@ export default function GiftBoxModal() {
           {/* Price summary — same breakdown the backend returns in GiftBoxDto */}
           <div style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.03)', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#555' }}>
-              <span>{boxSize} box{selectedCard?.boxPrice ? ` · ${selectedCard.title}` : ''}</span>
+              <span>{boxSize} box{selectedCard?.title ? ` · ${selectedCard.title}` : ''}</span>
               <span>{fmtInr(basePrice)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#555' }}>

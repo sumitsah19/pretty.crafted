@@ -67,22 +67,22 @@ public class GiftBoxService {
         }
 
         // Snapshot the chosen box. A real admin box (buildBoxId) is authoritative — copy its
-        // current title/image and design surcharge; a built-in gradient box has no DB row, so keep
-        // just its label and charge no surcharge.
+        // current title/image and use its admin-set per-size price as the box base. A built-in
+        // gradient box has no DB row, so keep just its label and use the BoxSize enum base.
         Long buildBoxId = req.buildBoxId();
         String boxTitle = req.boxTitle();
         String boxImageUrl = null;
-        BigDecimal boxSurcharge = BigDecimal.ZERO;
+        BigDecimal basePrice = size.basePrice();
         if (buildBoxId != null) {
             BuildBox source = buildBoxRepo.findById(buildBoxId)
                 .orElseThrow(() -> new NotFoundException("Build box not found: " + req.buildBoxId()));
             boxTitle = source.getTitle();
             boxImageUrl = source.getImageUrl();
-            if (source.getPrice() != null) boxSurcharge = source.getPrice();
+            // The admin per-size price REPLACES the size fee; fall back to the enum
+            // base only when this box has no price set for the chosen size.
+            BigDecimal perSize = source.priceForSize(size);
+            if (perSize != null) basePrice = perSize;
         }
-
-        // The box design surcharge is folded into the base so base + wrap + products == total.
-        BigDecimal basePrice = size.basePrice().add(boxSurcharge);
         BigDecimal wrapPrice = wrap.extraCost();
         BigDecimal productsTotal = products.stream()
             .map(Product::getPrice)
@@ -115,6 +115,18 @@ public class GiftBoxService {
         }
         giftBoxRepo.save(box);
         return GiftBoxDto.from(box);
+    }
+
+    /**
+     * The user's IN_CART boxes — what {@link OrderService#place} will actually
+     * order. Lets the checkout reconcile its local cart against the server
+     * before placing (a locally-removed box whose delete request was lost must
+     * not be silently charged).
+     */
+    @Transactional(readOnly = true)
+    public List<GiftBoxDto> listInCart(Long userId) {
+        return giftBoxRepo.findByUserIdAndStatus(userId, GiftBoxStatus.IN_CART)
+            .stream().map(GiftBoxDto::from).toList();
     }
 
     @Transactional(readOnly = true)

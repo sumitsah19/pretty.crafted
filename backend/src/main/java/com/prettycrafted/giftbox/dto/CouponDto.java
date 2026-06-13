@@ -9,7 +9,8 @@ public record CouponDto(
     Integer discountPercent,
     String expires,
     boolean active,
-    Integer uses
+    Integer uses,
+    Integer maxUses
 ) {
     public static CouponDto from(Coupon c) {
         return new CouponDto(
@@ -19,7 +20,8 @@ public record CouponDto(
             c.getDiscountPercent(),
             c.getExpiresOn(),
             c.isActive(),
-            c.getUses()
+            c.getUses(),
+            c.getMaxUses()
         );
     }
 }

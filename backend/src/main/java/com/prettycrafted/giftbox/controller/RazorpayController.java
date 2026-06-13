@@ -54,7 +54,7 @@ public class RazorpayController {
         String receipt
     ) {}
 
-    public record CreateOrderResponse(String order_id, int amount, String currency) {}
+    public record CreateOrderResponse(String order_id, long amount, String currency) {}
 
     public record ErrorResponse(String code, String message) {}
 }

@@ -43,6 +43,10 @@ public class Coupon {
     @Builder.Default
     private Integer uses = 0;
 
+    /** Optional redemption cap; null means unlimited. */
+    @Column(name = "max_uses")
+    private Integer maxUses;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
     private Instant createdAt = Instant.now();

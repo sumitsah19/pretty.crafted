@@ -135,6 +135,12 @@ public class AuthService {
             user.setPhone(req.phone().trim());
         }
         if (req.newPassword() != null && !req.newPassword().isBlank()) {
+            // A hijacked session must not be enough to take over the account:
+            // changing the password requires proving knowledge of the current one.
+            if (req.currentPassword() == null || req.currentPassword().isBlank()
+                    || !passwordEncoder.matches(req.currentPassword(), user.getPasswordHash())) {
+                throw new BadRequestException("Current password is incorrect");
+            }
             user.setPasswordHash(passwordEncoder.encode(req.newPassword()));
             user.setTokenVersion(user.getTokenVersion() + 1);
         }

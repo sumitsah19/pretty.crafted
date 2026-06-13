@@ -6,6 +6,7 @@ import com.prettycrafted.giftbox.domain.User;
 import com.prettycrafted.giftbox.dto.LoginRequest;
 import com.prettycrafted.giftbox.dto.RegisterRequest;
 import com.prettycrafted.giftbox.dto.ResetPasswordRequest;
+import com.prettycrafted.giftbox.dto.UpdateProfileRequest;
 import com.prettycrafted.giftbox.exception.BadRequestException;
 import com.prettycrafted.giftbox.repository.PasswordResetTokenRepository;
 import com.prettycrafted.giftbox.repository.EmailVerificationTokenRepository;
@@ -132,6 +133,56 @@ class AuthServiceTest {
 
         assertEquals("newhash", user.getPasswordHash());
         assertTrue(prt.isUsed());
+    }
+
+    // ─── Update profile (password change) ─────────────────────────────────────
+
+    @Test
+    void updateProfile_rejectsPasswordChangeWithoutCurrentPassword() {
+        User user = User.builder().id(1L).email("u@example.com").passwordHash("hashed").role(Role.USER).build();
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+
+        var req = new UpdateProfileRequest("Name", null, null, "newpassword1");
+        assertThrows(BadRequestException.class, () -> service.updateProfile(1L, req));
+        assertEquals("hashed", user.getPasswordHash());
+    }
+
+    @Test
+    void updateProfile_rejectsWrongCurrentPassword() {
+        User user = User.builder().id(1L).email("u@example.com").passwordHash("hashed").role(Role.USER).build();
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrong", "hashed")).thenReturn(false);
+
+        var req = new UpdateProfileRequest("Name", null, "wrong", "newpassword1");
+        assertThrows(BadRequestException.class, () -> service.updateProfile(1L, req));
+        assertEquals("hashed", user.getPasswordHash());
+    }
+
+    @Test
+    void updateProfile_changesPasswordWithCorrectCurrentPassword() {
+        User user = User.builder().id(1L).email("u@example.com").passwordHash("hashed").role(Role.USER).build();
+        int versionBefore = user.getTokenVersion();
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("correct", "hashed")).thenReturn(true);
+        when(passwordEncoder.encode("newpassword1")).thenReturn("newhash");
+
+        service.updateProfile(1L, new UpdateProfileRequest("Name", null, "correct", "newpassword1"));
+
+        assertEquals("newhash", user.getPasswordHash());
+        // Existing sessions must die with the old password.
+        assertEquals(versionBefore + 1, user.getTokenVersion());
+    }
+
+    @Test
+    void updateProfile_nameOnlyUpdateNeedsNoPassword() {
+        User user = User.builder().id(1L).email("u@example.com").name("Old").passwordHash("hashed").role(Role.USER).build();
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+
+        service.updateProfile(1L, new UpdateProfileRequest("New Name", null, null, null));
+
+        assertEquals("New Name", user.getName());
+        assertEquals("hashed", user.getPasswordHash());
+        verify(passwordEncoder, never()).matches(any(), any());
     }
 
     // ─── Unsubscribe ──────────────────────────────────────────────────────────

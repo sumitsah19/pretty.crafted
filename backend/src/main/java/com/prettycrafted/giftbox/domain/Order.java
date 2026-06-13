@@ -54,6 +54,14 @@ public class Order {
     @Column(name = "contact_phone", nullable = false, length = 20)
     private String contactPhone;
 
+    /** Coupon applied at placement, if any (uppercase code snapshot). */
+    @Column(name = "coupon_code", length = 40)
+    private String couponCode;
+
+    /** Amount knocked off the subtotal by the coupon; null when no coupon. */
+    @Column(name = "discount_amount", precision = 10, scale = 2)
+    private BigDecimal discountAmount;
+
     @Column(name = "razorpay_order_id", length = 80)
     private String razorpayOrderId;
 

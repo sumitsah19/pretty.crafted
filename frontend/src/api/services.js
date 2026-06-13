@@ -58,6 +58,12 @@ export const giftBoxApi = {
   remove: (id)      => api.delete(`/gift-boxes/${id}`),
 }
 
+// ── COUPONS (public — checkout validation) ───────────────────────
+// Validation does NOT consume a use; the server redeems at order placement.
+export const couponApi = {
+  validate: (code) => api.get('/public/coupons/validate', { params: { code } }),
+}
+
 // ── CATEGORIES ───────────────────────────────────────────────────
 export const categoriesApi = {
   list:   ()          => api.get('/categories'),

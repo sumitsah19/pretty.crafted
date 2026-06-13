@@ -5,6 +5,7 @@ import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
 import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import javax.crypto.Mac;
@@ -18,7 +19,7 @@ import org.springframework.util.StringUtils;
 @Service
 public class PaymentService {
 
-    public record RazorpayOrderDetails(String orderId, int amount, String currency) {}
+    public record RazorpayOrderDetails(String orderId, long amount, String currency) {}
 
     @Value("${app.razorpay.key-id}")
     private String keyId;
@@ -30,12 +31,34 @@ public class PaymentService {
 
     @PostConstruct
     void init() throws RazorpayException {
-        razorpayClient = new RazorpayClient(keyId, keySecret);
+        // Don't construct the client (or crash startup) when keys are missing or
+        // placeholders — local/dev environments run fine without Razorpay. Calls
+        // that actually need the gateway fail clearly via requireClient().
+        if (isConfigured()) {
+            razorpayClient = new RazorpayClient(keyId, keySecret);
+        }
+    }
+
+    private RazorpayClient requireClient() {
+        if (razorpayClient == null) {
+            throw new PaymentGatewayException(
+                "razorpay_not_configured",
+                "Online payments are not available right now. Please choose Cash on Delivery.",
+                HttpStatus.SERVICE_UNAVAILABLE,
+                null
+            );
+        }
+        return razorpayClient;
     }
 
     public String createOrder(BigDecimal amountInRupees) {
         try {
-            int amountInPaise = amountInRupees.multiply(BigDecimal.valueOf(100)).intValue();
+            // Round to paise (HALF_UP) and use a long — never truncate via intValue()
+            // (₹10.999 → 1100p, not 1099p) and never overflow on large totals.
+            long amountInPaise = amountInRupees
+                .setScale(2, RoundingMode.HALF_UP)
+                .movePointRight(2)
+                .longValueExact();
             return createOrder(amountInPaise, "INR", "rcpt_" + System.currentTimeMillis()).orderId();
         } catch (RazorpayException e) {
             if (isAuthFailure(e)) {
@@ -55,18 +78,53 @@ public class PaymentService {
         }
     }
 
-    public RazorpayOrderDetails createOrder(int amountInPaise, String currency, String receipt) throws RazorpayException {
+    public RazorpayOrderDetails createOrder(long amountInPaise, String currency, String receipt) throws RazorpayException {
         JSONObject req = new JSONObject();
         req.put("amount", amountInPaise);
         req.put("currency", currency);
         req.put("receipt", receipt);
 
-        com.razorpay.Order order = razorpayClient.orders.create(req);
+        com.razorpay.Order order = requireClient().orders.create(req);
         return new RazorpayOrderDetails(
             order.get("id"),
-            order.get("amount"),
+            ((Number) order.get("amount")).longValue(),
             order.get("currency")
         );
+    }
+
+    /**
+     * Refunds a captured payment in full. Amount is in rupees; converted to paise
+     * with rounding (HALF_UP) — never truncation — so ₹499.999 refunds 50000p,
+     * not 49999p.
+     *
+     * @return the Razorpay refund id
+     */
+    public String refund(String razorpayPaymentId, BigDecimal amountInRupees) {
+        long amountInPaise = amountInRupees
+                .setScale(2, RoundingMode.HALF_UP)
+                .movePointRight(2)
+                .longValueExact();
+        try {
+            JSONObject req = new JSONObject();
+            req.put("amount", amountInPaise);
+            com.razorpay.Refund refund = requireClient().payments.refund(razorpayPaymentId, req);
+            return refund.get("id");
+        } catch (RazorpayException e) {
+            if (isAuthFailure(e)) {
+                throw new PaymentGatewayException(
+                    "razorpay_auth_failed",
+                    "Razorpay authentication failed. Check RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
+                    HttpStatus.UNAUTHORIZED,
+                    e
+                );
+            }
+            throw new PaymentGatewayException(
+                "razorpay_refund_failed",
+                "Unable to refund this payment right now. Please try again or contact support.",
+                HttpStatus.BAD_GATEWAY,
+                e
+            );
+        }
     }
 
     public boolean verifySignature(String razorpayOrderId, String razorpayPaymentId, String signature) {

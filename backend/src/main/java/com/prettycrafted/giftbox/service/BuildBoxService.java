@@ -34,7 +34,9 @@ public class BuildBoxService {
         BuildBox box = BuildBox.builder()
                 .imageUrl(req.imageUrl())
                 .title(req.title())
-                .price(req.price())
+                .priceSmall(req.priceSmall())
+                .priceMedium(req.priceMedium())
+                .priceLarge(req.priceLarge())
                 .displayOrder(req.displayOrder() != null ? req.displayOrder() : 0)
                 .active(req.active() == null || req.active())
                 .build();
@@ -47,7 +49,9 @@ public class BuildBoxService {
                 .orElseThrow(() -> new NotFoundException("Build box not found: " + id));
         box.setImageUrl(req.imageUrl());
         box.setTitle(req.title());
-        box.setPrice(req.price());
+        box.setPriceSmall(req.priceSmall());
+        box.setPriceMedium(req.priceMedium());
+        box.setPriceLarge(req.priceLarge());
         if (req.displayOrder() != null) box.setDisplayOrder(req.displayOrder());
         if (req.active() != null) box.setActive(req.active());
         return BuildBoxDto.from(box);

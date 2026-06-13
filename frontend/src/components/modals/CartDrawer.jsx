@@ -7,11 +7,23 @@ import { giftBoxApi } from '../../api/services'
 
 const TC = '#C4704A'
 
+const SAVED_KEY = 'pc_saved_for_later'
+
+const loadSaved = () => {
+  try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || [] } catch { return [] }
+}
+
 export default function CartDrawer() {
   const dispatch = useDispatch()
   const { items, boxes } = useSelector(selectCart)
   const products = useSelector(selectProducts)
-  const [savedItems, setSavedItems] = useState([])
+  // Persisted so saved items survive the drawer unmounting (and page reloads),
+  // instead of being silently discarded when the drawer closes.
+  const [savedItems, setSavedItems] = useState(loadSaved)
+
+  useEffect(() => {
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(savedItems)) } catch { /* quota/full — non-critical */ }
+  }, [savedItems])
 
   // Close on Escape + lock body scroll while open (restoring whatever was set before)
   useEffect(() => {

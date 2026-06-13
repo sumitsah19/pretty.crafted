@@ -39,11 +39,19 @@ public class BuildBox {
     private String title;
 
     /**
-     * Design surcharge for choosing this box, added on top of the size base price, wrap and
-     * products when the order total is computed. Null/0 means no extra charge.
+     * Admin-set base price for this box at each size. This REPLACES the global
+     * {@link BoxSize} base fee for the chosen size (the order total is then
+     * per-size price + wrap + products). A null value for a size falls back to
+     * the {@link BoxSize} enum base, so legacy rows still price sensibly.
      */
-    @Column(precision = 10, scale = 2)
-    private BigDecimal price;
+    @Column(name = "price_small", precision = 10, scale = 2)
+    private BigDecimal priceSmall;
+
+    @Column(name = "price_medium", precision = 10, scale = 2)
+    private BigDecimal priceMedium;
+
+    @Column(name = "price_large", precision = 10, scale = 2)
+    private BigDecimal priceLarge;
 
     /** Lower numbers render first. */
     @Column(name = "display_order", columnDefinition = "INT NOT NULL DEFAULT 0")
@@ -54,4 +62,16 @@ public class BuildBox {
     @Column(columnDefinition = "BOOLEAN NOT NULL DEFAULT TRUE")
     @Builder.Default
     private Boolean active = true;
+
+    /**
+     * The admin-set base price for the given size, or null if unset (caller
+     * should then fall back to {@link BoxSize#basePrice()}).
+     */
+    public BigDecimal priceForSize(BoxSize size) {
+        return switch (size) {
+            case SMALL -> priceSmall;
+            case MEDIUM -> priceMedium;
+            case LARGE -> priceLarge;
+        };
+    }
 }

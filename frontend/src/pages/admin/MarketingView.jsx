@@ -5,7 +5,7 @@ import { TC, DARK, MID, LIGHT, BEIGE, CREAM, SectionHeader } from './shared'
 // ─── MARKETING VIEW ────────────────────────────────────────────────
 // Evergreen brand lines always shown in the storefront banner, alongside active coupons.
 const BANNER_BASE_MESSAGES = [
-  '✦ Free gift wrapping on orders over ₹5000',
+  '✦ Free delivery on every order',
   '🎁 Handcrafted with love, delivered across India',
   '✦ New arrivals every week',
 ]

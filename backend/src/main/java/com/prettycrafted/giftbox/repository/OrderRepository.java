@@ -24,6 +24,17 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("select o from Order o where o.id = :id")
     Optional<Order> findByIdWithLock(@Param("id") Long id);
 
+    /**
+     * Unpaid online orders left behind by dismissed Razorpay popups. They never
+     * decremented stock, so cleanup just marks them CANCELLED.
+     */
+    @Query("select o from Order o "
+        + "where o.status = com.prettycrafted.giftbox.domain.OrderStatus.PENDING "
+        + "and o.paymentStatus = com.prettycrafted.giftbox.domain.PaymentStatus.PENDING "
+        + "and o.razorpayOrderId is not null "
+        + "and o.createdAt < :cutoff")
+    List<Order> findAbandonedRazorpayOrders(@Param("cutoff") java.time.Instant cutoff);
+
     @Query("select coalesce(sum(o.totalAmount), 0) from Order o "
         + "where o.paymentStatus = com.prettycrafted.giftbox.domain.PaymentStatus.SUCCESS")
     BigDecimal sumRevenue();

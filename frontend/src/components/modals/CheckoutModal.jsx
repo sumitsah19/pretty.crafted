@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { selectCart, clearCart } from '../../store/slices/cartSlice'
+import { selectCart, clearCart, removeBox } from '../../store/slices/cartSlice'
 import { closeCheckout, openLogin } from '../../store/slices/uiSlice'
 import { selectIsLoggedIn } from '../../store/slices/authSlice'
-import { ordersApi, cartApi } from '../../api/services'
+import { ordersApi, cartApi, couponApi, giftBoxApi } from '../../api/services'
 import { analytics } from '../../analytics'
 
 const TC = '#C4704A'
@@ -48,22 +48,55 @@ export default function CheckoutModal() {
   const [pendingOrder, setPendingOrder] = useState(null) // { res, sig }
   // Set when "Place Order" was interrupted by login; the order resumes once logged in.
   const [pendingPlace, setPendingPlace] = useState(false)
+  // Coupon: the typed code, the server-validated coupon, and feedback.
+  const [couponInput, setCouponInput] = useState('')
+  const [coupon, setCoupon] = useState(null) // { code, discountPercent }
+  const [couponMsg, setCouponMsg] = useState('')
+  const [couponBusy, setCouponBusy] = useState(false)
 
   useEffect(() => { analytics.checkoutStart() }, [])
   useEffect(() => { analytics.checkoutStep(step) }, [step])
 
   // Close on Escape (never mid-payment, nor while login is stacked on top) + lock body scroll
   useEffect(() => {
-    const k = (e) => { if (e.key === 'Escape' && !placing && !showLogin) dispatch(closeCheckout()) }
+    const k = (e) => { if (e.key === 'Escape' && !placing && !showLogin) { if (placed) dispatch(clearCart()); dispatch(closeCheckout()) } }
     window.addEventListener('keydown', k)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev }
-  }, [dispatch, placing, showLogin])
+  }, [dispatch, placing, showLogin, placed])
 
   const boxesTotal = boxes.reduce((s, b) => s + Number(b.totalPrice || 0), 0)
   const subtotalItems = items.reduce((s, i) => s + i.product.price * i.qty, 0) + boxesTotal
-  const total = subtotalItems
+  // Discount mirrors the server's redeem() math (round to paise, HALF_UP) so the
+  // amount shown here matches what the backend actually charges.
+  const discount = coupon
+    ? Math.round(subtotalItems * coupon.discountPercent) / 100
+    : 0
+  const total = Math.max(0, subtotalItems - discount)
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim()
+    if (!code) return
+    setCouponBusy(true)
+    setCouponMsg('')
+    try {
+      const { data } = await couponApi.validate(code)
+      setCoupon({ code: data.code, discountPercent: data.discountPercent })
+      setCouponMsg(`${data.code} applied — ${data.discountPercent}% off`)
+    } catch (err) {
+      setCoupon(null)
+      setCouponMsg(err.response?.data?.message || 'That code is not valid.')
+    } finally {
+      setCouponBusy(false)
+    }
+  }
+
+  const removeCoupon = () => {
+    setCoupon(null)
+    setCouponInput('')
+    setCouponMsg('')
+  }
 
   const setA = (k, v) => setAddr((p) => ({ ...p, [k]: v }))
   const addrValid = addr.name && addr.phone && addr.line1 && addr.city && addr.zip
@@ -75,7 +108,42 @@ export default function CheckoutModal() {
 
   // What the current checkout attempt depends on; if any of it changes, a previously
   // created (unpaid) order is stale and a fresh one must be created.
-  const checkoutSig = JSON.stringify([items.map((i) => [i.product.id, i.qty]), boxes.map((b) => b.id), addr])
+  const checkoutSig = JSON.stringify([items.map((i) => [i.product.id, i.qty]), boxes.map((b) => b.id), addr, coupon?.code || null])
+
+  // Reconcile the local cart's gift boxes against the server's IN_CART boxes
+  // (the set the order is actually built from). Returns true if it's safe to
+  // place; false if something changed and the user should re-review.
+  const reconcileBoxes = async () => {
+    let serverBoxes
+    try {
+      const { data } = await giftBoxApi.list()
+      serverBoxes = Array.isArray(data) ? data : []
+    } catch {
+      // Can't verify — fail safe rather than risk charging for a removed box.
+      setOrderError('Could not verify your gift boxes. Please try again.')
+      return false
+    }
+
+    const serverIds = new Set(serverBoxes.map((b) => b.id))
+    const localIds = new Set(boxes.map((b) => b.id))
+
+    // Boxes the user removed locally whose server delete never landed — delete
+    // them now so they aren't silently ordered and charged.
+    const orphaned = serverBoxes.filter((b) => !localIds.has(b.id))
+    for (const b of orphaned) {
+      try { await giftBoxApi.remove(b.id) } catch { /* best effort; re-checked below */ }
+    }
+
+    // Boxes in the local cart that no longer exist server-side — can't be
+    // ordered. Drop them locally and ask the user to review.
+    const vanished = boxes.filter((b) => !serverIds.has(b.id))
+    if (vanished.length > 0) {
+      vanished.forEach((b) => dispatch(removeBox(b.id)))
+      setOrderError('Some gift boxes in your cart are no longer available and were removed. Please review your order.')
+      return false
+    }
+    return true
+  }
 
   const placeOrder = async () => {
     if (!isLoggedIn) {
@@ -108,6 +176,14 @@ export default function CheckoutModal() {
       if (backendPaymentMethod === 'RAZORPAY' && pendingOrder?.sig === checkoutSig) {
         res = pendingOrder.res
       } else {
+        // Make sure the server's gift boxes match the cart before the order is
+        // built from them — a box removed locally must not be charged, and a box
+        // that vanished server-side must not be silently ordered.
+        if (boxes.length > 0) {
+          const ok = await reconcileBoxes()
+          if (!ok) { setPlacing(false); return }
+        }
+
         // Non-destructive cart sync: fetch server cart and apply minimal diffs
         const serverRes = await cartApi.get()
         const serverItems = serverRes.data?.items || []
@@ -145,6 +221,7 @@ export default function CheckoutModal() {
           shippingAddress,
           contactPhone: addr.phone,
           paymentMethod: backendPaymentMethod,
+          couponCode: coupon?.code || undefined,
         })
         if (backendPaymentMethod === 'RAZORPAY') {
           setPendingOrder({ res, sig: checkoutSig })
@@ -239,15 +316,25 @@ export default function CheckoutModal() {
     dispatch(closeCheckout())
   }
 
+  // Single close path for ×, Escape and backdrop. Never closes mid-payment or
+  // while login is stacked on top; and if the order succeeded, closing here
+  // clears the local cart too (otherwise the wiped server cart and the still-full
+  // local cart desync, and the next checkout re-adds everything → duplicate order).
+  const handleClose = () => {
+    if (placing || showLogin) return
+    if (placed) dispatch(clearCart())
+    dispatch(closeCheckout())
+  }
+
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && !placing && !showLogin && dispatch(closeCheckout())}>
+    <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) handleClose() }}>
       <div style={{ background: '#FAF7F2', borderRadius: 24, width: '100%', maxWidth: 520, maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(44,26,14,0.25)' }} className="animate-fade-up">
 
         {/* Header */}
         <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid #EDE4D8', flexShrink: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: placed ? 0 : 16 }}>
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700 }}>{placed ? 'Order Confirmed! 🎉' : 'Checkout'}</div>
-            <button onClick={() => dispatch(closeCheckout())} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            <button onClick={handleClose} disabled={placing} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: placing ? 'default' : 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: placing ? 0.5 : 1 }}>×</button>
           </div>
           {!placed && (
             <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -286,8 +373,9 @@ export default function CheckoutModal() {
                 ))}
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 5 }}>Country</label>
+                  {/* India only: pricing is ₹/INR and we ship within India. */}
                   <select value={addr.country} onChange={(e) => setA('country', e.target.value)} style={{ ...inputSt, cursor: 'pointer' }}>
-                    {['India', 'United States', 'United Kingdom', 'Canada', 'Australia', 'Singapore', 'UAE'].map((c) => <option key={c}>{c}</option>)}
+                    <option>India</option>
                   </select>
                 </div>
               </div>
@@ -355,8 +443,43 @@ export default function CheckoutModal() {
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#9C7A63', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Delivering to</div>
                 <div style={{ fontSize: 13, color: '#2C1A0E', lineHeight: 1.7 }}>{addr.name}<br />{addr.line1}{addr.line2 ? ', ' + addr.line2 : ''}<br />{addr.city}{addr.state ? ', ' + addr.state : ''} {addr.zip}, {addr.country}</div>
               </div>
+              {/* Coupon */}
+              <div style={{ padding: '14px 16px', background: 'white', borderRadius: 14, border: '1px solid #EDE4D8' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#9C7A63', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Have a coupon?</div>
+                {coupon ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#7A9A6B', background: '#EAF2E8', borderRadius: 99, padding: '5px 12px', letterSpacing: '0.04em' }}>✓ {coupon.code}</span>
+                      <span style={{ fontSize: 12, color: '#6B4F3A' }}>{coupon.discountPercent}% off</span>
+                    </div>
+                    <button onClick={removeCoupon} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#9C7A63', fontWeight: 600, padding: 0 }}>Remove</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyCoupon() } }}
+                      placeholder="Enter code"
+                      style={{ ...inputSt, textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                      onFocus={focus} onBlur={blur}
+                    />
+                    <button onClick={applyCoupon} disabled={couponBusy || !couponInput.trim()}
+                      style={{ flexShrink: 0, padding: '0 18px', borderRadius: 10, border: 'none', background: couponBusy || !couponInput.trim() ? '#EDE4D8' : TC, color: couponBusy || !couponInput.trim() ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 13, cursor: couponBusy || !couponInput.trim() ? 'default' : 'pointer' }}>
+                      {couponBusy ? '…' : 'Apply'}
+                    </button>
+                  </div>
+                )}
+                {couponMsg && (
+                  <div style={{ fontSize: 12, marginTop: 8, color: coupon ? '#7A9A6B' : '#C44A4A' }}>{couponMsg}</div>
+                )}
+              </div>
+
               <div style={{ padding: '12px 16px', background: '#F5EEE6', borderRadius: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13, color: '#6B4F3A' }}><span>Subtotal</span><span>₹{subtotalItems.toFixed(2)}</span></div>
+                {discount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13, color: '#7A9A6B', fontWeight: 600 }}><span>Discount ({coupon.code})</span><span>−₹{discount.toFixed(2)}</span></div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13, color: '#6B4F3A' }}><span>Delivery</span><span style={{ color: '#7A9A6B', fontWeight: 600 }}>Free</span></div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #EDE4D8', paddingTop: 8 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#2C1A0E' }}>Total</div>

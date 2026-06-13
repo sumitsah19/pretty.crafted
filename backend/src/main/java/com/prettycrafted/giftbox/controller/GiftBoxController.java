@@ -4,6 +4,7 @@ import com.prettycrafted.giftbox.dto.CreateGiftBoxRequest;
 import com.prettycrafted.giftbox.dto.GiftBoxDto;
 import com.prettycrafted.giftbox.service.GiftBoxService;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -27,6 +28,11 @@ public class GiftBoxController {
     @ResponseStatus(HttpStatus.CREATED)
     public GiftBoxDto create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateGiftBoxRequest req) {
         return service.create(userId(jwt), req);
+    }
+
+    @GetMapping
+    public List<GiftBoxDto> list(@AuthenticationPrincipal Jwt jwt) {
+        return service.listInCart(userId(jwt));
     }
 
     @GetMapping("/{id}")

@@ -13,7 +13,7 @@ export default function BuildBoxesView({ onToast }) {
   const [busyId, setBusyId] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState(null)
-  const [form, setForm] = useState({ imageUrl: '', title: '', price: '', displayOrder: '', active: true })
+  const [form, setForm] = useState({ imageUrl: '', title: '', priceSmall: '', priceMedium: '', priceLarge: '', displayOrder: '', active: true })
 
   const inp = { width: '100%', padding: '10px 14px', borderRadius: 12, border: `1.5px solid ${BEIGE}`, fontSize: 13, background: 'white', fontFamily: "'DM Sans',sans-serif", outline: 'none', color: DARK }
 
@@ -26,13 +26,21 @@ export default function BuildBoxesView({ onToast }) {
 
   const openAdd = () => {
     setEditItem(null)
-    setForm({ imageUrl: '', title: '', price: '', displayOrder: String(boxes.length), active: true })
+    setForm({ imageUrl: '', title: '', priceSmall: '', priceMedium: '', priceLarge: '', displayOrder: String(boxes.length), active: true })
     setShowForm(true)
   }
 
   const openEdit = (b) => {
     setEditItem(b)
-    setForm({ imageUrl: b.imageUrl, title: b.title || '', price: b.price ?? '', displayOrder: b.displayOrder ?? '', active: b.active })
+    setForm({
+      imageUrl: b.imageUrl,
+      title: b.title || '',
+      priceSmall: b.priceSmall ?? '',
+      priceMedium: b.priceMedium ?? '',
+      priceLarge: b.priceLarge ?? '',
+      displayOrder: b.displayOrder ?? '',
+      active: b.active,
+    })
     setShowForm(true)
   }
 
@@ -54,10 +62,13 @@ export default function BuildBoxesView({ onToast }) {
   const handleSave = async () => {
     setSaving(true)
     try {
+      const num = (v) => (v === '' ? null : Number(v))
       const payload = {
         imageUrl: form.imageUrl,
         title: form.title || null,
-        price: form.price === '' ? null : Number(form.price),
+        priceSmall: num(form.priceSmall),
+        priceMedium: num(form.priceMedium),
+        priceLarge: num(form.priceLarge),
         displayOrder: form.displayOrder === '' ? 0 : Number(form.displayOrder),
         active: form.active,
       }
@@ -110,7 +121,13 @@ export default function BuildBoxesView({ onToast }) {
             <div style={{ padding: '12px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
                 <div style={{ fontWeight: 700, color: DARK, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.title || <span style={{ color: LIGHT, fontWeight: 400 }}>Untitled</span>}</div>
-                {b.price != null && Number(b.price) > 0 && <div style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: TC }}>+₹{Number(b.price).toLocaleString('en-IN')}</div>}
+                {(() => {
+                  const set = [b.priceSmall, b.priceMedium, b.priceLarge].filter(v => v != null).map(Number)
+                  if (!set.length) return null
+                  const lo = Math.min(...set), hi = Math.max(...set)
+                  const label = lo === hi ? `₹${lo.toLocaleString('en-IN')}` : `₹${lo.toLocaleString('en-IN')}–${hi.toLocaleString('en-IN')}`
+                  return <div style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: TC }}>{label}</div>
+                })()}
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => openEdit(b)} style={{ flex: 1, padding: '6px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
@@ -162,11 +179,18 @@ export default function BuildBoxesView({ onToast }) {
               <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Velvet Box" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
             </div>
 
-            {/* Price (design surcharge) */}
+            {/* Per-size price (replaces the size base fee for this box) */}
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Price (₹, optional)</label>
-              <input type="number" min="0" step="1" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="0" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
-              <div style={{ fontSize: 10, color: LIGHT, marginTop: 6 }}>Added on top of the box size, wrap and product prices.</div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Box Price by Size (₹)</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                {[['priceSmall', 'Small'], ['priceMedium', 'Medium'], ['priceLarge', 'Large']].map(([k, label]) => (
+                  <div key={k}>
+                    <div style={{ fontSize: 10, color: LIGHT, marginBottom: 4, fontWeight: 600 }}>{label}</div>
+                    <input type="number" min="0" step="1" value={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} placeholder="—" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 10, color: LIGHT, marginTop: 6 }}>The box price for each size. Wrap and product prices are added on top. Leave a size blank to use the default size fee.</div>
             </div>
 
             {/* Display order */}

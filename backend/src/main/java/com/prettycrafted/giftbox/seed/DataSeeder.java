@@ -181,14 +181,18 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     /**
-     * Fills in the MRP / rating / review-count snapshot for a product when those fields are unset.
-     * Only touches null fields, so it's safe to call on both fresh seeds and existing rows, and it
-     * never clobbers values an admin set via the dashboard.
+     * Fills in the MRP snapshot for a product when it is unset. Only touches the
+     * null field, so it's safe on both fresh seeds and existing rows and never
+     * clobbers an admin-set value.
+     *
+     * <p>Rating and review count are deliberately NOT fabricated: showing made-up
+     * stars/counts next to the real review system ({@code ReviewService}) is a
+     * trust/legal risk and the two would contradict each other. Products start
+     * with no rating and earn one from genuine reviews; the storefront hides
+     * stars until then (see ProductCard).
      *
      * <ul>
      *   <li>MRP ≈ 25% above the selling price (so cards show a ~20% "Save" badge).</li>
-     *   <li>rating: a deterministic pleasant value in [4.3, 5.0], derived from the name.</li>
-     *   <li>reviewCount: a deterministic value in [24, 243], derived from the name.</li>
      * </ul>
      */
     private void applyMetrics(Product p) {
@@ -197,30 +201,21 @@ public class DataSeeder implements CommandLineRunner {
                 .multiply(new BigDecimal("1.25"))
                 .setScale(0, java.math.RoundingMode.HALF_UP));
         }
-        int seed = p.getName() == null ? 0 : Math.abs(p.getName().hashCode());
-        if (p.getRating() == null) {
-            p.setRating(BigDecimal.valueOf(4.3 + (seed % 8) * 0.1)
-                .setScale(1, java.math.RoundingMode.HALF_UP));
-        }
-        if (p.getReviewCount() == null) {
-            p.setReviewCount(24 + (seed % 220));
-        }
     }
 
     /**
-     * Back-fills MRP / rating / review-count on products seeded before those columns existed, so
-     * the storefront shows discounts and ratings without a manual edit. Only rows where all three
-     * fields are still null are treated as legacy and filled — a row where an admin deliberately
-     * cleared one field (leaving the others set) is left alone, so clears survive restarts.
+     * Back-fills MRP on products seeded before the column existed, so the storefront
+     * shows discounts without a manual edit. Only rows where MRP is still null are
+     * treated as legacy — an admin-cleared value is left alone.
      */
     private void backfillProductMetrics() {
         List<Product> legacy = productRepo.findAll().stream()
-            .filter(p -> p.getOriginalPrice() == null && p.getRating() == null && p.getReviewCount() == null)
+            .filter(p -> p.getOriginalPrice() == null)
             .toList();
         if (!legacy.isEmpty()) {
             legacy.forEach(this::applyMetrics);
             productRepo.saveAll(legacy);
-            log.info("Back-filled MRP/rating/review metrics on {} product(s)", legacy.size());
+            log.info("Back-filled MRP on {} product(s)", legacy.size());
         }
     }
 

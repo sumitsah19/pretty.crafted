@@ -39,7 +39,7 @@ const TC = '#C4704A'
 
 // Storefront announcement banner — evergreen brand lines, prepended with active coupons
 const BANNER_BASE = [
-  '✦ Free gift wrapping on orders over ₹5000',
+  '✦ Free delivery on every order',
   '🎁 Handcrafted with love, delivered across India',
   '✦ New arrivals every week',
 ]

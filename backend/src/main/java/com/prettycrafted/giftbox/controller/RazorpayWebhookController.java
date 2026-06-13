@@ -78,9 +78,26 @@ public class RazorpayWebhookController {
 
             switch (event) {
                 case "payment.captured" -> {
-                    if (order.getPaymentStatus() == PaymentStatus.SUCCESS
-                            || order.getStatus() == OrderStatus.CANCELLED) {
+                    if (order.getPaymentStatus() == PaymentStatus.SUCCESS) {
                         log.info("Webhook payment.captured already resolved for order {} — skipping", order.getId());
+                        return ResponseEntity.ok().build();
+                    }
+                    // Money captured against an order the user already cancelled: do
+                    // not fulfill it — refund automatically and alert (error log is
+                    // picked up by Sentry) so support can confirm.
+                    if (order.getStatus() == OrderStatus.CANCELLED) {
+                        try {
+                            boolean refunded = orderService.refundCapturedPaymentForCancelledOrder(
+                                    order.getId(), razorpayPaymentId);
+                            if (refunded) {
+                                log.error("Webhook: payment {} captured for CANCELLED order {} — auto-refunded",
+                                        razorpayPaymentId, order.getId());
+                            }
+                        } catch (Exception e) {
+                            log.error("Webhook: FAILED to auto-refund payment {} captured for CANCELLED order {} — "
+                                    + "manual refund required: {}", razorpayPaymentId, order.getId(), e.getMessage());
+                            return ResponseEntity.status(500).build();
+                        }
                         return ResponseEntity.ok().build();
                     }
                     try {

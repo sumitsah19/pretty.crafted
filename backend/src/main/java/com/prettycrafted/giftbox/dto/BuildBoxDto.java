@@ -7,7 +7,9 @@ public record BuildBoxDto(
     Long id,
     String imageUrl,
     String title,
-    BigDecimal price,
+    BigDecimal priceSmall,
+    BigDecimal priceMedium,
+    BigDecimal priceLarge,
     Integer displayOrder,
     Boolean active
 ) {
@@ -16,7 +18,9 @@ public record BuildBoxDto(
             b.getId(),
             b.getImageUrl(),
             b.getTitle(),
-            b.getPrice(),
+            b.getPriceSmall(),
+            b.getPriceMedium(),
+            b.getPriceLarge(),
             b.getDisplayOrder(),
             b.getActive()
         );
