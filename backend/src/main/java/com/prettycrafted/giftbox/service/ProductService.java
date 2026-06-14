@@ -33,11 +33,6 @@ public class ProductService {
         return productRepo.findAll(pageable).map(ProductDto::from);
     }
 
-    public List<ProductDto> popular() {
-        return productRepo.findTop6ByOrderByPopularityScoreDesc()
-                .stream().map(ProductDto::from).toList();
-    }
-
     /** All curated hamper products (the "Hampers" category), unpaginated. */
     public List<ProductDto> hampers() {
         return productRepo.findByCategory_NameIgnoreCaseOrderByIdAsc("Hampers")

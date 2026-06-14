@@ -72,7 +72,7 @@ export default function ProductCard({ product, onClick }) {
           <span style={{
             position: 'absolute', top: 10, right: 10,
             padding: '5px 10px', borderRadius: 7,
-            background: '#1a1a1a', color: '#fff',
+            background: '#2C1A0E', color: '#fff',
             fontSize: 10.5, fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap',
           }}>
             {product.tag === 'New' ? 'New In' : product.tag}
@@ -103,7 +103,7 @@ export default function ProductCard({ product, onClick }) {
       </div>
 
       {/* Name */}
-      <h4 style={{ margin: '0 0 6px', textAlign: 'center', fontSize: 15, fontWeight: 600, color: '#1a1a1a', fontFamily: "'Playfair Display',serif" }}>
+      <h4 style={{ margin: '0 0 6px', textAlign: 'center', fontSize: 15, fontWeight: 600, color: '#2C1A0E', fontFamily: "'Playfair Display',serif" }}>
         {product.name}
       </h4>
 
@@ -114,14 +114,14 @@ export default function ProductCard({ product, onClick }) {
             <span style={{ color: 'rgba(0,0,0,0.16)' }}>★★★★★</span>
             <span style={{ position: 'absolute', left: 0, top: 0, width: pct + '%', overflow: 'hidden', color: '#C08A1E' }}>★★★★★</span>
           </span>
-          {reviews != null && <span style={{ fontSize: 12, color: '#555555', whiteSpace: 'nowrap' }}>{reviews} reviews</span>}
+          {reviews != null && <span style={{ fontSize: 12, color: '#6B4F3A', whiteSpace: 'nowrap' }}>{reviews} reviews</span>}
         </div>
       )}
 
       {/* Prices */}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 7, whiteSpace: 'nowrap' }}>
-        {hasMrp && <span style={{ fontSize: 12.5, color: '#888888', textDecoration: 'line-through' }}>{rs(orig)}</span>}
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{rs(product.price)}</span>
+        {hasMrp && <span style={{ fontSize: 12.5, color: '#9C7A63', textDecoration: 'line-through' }}>{rs(orig)}</span>}
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#2C1A0E' }}>{rs(product.price)}</span>
       </div>
 
       {save > 0 && (

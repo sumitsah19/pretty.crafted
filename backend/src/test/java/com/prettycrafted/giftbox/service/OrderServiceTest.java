@@ -1,5 +1,6 @@
 package com.prettycrafted.giftbox.service;
 
+import com.prettycrafted.giftbox.domain.CartItem;
 import com.prettycrafted.giftbox.domain.GiftBox;
 import com.prettycrafted.giftbox.domain.GiftBoxItem;
 import com.prettycrafted.giftbox.domain.GiftBoxStatus;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -71,6 +73,60 @@ class OrderServiceTest {
     void place_throwsWhenUserNotFound() {
         when(userRepo.findById(99L)).thenReturn(Optional.empty());
         assertThrows(RuntimeException.class, () -> service.place(99L, ORDER_REQ));
+    }
+
+    @Test
+    void place_razorpayWithCoupon_locksDiscountButDefersRedemption() {
+        Product p = Product.builder().id(5L).name("P5")
+            .price(new BigDecimal("100.00")).stock(10).build();
+        CartItem ci = CartItem.builder().product(p).quantity(2).build();
+        when(userRepo.findById(1L)).thenReturn(Optional.of(USER));
+        when(cartRepo.findByUserId(1L)).thenReturn(List.of(ci));
+        when(giftBoxRepo.findByUserIdAndStatus(1L, GiftBoxStatus.IN_CART)).thenReturn(List.of());
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(productRepo.findById(5L)).thenReturn(Optional.of(p)); // Razorpay availability check
+        when(couponService.previewDiscount("FESTIVE10", new BigDecimal("200.00")))
+            .thenReturn(new BigDecimal("20.00"));
+        when(paymentService.createOrder(new BigDecimal("180.00"))).thenReturn("rzp_order_id");
+        when(paymentService.getKeyId()).thenReturn("key_test");
+
+        // Lowercase code in the request — the service normalises it to upper case.
+        service.place(1L, new PlaceOrderRequest("123 Main St", "9999999999", "RAZORPAY", "festive10"));
+
+        // Discount is computed and the gateway is charged the net amount, but the
+        // coupon use is NOT consumed yet — an abandoned payment must not burn a use.
+        verify(couponService).previewDiscount("FESTIVE10", new BigDecimal("200.00"));
+        verify(couponService, never()).redeem(any(), any());
+        verify(couponService, never()).consume(any());
+        verify(productRepo, never()).decrementStock(anyLong(), anyInt()); // deferred to confirmation
+    }
+
+    @Test
+    void applyPostPaymentActions_consumesCouponOnConfirmation() {
+        Order order = Order.builder()
+            .id(10L).user(USER)
+            .status(OrderStatus.PENDING)
+            .paymentStatus(PaymentStatus.PENDING)
+            .razorpayOrderId("rzp_order")
+            .couponCode("FESTIVE10")
+            .build();
+        order.getItems().add(OrderItem.builder()
+            .order(order).product(product(5L)).quantity(1).build());
+        when(orderRepo.findByIdWithLock(10L)).thenReturn(Optional.of(order));
+        when(productRepo.decrementStock(5L, 1)).thenReturn(1);
+
+        // applyPostPaymentActions registers an afterCommit email callback, which
+        // needs an active synchronization to bind to.
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.applyPostPaymentActions(10L, "rzp_payment");
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+
+        assertEquals(PaymentStatus.SUCCESS, order.getPaymentStatus());
+        assertEquals(OrderStatus.PAID, order.getStatus());
+        verify(couponService).consume("FESTIVE10"); // the use is recorded now, post-payment
     }
 
     // ─── Verify payment ───────────────────────────────────────────────────────

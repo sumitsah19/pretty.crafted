@@ -36,11 +36,6 @@ public class ProductController {
         return service.list(categoryId, q, pageable);
     }
 
-    @GetMapping("/popular")
-    public List<ProductDto> popular() {
-        return service.popular();
-    }
-
     @GetMapping("/hampers")
     public List<ProductDto> hampers() {
         return service.hampers();

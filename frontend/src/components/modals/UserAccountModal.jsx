@@ -24,7 +24,7 @@ function IconLegal()   { return <svg width="18" height="18" viewBox="0 0 24 24" 
 function IconStar()    { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> }
 function IconChevR()   { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#BBADA0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg> }
 function IconChevD()   { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#BBADA0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg> }
-function IconBack()    { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg> }
+function IconBack()    { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2C1A0E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg> }
 
 // ── ORDER STATUS BADGE ────────────────────────────────────────────
 function UABadge({ status }) {
@@ -79,7 +79,7 @@ function ProfileRow({ icon, label, sub, right, onClick, noBorder }) {
       style={{ width:'100%', display:'flex', alignItems:'center', gap:14, padding:'14px 0', background: hov ? '#FDFAF7' : 'transparent', border:'none', cursor:'pointer', textAlign:'left', borderBottom: noBorder ? 'none' : '1px solid #F0EBE4', transition:'background 0.15s' }}>
       <div style={{ color:'#6B4F3A', flexShrink:0, display:'flex', alignItems:'center' }}>{icon}</div>
       <div style={{ flex:1 }}>
-        <div style={{ fontSize:14, fontWeight:500, color:'#1A1A1A', lineHeight:1.2 }}>{label}</div>
+        <div style={{ fontSize:14, fontWeight:500, color:'#2C1A0E', lineHeight:1.2 }}>{label}</div>
         {sub && <div style={{ fontSize:11, color:'#9C7A63', marginTop:2 }}>{sub}</div>}
       </div>
       {right || <IconChevR />}
@@ -95,7 +95,7 @@ function RewardChip({ icon, label, onClick }) {
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{ flex:'1 1 calc(50% - 5px)', display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:10, border:'1.5px solid #E8E0D8', background: hov ? '#FAF7F2' : 'white', cursor:'pointer', transition:'all 0.15s', minWidth:0 }}>
       <span style={{ fontSize:16, flexShrink:0 }}>{icon}</span>
-      <span style={{ flex:1, fontSize:13, fontWeight:500, color:'#1A1A1A', textAlign:'left', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{label}</span>
+      <span style={{ flex:1, fontSize:13, fontWeight:500, color:'#2C1A0E', textAlign:'left', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{label}</span>
       <IconChevR />
     </button>
   )
@@ -109,7 +109,7 @@ function AccordionRow({ icon, label, children, noBorder }) {
       <button onClick={() => setOpen(o => !o)}
         style={{ width:'100%', display:'flex', alignItems:'center', gap:14, padding:'15px 0', background:'transparent', border:'none', cursor:'pointer', textAlign:'left', borderBottom: open || noBorder ? 'none' : '1px solid #F0EBE4' }}>
         <div style={{ color:'#6B4F3A', flexShrink:0, display:'flex' }}>{icon}</div>
-        <div style={{ flex:1, fontSize:14, fontWeight:500, color:'#1A1A1A' }}>{label}</div>
+        <div style={{ flex:1, fontSize:14, fontWeight:500, color:'#2C1A0E' }}>{label}</div>
         <div style={{ color:'#BBADA0', transform: open ? 'rotate(180deg)' : 'none', transition:'transform 0.2s' }}><IconChevD /></div>
       </button>
       {open && (
@@ -160,7 +160,7 @@ function DailyBanner({ onClick }) {
 function HelpCenterPage({ onToast }) {
   const categories = [
     { label:'Account',                bg:'#FDECEA', color:'#C0444A', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
-    { label:'Returns &\nExchanges',   bg:'#EEEEF0', color:'#555568', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg> },
+    { label:'Returns &\nExchanges',   bg:'#F5EEE6', color:'#6B4F3A', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg> },
     { label:'Credits &\nMembership',  bg:'#F5EDDB', color:'#9A6F2A', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/></svg> },
     { label:'Offers',                 bg:'#FEF5E4', color:'#B07B2A', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="15" x2="15.01" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg> },
     { label:'Payments',               bg:'#E4F5F0', color:'#2A7A6A', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> },
@@ -179,11 +179,11 @@ function HelpCenterPage({ onToast }) {
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:8 }}>
         {categories.map((cat, i) => (
           <button key={i} onClick={() => onToast(`${cat.label.replace('\n',' ')} help loading…`)}
-            style={{ display:'flex', alignItems:'center', gap:14, padding:'18px 16px', borderRadius:14, border:'1.5px solid #EDEBE8', background:'white', cursor:'pointer', textAlign:'left', transition:'box-shadow 0.15s', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}
+            style={{ display:'flex', alignItems:'center', gap:14, padding:'18px 16px', borderRadius:14, border:'1.5px solid #EDE4D8', background:'white', cursor:'pointer', textAlign:'left', transition:'box-shadow 0.15s', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}
             onMouseEnter={e => e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.09)'}
             onMouseLeave={e => e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'}>
             <div style={{ width:46, height:46, borderRadius:'50%', background:cat.bg, display:'flex', alignItems:'center', justifyContent:'center', color:cat.color, flexShrink:0 }}>{cat.icon}</div>
-            <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A', lineHeight:1.35, whiteSpace:'pre-line' }}>{cat.label}</div>
+            <div style={{ fontSize:13, fontWeight:700, color:'#2C1A0E', lineHeight:1.35, whiteSpace:'pre-line' }}>{cat.label}</div>
           </button>
         ))}
       </div>
@@ -191,20 +191,20 @@ function HelpCenterPage({ onToast }) {
       <div style={{ background:'white', margin:'0 -16px', padding:'0 16px' }}>
         {faqs.map((q, i) => (
           <button key={i} onClick={() => onToast('FAQ: ' + q)}
-            style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'17px 0', border:'none', background:'transparent', cursor:'pointer', textAlign:'left', borderBottom: i < faqs.length - 1 ? '1px solid #EDEBE8' : 'none', gap:12, transition:'background 0.15s' }}
+            style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'17px 0', border:'none', background:'transparent', cursor:'pointer', textAlign:'left', borderBottom: i < faqs.length - 1 ? '1px solid #EDE4D8' : 'none', gap:12, transition:'background 0.15s' }}
             onMouseEnter={e => e.currentTarget.style.background='#FDFAF7'}
             onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-            <span style={{ fontSize:14, color:'#1A1A1A', lineHeight:1.4, fontWeight:400 }}>{q}</span>
+            <span style={{ fontSize:14, color:'#2C1A0E', lineHeight:1.4, fontWeight:400 }}>{q}</span>
             <IconChevR />
           </button>
         ))}
       </div>
       <div style={{ height:8, background:'#F0EBE4', margin:'0 -16px' }} />
       <div style={{ padding:'20px 0 8px' }}>
-        <div style={{ fontSize:16, fontWeight:700, color:'#1A1A1A', marginBottom:10 }}>Recent Queries</div>
+        <div style={{ fontSize:16, fontWeight:700, color:'#2C1A0E', marginBottom:10 }}>Recent Queries</div>
         <div style={{ fontSize:13, color:'#9C7A63', lineHeight:1.6, marginBottom:20 }}>No recent queries raised in the last 30 days.</div>
         <button onClick={() => onToast('No older queries found')}
-          style={{ width:'100%', padding:'15px', borderRadius:10, border:'1.5px solid #CCBFB5', background:'white', color:'#1A1A1A', fontSize:13, fontWeight:700, cursor:'pointer', letterSpacing:'0.06em', transition:'background 0.15s' }}
+          style={{ width:'100%', padding:'15px', borderRadius:10, border:'1.5px solid #CCBFB5', background:'white', color:'#2C1A0E', fontSize:13, fontWeight:700, cursor:'pointer', letterSpacing:'0.06em', transition:'background 0.15s' }}
           onMouseEnter={e => e.currentTarget.style.background='#FAF7F2'}
           onMouseLeave={e => e.currentTarget.style.background='white'}>
           SHOW OLDER QUERIES
@@ -212,7 +212,7 @@ function HelpCenterPage({ onToast }) {
       </div>
       <div style={{ marginTop:8, padding:'16px', borderRadius:14, border:'1.5px solid #EDE4D8', background:'#FDF8F4', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
         <div>
-          <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A', marginBottom:2 }}>Still need help?</div>
+          <div style={{ fontSize:13, fontWeight:700, color:'#2C1A0E', marginBottom:2 }}>Still need help?</div>
           <div style={{ fontSize:12, color:'#9C7A63' }}>Chat or email our team</div>
         </div>
         <button onClick={() => onToast('Starting chat support…')}
@@ -463,7 +463,7 @@ function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdm
         <button onClick={onClose} style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'none', cursor:'pointer', padding:'4px 0', minWidth:40, minHeight:40, justifyContent:'flex-start' }}>
           <IconBack />
         </button>
-        <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:16, fontWeight:700, color:'#1A1A1A', letterSpacing:'-0.01em' }}>My Profile</div>
+        <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:16, fontWeight:700, color:'#2C1A0E', letterSpacing:'-0.01em' }}>My Profile</div>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={() => onToast('Account Balance: ₹0')} style={{ display:'flex', alignItems:'center', gap:5, background:'#F0FBF2', border:'none', borderRadius:99, padding:'6px 11px', cursor:'pointer' }}>
             <span style={{ fontSize:14 }}>🟢</span>
@@ -489,7 +489,7 @@ function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdm
             </div>
             <button onClick={() => onToast('Edit photo coming soon')} style={{ position:'absolute', bottom:0, right:0, width:26, height:26, borderRadius:'50%', background:'white', border:`2px solid ${TC}`, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, color:TC, fontWeight:700, lineHeight:1 }}>+</button>
           </div>
-          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:22, fontWeight:700, color:'#1A1A1A', marginBottom:14 }}>{name}</div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:22, fontWeight:700, color:'#2C1A0E', marginBottom:14 }}>{name}</div>
           {/* Membership badges */}
           <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
             <button onClick={() => onToast('Artisan Member perks!')} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:99, border:'1.5px solid rgba(196,112,74,0.3)', background:'rgba(255,255,255,0.72)', cursor:'pointer', backdropFilter:'blur(4px)' }}>
@@ -533,7 +533,7 @@ function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdm
         <div style={{ margin:'14px 14px 0', background:'white', borderRadius:16, padding:'16px 18px', border:'1px solid #EDE8E0' }}>
           <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
             <div style={{ color:'#6B4F3A' }}><IconGift /></div>
-            <span style={{ fontSize:14, fontWeight:700, color:'#1A1A1A' }}>Rewards & Coupons</span>
+            <span style={{ fontSize:14, fontWeight:700, color:'#2C1A0E' }}>Rewards & Coupons</span>
           </div>
           <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginBottom:10 }}>
             <RewardChip icon="🟢" label="Account Balance" onClick={() => onToast('Account Balance: ₹0')} />
@@ -673,7 +673,7 @@ export default function UserAccountModal() {
             <button onClick={() => setView('home')} style={{ background:'#F5F2EE', border:'none', borderRadius:'50%', width:36, height:36, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
               <IconBack />
             </button>
-            <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:16, fontWeight:700, color:'#1A1A1A' }}>{subTitles[view]}</div>
+            <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:16, fontWeight:700, color:'#2C1A0E' }}>{subTitles[view]}</div>
           </div>
           {/* Sub-page content */}
           <div style={{ flex:1, overflowY:'auto', padding:'18px 16px 32px' }} className="ua-no-scrollbar">
@@ -717,7 +717,7 @@ export default function UserAccountModal() {
 
       {/* Toast */}
       {toast && (
-        <div style={{ position:'fixed', bottom: isMobile ? 24 : 28, left:'50%', transform:'translateX(-50%)', zIndex:1400, background:'#1A1A1A', color:'white', borderRadius:12, padding:'12px 20px', fontSize:13, fontWeight:600, boxShadow:'0 8px 28px rgba(0,0,0,0.2)', display:'flex', alignItems:'center', gap:8, animation:'uaUp 0.22s ease', whiteSpace:'nowrap' }}>
+        <div style={{ position:'fixed', bottom: isMobile ? 24 : 28, left:'50%', transform:'translateX(-50%)', zIndex:1400, background:'#2C1A0E', color:'white', borderRadius:12, padding:'12px 20px', fontSize:13, fontWeight:600, boxShadow:'0 8px 28px rgba(0,0,0,0.2)', display:'flex', alignItems:'center', gap:8, animation:'uaUp 0.22s ease', whiteSpace:'nowrap' }}>
           <span style={{ color:TC }}>✓</span> {toast}
         </div>
       )}

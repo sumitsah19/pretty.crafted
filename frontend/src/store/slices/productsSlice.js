@@ -41,25 +41,21 @@ const normalize = (p) => ({
   reviewCount: p.reviewCount != null ? Number(p.reviewCount) : (p.ratingCount != null ? Number(p.ratingCount) : null),
 })
 
+// A request is "filtered" when the caller narrowed it (search/category). An empty
+// result there means a genuine "no matches" and must be shown as-is — falling back
+// to the demo catalog would fabricate products the user never searched for. The
+// demo list is only a bootstrap for an unfiltered, not-yet-seeded backend (and an
+// offline/error fallback so the store is never blank).
+const isFiltered = (params) => !!(params && (params.q || params.categoryId))
+
 export const fetchProducts = createAsyncThunk('products/fetch', async (params) => {
   try {
     const { data } = await productsApi.list(params)
     const raw = Array.isArray(data) ? data : data.content || []
-    if (!raw.length) return DEMO_PRODUCTS
+    if (!raw.length) return isFiltered(params) ? [] : DEMO_PRODUCTS
     return raw.map(normalize)
   } catch {
     return DEMO_PRODUCTS
-  }
-})
-
-export const fetchPopular = createAsyncThunk('products/popular', async () => {
-  try {
-    const { data } = await productsApi.popular()
-    const raw = Array.isArray(data) ? data : []
-    if (!raw.length) return DEMO_PRODUCTS.filter((p) => p.tag === 'Bestseller')
-    return raw.map(normalize)
-  } catch {
-    return DEMO_PRODUCTS.filter((p) => p.tag === 'Bestseller')
   }
 })
 
@@ -78,10 +74,8 @@ const productsSlice = createSlice({
   name: 'products',
   initialState: {
     items: DEMO_PRODUCTS,
-    popular: DEMO_PRODUCTS.filter((p) => p.tag === 'Bestseller'),
     hampers: DEMO_HAMPERS,
     loading: false,
-    isDemo: true,
   },
   reducers: {},
   extraReducers: (builder) => {
@@ -90,12 +84,8 @@ const productsSlice = createSlice({
       .addCase(fetchProducts.fulfilled, (state, action) => {
         state.loading = false
         state.items = action.payload
-        state.isDemo = action.payload === DEMO_PRODUCTS
       })
       .addCase(fetchProducts.rejected, (state) => { state.loading = false })
-      .addCase(fetchPopular.fulfilled, (state, action) => {
-        state.popular = action.payload
-      })
       .addCase(fetchHampers.fulfilled, (state, action) => {
         state.hampers = action.payload
       })
@@ -103,7 +93,6 @@ const productsSlice = createSlice({
 })
 
 export const selectProducts = (state) => state.products.items
-export const selectPopular = (state) => state.products.popular
 export const selectHampers = (state) => state.products.hampers
 export const selectProductsLoading = (state) => state.products.loading
 export default productsSlice.reducer

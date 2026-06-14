@@ -534,7 +534,7 @@ export default function GiftBoxModal() {
       {/* Floating close button */}
       <button
         onClick={() => dispatch(closeBoxBuilder())}
-        style={{ position: 'fixed', top: navH + 14, right: 20, zIndex: 1210, width: 36, height: 36, borderRadius: '50%', background: '#fff', border: '1px solid rgba(0,0,0,0.12)', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', cursor: 'pointer', fontSize: 20, color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+        style={{ position: 'fixed', top: navH + 14, right: 20, zIndex: 1210, width: 36, height: 36, borderRadius: '50%', background: '#fff', border: '1px solid rgba(0,0,0,0.12)', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', cursor: 'pointer', fontSize: 20, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
       >×</button>
 
       {/* ── FORM VIEW ─────────────────────────────────────────── */}
@@ -546,7 +546,7 @@ export default function GiftBoxModal() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px clamp(20px,5vw,72px)', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 18 }}>🎁</span>
-                <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', letterSpacing: '-0.01em', fontFamily: "'Playfair Display',serif" }}>Build Your Gift Box</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: '#2C1A0E', letterSpacing: '-0.01em', fontFamily: "'Playfair Display',serif" }}>Build Your Gift Box</span>
               </div>
               <button type="button" onClick={() => { dispatch(closeBoxBuilder()); dispatch(openHamperShop()) }}
                 style={{ padding: '9px 16px', borderRadius: 99, border: '1px solid rgba(196,112,74,0.35)', background: 'rgba(196,112,74,0.06)', cursor: 'pointer', color: TC, fontSize: 12, fontWeight: 600, fontFamily: 'inherit', letterSpacing: '0.01em', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -561,11 +561,11 @@ export default function GiftBoxModal() {
               {selectedCard ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 28, height: 28, borderRadius: 6, background: selectedCard.imageUrl ? `#EDE4D8 url(${selectedCard.imageUrl}) center/cover` : selectedCard.cover, flexShrink: 0 }} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', fontFamily: "'Playfair Display',serif" }}>{selectedCard.title}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#2C1A0E', fontFamily: "'Playfair Display',serif" }}>{selectedCard.title}</span>
                   <span style={{ fontSize: 11, color: TC, fontWeight: 500 }}>✓ Selected</span>
                 </div>
               ) : (
-                <span style={{ fontSize: 13, color: '#aaa', fontWeight: 500 }}>Please select a box from below</span>
+                <span style={{ fontSize: 13, color: '#9C7A63', fontWeight: 500 }}>Please select a box from below</span>
               )}
             </div>
 
@@ -603,17 +603,17 @@ export default function GiftBoxModal() {
                         window.__swt = setTimeout(() => setSizeWarning(null), 3500)
                       }
                       setBoxSize(s)
-                    }} style={{ flex: 1, padding: '9px 0', borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: boxSize === s ? 600 : 400, background: boxSize === s ? 'rgba(0,0,0,0.09)' : 'transparent', color: boxSize === s ? '#1a1a1a' : '#888', transition: 'all 0.2s', boxShadow: boxSize === s ? '0 1px 3px rgba(0,0,0,0.12)' : 'none' }}>{s}</button>
+                    }} style={{ flex: 1, padding: '9px 0', borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: boxSize === s ? 600 : 400, background: boxSize === s ? 'rgba(0,0,0,0.09)' : 'transparent', color: boxSize === s ? '#2C1A0E' : '#9C7A63', transition: 'all 0.2s', boxShadow: boxSize === s ? '0 1px 3px rgba(0,0,0,0.12)' : 'none' }}>{s}</button>
                   )
                 })}
               </div>
               {/* Counter + price */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, padding: '0 2px' }}>
                 <span style={{ fontSize: 12 }}>
-                  <span style={{ color: selectedProducts.length >= BOX_MAX ? GOLD : '#1a1a1a', fontWeight: 700 }}>{selectedProducts.length}</span>
-                  <span style={{ color: '#888' }}>/{BOX_MAX} Items</span>
+                  <span style={{ color: selectedProducts.length >= BOX_MAX ? GOLD : '#2C1A0E', fontWeight: 700 }}>{selectedProducts.length}</span>
+                  <span style={{ color: '#9C7A63' }}>/{BOX_MAX} Items</span>
                 </span>
-                <span style={{ fontSize: 11, color: '#888' }}>{boxConfig[boxSize].desc}</span>
+                <span style={{ fontSize: 11, color: '#9C7A63' }}>{boxConfig[boxSize].desc}</span>
                 <span style={{ fontSize: 13, color: GOLD, fontWeight: 700 }}>{fmtInr(boxPrice)}</span>
               </div>
             </div>
@@ -628,9 +628,9 @@ export default function GiftBoxModal() {
             {/* Box slots preview */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <p style={{ fontSize: 11, color: '#888', margin: 0, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Box Preview</p>
+                <p style={{ fontSize: 11, color: '#9C7A63', margin: 0, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Box Preview</p>
                 {selectedCard && <p style={{ fontSize: 12, color: GOLD, margin: 0, fontWeight: 500 }}>{selectedCard.title}</p>}
-                <span style={{ fontSize: 11, color: selectedProducts.length >= BOX_MAX ? GOLD : '#888' }}>{selectedProducts.length}/{BOX_MAX} slots filled</span>
+                <span style={{ fontSize: 11, color: selectedProducts.length >= BOX_MAX ? GOLD : '#9C7A63' }}>{selectedProducts.length}/{BOX_MAX} slots filled</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${BOX_MAX <= 2 ? 2 : 3}, 1fr)`, gap: 8 }}>
                 {Array.from({ length: BOX_MAX }).map((_, i) => (
@@ -639,12 +639,12 @@ export default function GiftBoxModal() {
                       <>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                           <span style={{ fontSize: 11, color: GOLD, fontWeight: 500, lineHeight: 1.3 }}>{selectedProducts[i].name}</span>
-                          <span style={{ fontSize: 10, color: '#888' }}>{fmtInr(selectedProducts[i].price)}</span>
+                          <span style={{ fontSize: 10, color: '#9C7A63' }}>{fmtInr(selectedProducts[i].price)}</span>
                         </div>
                         <button type="button" onClick={() => setSelectedProducts(prev => prev.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 4, right: 4, width: 14, height: 14, borderRadius: '50%', background: 'rgba(212,155,35,0.3)', border: 'none', cursor: 'pointer', color: GOLD, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
                       </>
                     ) : (
-                      <span style={{ fontSize: 11, color: '#888' }}>Slot {i + 1}</span>
+                      <span style={{ fontSize: 11, color: '#9C7A63' }}>Slot {i + 1}</span>
                     )}
                   </div>
                 ))}
@@ -653,11 +653,11 @@ export default function GiftBoxModal() {
 
             {/* Recipient pills */}
             <div>
-              <p style={{ fontSize: 11, color: '#888', margin: '0 0 10px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Recipient</p>
+              <p style={{ fontSize: 11, color: '#9C7A63', margin: '0 0 10px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Recipient</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {[['everyone', 'For Everyone'], ['her', 'For Her'], ['him', 'For Him'], ['kids', 'For Kids']].map(([val, label]) => (
                   <button key={val} type="button" onClick={() => { setRecipient(val); setSelectedProducts([]); setActiveCategory(null) }}
-                    style={{ padding: '7px 16px', borderRadius: 99, border: `1px solid ${recipient === val ? GOLD : 'rgba(0,0,0,0.1)'}`, background: recipient === val ? 'rgba(192,138,30,0.12)' : 'transparent', color: recipient === val ? GOLD : '#555', fontSize: 13, fontWeight: recipient === val ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.17s' }}>
+                    style={{ padding: '7px 16px', borderRadius: 99, border: `1px solid ${recipient === val ? GOLD : 'rgba(0,0,0,0.1)'}`, background: recipient === val ? 'rgba(192,138,30,0.12)' : 'transparent', color: recipient === val ? GOLD : '#6B4F3A', fontSize: 13, fontWeight: recipient === val ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.17s' }}>
                     {label}
                   </button>
                 ))}
@@ -666,16 +666,16 @@ export default function GiftBoxModal() {
 
             {/* Category pills */}
             <div>
-              <p style={{ fontSize: 11, color: '#888', margin: '0 0 10px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Category</p>
+              <p style={{ fontSize: 11, color: '#9C7A63', margin: '0 0 10px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Category</p>
               <div ref={productRef} className={shakeProds ? 'pc-shake' : ''} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button type="button" onClick={() => setActiveCategory(null)}
-                  style={{ flexShrink: 0, padding: '7px 16px', borderRadius: 99, border: `1.5px solid ${!activeCategory ? GOLD : 'rgba(0,0,0,0.1)'}`, background: !activeCategory ? 'rgba(192,138,30,0.12)' : '#fff', color: !activeCategory ? GOLD : '#555', fontWeight: !activeCategory ? 700 : 400, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.17s', boxShadow: !activeCategory ? '0 0 0 1px rgba(192,138,30,0.25)' : 'none' }}>All</button>
+                  style={{ flexShrink: 0, padding: '7px 16px', borderRadius: 99, border: `1.5px solid ${!activeCategory ? GOLD : 'rgba(0,0,0,0.1)'}`, background: !activeCategory ? 'rgba(192,138,30,0.12)' : '#fff', color: !activeCategory ? GOLD : '#6B4F3A', fontWeight: !activeCategory ? 700 : 400, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.17s', boxShadow: !activeCategory ? '0 0 0 1px rgba(192,138,30,0.25)' : 'none' }}>All</button>
                 <div className="gb-pills" style={{ display: 'flex', gap: 8, overflowX: 'auto', flex: 1, scrollbarWidth: 'none', maskImage: 'linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%)', paddingBottom: 2 }}>
                   {categories.map(cat => {
                     const isActive = activeCategory === cat
                     return (
                       <button key={cat} type="button" onClick={() => setActiveCategory(isActive ? null : cat)}
-                        style={{ flexShrink: 0, padding: '7px 16px', borderRadius: 99, border: `1.5px solid ${isActive ? GOLD : 'rgba(0,0,0,0.1)'}`, background: isActive ? 'rgba(192,138,30,0.12)' : '#fff', color: isActive ? GOLD : '#555', fontWeight: isActive ? 700 : 400, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.17s', boxShadow: isActive ? '0 0 0 1px rgba(192,138,30,0.25)' : 'none', whiteSpace: 'nowrap' }}>
+                        style={{ flexShrink: 0, padding: '7px 16px', borderRadius: 99, border: `1.5px solid ${isActive ? GOLD : 'rgba(0,0,0,0.1)'}`, background: isActive ? 'rgba(192,138,30,0.12)' : '#fff', color: isActive ? GOLD : '#6B4F3A', fontWeight: isActive ? 700 : 400, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.17s', boxShadow: isActive ? '0 0 0 1px rgba(192,138,30,0.25)' : 'none', whiteSpace: 'nowrap' }}>
                         {cat}
                       </button>
                     )
@@ -687,7 +687,7 @@ export default function GiftBoxModal() {
             {/* Product grid */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 10px' }}>
-                <p style={{ fontSize: 11, color: '#888', margin: 0, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Choose Product</p>
+                <p style={{ fontSize: 11, color: '#9C7A63', margin: 0, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Choose Product</p>
                 <button type="button" onClick={() => setShowAllProducts(v => !v)}
                   style={{ fontSize: 11, fontWeight: 600, color: TC, background: 'rgba(196,112,74,0.08)', border: '1px solid rgba(196,112,74,0.25)', borderRadius: 99, padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
                   onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(196,112,74,0.16)' }}
@@ -720,7 +720,7 @@ export default function GiftBoxModal() {
                           ? <img src={p.imageUrl} alt={p.name} draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                           : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34 }}>{p.emoji}</div>}
                         {p.tag && (
-                          <span style={{ position: 'absolute', top: 8, left: 8, padding: '3px 8px', borderRadius: 6, background: '#1a1a1a', color: '#fff', fontSize: 9, fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>
+                          <span style={{ position: 'absolute', top: 8, left: 8, padding: '3px 8px', borderRadius: 6, background: '#2C1A0E', color: '#fff', fontSize: 9, fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>
                             {p.tag === 'New' ? 'New In' : p.tag}
                           </span>
                         )}
@@ -730,19 +730,19 @@ export default function GiftBoxModal() {
                           </div>
                         )}
                       </div>
-                      <h4 style={{ margin: '0 0 4px', textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', fontFamily: "'Playfair Display',serif", lineHeight: 1.3 }}>{p.name}</h4>
+                      <h4 style={{ margin: '0 0 4px', textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: '#2C1A0E', fontFamily: "'Playfair Display',serif", lineHeight: 1.3 }}>{p.name}</h4>
                       {rating != null && (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginBottom: 4 }}>
                           <span style={{ position: 'relative', display: 'inline-block', fontSize: 10, lineHeight: 1, letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
                             <span style={{ color: 'rgba(0,0,0,0.16)' }}>★★★★★</span>
                             <span style={{ position: 'absolute', left: 0, top: 0, width: pct + '%', overflow: 'hidden', color: '#C08A1E' }}>★★★★★</span>
                           </span>
-                          {reviews != null && <span style={{ fontSize: 10, color: '#555', whiteSpace: 'nowrap' }}>({reviews})</span>}
+                          {reviews != null && <span style={{ fontSize: 10, color: '#6B4F3A', whiteSpace: 'nowrap' }}>({reviews})</span>}
                         </div>
                       )}
                       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 5, whiteSpace: 'nowrap' }}>
-                        {hasMrp && <span style={{ fontSize: 10.5, color: '#888', textDecoration: 'line-through' }}>{fmtInr(orig)}</span>}
-                        <span style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a' }}>{fmtInr(p.price)}</span>
+                        {hasMrp && <span style={{ fontSize: 10.5, color: '#9C7A63', textDecoration: 'line-through' }}>{fmtInr(orig)}</span>}
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#2C1A0E' }}>{fmtInr(p.price)}</span>
                         {save > 0 && <span style={{ fontSize: 10.5, fontWeight: 600, color: '#dc2626' }}>{save}% off</span>}
                       </div>
                     </div>
@@ -753,7 +753,7 @@ export default function GiftBoxModal() {
 
             {/* Continue button */}
             <button type="button" onClick={handleContinue}
-              style={{ height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: selectedCard && selectedProducts.length >= 1 ? 'linear-gradient(135deg,#C4704A,#B05F3C)' : 'rgba(0,0,0,0.08)', color: selectedCard && selectedProducts.length >= 1 ? '#fff' : '#888', border: 'none', borderRadius: 11, cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: selectedCard && selectedProducts.length >= 1 ? '0 4px 16px rgba(196,112,74,0.35)' : 'none', transition: 'all 0.3s' }}>
+              style={{ height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: selectedCard && selectedProducts.length >= 1 ? 'linear-gradient(135deg,#C4704A,#B05F3C)' : 'rgba(0,0,0,0.08)', color: selectedCard && selectedProducts.length >= 1 ? '#fff' : '#9C7A63', border: 'none', borderRadius: 11, cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', boxShadow: selectedCard && selectedProducts.length >= 1 ? '0 4px 16px rgba(196,112,74,0.35)' : 'none', transition: 'all 0.3s' }}>
               ✦ Continue
             </button>
           </div>
@@ -785,11 +785,11 @@ export default function GiftBoxModal() {
 
           {/* Products inside */}
           <div>
-            <p style={{ fontSize: 11, color: '#888', margin: '0 0 8px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <p style={{ fontSize: 11, color: '#9C7A63', margin: '0 0 8px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               In Your Box · {selectedProducts.length} item{selectedProducts.length !== 1 ? 's' : ''}
             </p>
             {selectedProducts.length === 0 ? (
-              <p style={{ fontSize: 12, color: '#888', margin: 0 }}>No products selected yet.</p>
+              <p style={{ fontSize: 12, color: '#9C7A63', margin: 0 }}>No products selected yet.</p>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(selectedProducts.length, 4)}, 1fr)`, gap: 8 }}>
                 {selectedProducts.map((prod) => (
@@ -799,8 +799,8 @@ export default function GiftBoxModal() {
                         ? <img src={prod.imageUrl} alt={prod.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                         : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>{prod.emoji}</div>}
                     </div>
-                    <span style={{ fontSize: 11, color: '#555', lineHeight: 1.25, textAlign: 'center', wordBreak: 'break-word' }}>{prod.name}</span>
-                    <span style={{ fontSize: 11, color: '#888', textAlign: 'center' }}>{fmtInr(prod.price)}</span>
+                    <span style={{ fontSize: 11, color: '#6B4F3A', lineHeight: 1.25, textAlign: 'center', wordBreak: 'break-word' }}>{prod.name}</span>
+                    <span style={{ fontSize: 11, color: '#9C7A63', textAlign: 'center' }}>{fmtInr(prod.price)}</span>
                   </div>
                 ))}
               </div>
@@ -809,15 +809,15 @@ export default function GiftBoxModal() {
 
           {/* Wrap selection */}
           <div>
-            <p style={{ fontSize: 11, color: '#888', margin: '0 0 8px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Gift Wrap</p>
+            <p style={{ fontSize: 11, color: '#9C7A63', margin: '0 0 8px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Gift Wrap</p>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 8 }}>
               {wraps.map(w => {
                 const on = wrapType === w.key
                 return (
                   <button key={w.key} type="button" onClick={() => setWrapType(w.key)}
                     style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '9px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', border: `1.5px solid ${on ? TC : 'rgba(0,0,0,0.1)'}`, background: on ? 'rgba(196,112,74,0.07)' : '#fff', transition: 'all 0.17s' }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: on ? TC : '#1a1a1a' }}>{w.name}</span>
-                    <span style={{ fontSize: 11, color: '#888' }}>{w.price === 0 ? 'Free' : `+${fmtInr(w.price)}`}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: on ? TC : '#2C1A0E' }}>{w.name}</span>
+                    <span style={{ fontSize: 11, color: '#9C7A63' }}>{w.price === 0 ? 'Free' : `+${fmtInr(w.price)}`}</span>
                   </button>
                 )
               })}
@@ -827,30 +827,30 @@ export default function GiftBoxModal() {
           {/* Gift message */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 8px' }}>
-              <p style={{ fontSize: 11, color: '#888', margin: 0, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Gift Message <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></p>
-              <span style={{ fontSize: 11, color: giftMessage.length >= MSG_MAX ? GOLD : '#888' }}>{giftMessage.length}/{MSG_MAX}</span>
+              <p style={{ fontSize: 11, color: '#9C7A63', margin: 0, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Gift Message <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span></p>
+              <span style={{ fontSize: 11, color: giftMessage.length >= MSG_MAX ? GOLD : '#9C7A63' }}>{giftMessage.length}/{MSG_MAX}</span>
             </div>
             <textarea value={giftMessage} onChange={(e) => setGiftMessage(e.target.value.slice(0, MSG_MAX))} maxLength={MSG_MAX}
               rows={3} placeholder="Add a personal note to include in the box…"
-              style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', padding: '10px 12px', borderRadius: 10, border: '1.5px solid rgba(0,0,0,0.1)', fontSize: 13, fontFamily: 'inherit', color: '#1a1a1a', outline: 'none', lineHeight: 1.4 }}
+              style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', padding: '10px 12px', borderRadius: 10, border: '1.5px solid rgba(0,0,0,0.1)', fontSize: 13, fontFamily: 'inherit', color: '#2C1A0E', outline: 'none', lineHeight: 1.4 }}
               onFocus={(e) => e.target.style.borderColor = TC} onBlur={(e) => e.target.style.borderColor = 'rgba(0,0,0,0.1)'} />
           </div>
 
           {/* Price summary — same breakdown the backend returns in GiftBoxDto */}
           <div style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.03)', borderRadius: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#555' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B4F3A' }}>
               <span>{boxSize} box{selectedCard?.title ? ` · ${selectedCard.title}` : ''}</span>
               <span>{fmtInr(basePrice)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#555' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B4F3A' }}>
               <span>Gift wrap</span>
               <span>{wrapPrice === 0 ? 'Free' : fmtInr(wrapPrice)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#555' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#6B4F3A' }}>
               <span>{selectedProducts.length} item{selectedProducts.length !== 1 ? 's' : ''}</span>
               <span>{fmtInr(productsTotal)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#1a1a1a', borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: 6, marginTop: 2 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#2C1A0E', borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: 6, marginTop: 2 }}>
               <span>Total</span>
               <span>{fmtInr(boxPrice)}</span>
             </div>
@@ -858,9 +858,9 @@ export default function GiftBoxModal() {
 
           {/* Action buttons */}
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => { setView('form'); setError('') }} style={{ flex: 1, height: 38, borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)', background: 'transparent', color: '#1a1a1a', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Back to Settings</button>
+            <button onClick={() => { setView('form'); setError('') }} style={{ flex: 1, height: 38, borderRadius: 10, border: '1px solid rgba(0,0,0,0.1)', background: 'transparent', color: '#2C1A0E', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Back to Settings</button>
             <button onClick={handleAddToCart} disabled={saving}
-              style={{ flex: 1.4, height: 38, borderRadius: 10, border: 'none', background: saving ? 'rgba(0,0,0,0.08)' : 'linear-gradient(135deg,#C4704A,#B05F3C)', color: saving ? '#888' : '#fff', fontSize: 13, cursor: saving ? 'default' : 'pointer', fontFamily: 'inherit', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: saving ? 'none' : '0 4px 16px rgba(196,112,74,0.3)', transition: 'all 0.2s' }}>
+              style={{ flex: 1.4, height: 38, borderRadius: 10, border: 'none', background: saving ? 'rgba(0,0,0,0.08)' : 'linear-gradient(135deg,#C4704A,#B05F3C)', color: saving ? '#9C7A63' : '#fff', fontSize: 13, cursor: saving ? 'default' : 'pointer', fontFamily: 'inherit', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: saving ? 'none' : '0 4px 16px rgba(196,112,74,0.3)', transition: 'all 0.2s' }}>
               {saving ? 'Adding…' : `Add to Cart · ${fmtInr(boxPrice)}`}
             </button>
           </div>

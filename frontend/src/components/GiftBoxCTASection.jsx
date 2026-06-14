@@ -409,7 +409,7 @@ export default function GiftBoxCTASection({ isHero = true }) {
           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: TC, margin: '0 0 14px' }}>
             CRAFTED WITH LOVE
           </p>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: mobile ? 'clamp(22px,6vw,32px)' : 'clamp(28px,3.5vw,44px)', fontWeight: 700, lineHeight: 1.12, color: '#1a1a1a', margin: '0 0 10px', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: mobile ? 'clamp(22px,6vw,32px)' : 'clamp(28px,3.5vw,44px)', fontWeight: 700, lineHeight: 1.12, color: '#2C1A0E', margin: '0 0 10px', letterSpacing: '-0.02em' }}>
             Gifts That Feel Like a Hug
           </h2>
           <p style={{ fontSize: mobile ? 14 : 15, fontStyle: 'italic', color: TC, margin: 0 }}>
@@ -424,7 +424,7 @@ export default function GiftBoxCTASection({ isHero = true }) {
           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: TC, margin: '0 0 14px' }}>
             BUILD YOUR OWN BOX
           </p>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: mobile ? 'clamp(22px,6vw,32px)' : 'clamp(28px,3.5vw,44px)', fontWeight: 700, lineHeight: 1.12, color: '#1a1a1a', margin: '0 0 10px', letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: mobile ? 'clamp(22px,6vw,32px)' : 'clamp(28px,3.5vw,44px)', fontWeight: 700, lineHeight: 1.12, color: '#2C1A0E', margin: '0 0 10px', letterSpacing: '-0.02em' }}>
             A Box as Unique as Your Moment
           </h2>
           <p style={{ fontSize: mobile ? 14 : 15, fontStyle: 'italic', color: TC, margin: 0 }}>

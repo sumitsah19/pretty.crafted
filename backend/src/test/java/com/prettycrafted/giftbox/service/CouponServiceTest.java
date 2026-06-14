@@ -70,19 +70,34 @@ class CouponServiceTest {
     void redeem_freeFormExpiryLabelNeverExpires() {
         Coupon c = coupon(10); // expiresOn = "No expiry"
         when(repo.findByCodeIgnoreCase("FESTIVE10")).thenReturn(Optional.of(c));
+        when(repo.incrementUsesIfAvailable(1L)).thenReturn(1);
         assertEquals(new BigDecimal("10.00"), service.redeem("FESTIVE10", new BigDecimal("100.00")));
     }
 
     @Test
-    void redeem_computesRoundedDiscountAndIncrementsUses() {
+    void redeem_computesRoundedDiscountAndRecordsUseAtomically() {
         Coupon c = coupon(15);
         when(repo.findByCodeIgnoreCase("festive10")).thenReturn(Optional.of(c));
+        when(repo.incrementUsesIfAvailable(1L)).thenReturn(1);
 
         // 15% of 333.33 = 49.9995 → rounds to 50.00, never truncates to 49.99
         BigDecimal discount = service.redeem("festive10", new BigDecimal("333.33"));
 
         assertEquals(new BigDecimal("50.00"), discount);
-        assertEquals(1, c.getUses());
+        verify(repo).incrementUsesIfAvailable(1L); // atomic, not an in-memory mutation
+    }
+
+    @Test
+    void redeem_throwsWhenIncrementLosesRace() {
+        // Passes the up-front check, but a concurrent order grabbed the last use
+        // first — the atomic UPDATE matches no row and reports it as exhausted.
+        Coupon c = coupon(10);
+        c.setMaxUses(2);
+        when(repo.findByCodeIgnoreCase("FESTIVE10")).thenReturn(Optional.of(c));
+        when(repo.incrementUsesIfAvailable(1L)).thenReturn(0);
+
+        assertThrows(ConflictException.class,
+            () -> service.redeem("FESTIVE10", new BigDecimal("100.00")));
     }
 
     // ─── Validate (no use consumed) ───────────────────────────────────────────
@@ -96,5 +111,54 @@ class CouponServiceTest {
 
         assertEquals(10, dto.discountPercent());
         assertEquals(0, c.getUses());
+    }
+
+    // ─── previewDiscount (validate + amount, no use consumed) ──────────────────
+
+    @Test
+    void previewDiscount_computesDiscountWithoutConsumingUse() {
+        Coupon c = coupon(15);
+        when(repo.findByCodeIgnoreCase("FESTIVE10")).thenReturn(Optional.of(c));
+
+        // Same rounding as redeem, but the use count must stay untouched.
+        BigDecimal discount = service.previewDiscount("FESTIVE10", new BigDecimal("333.33"));
+
+        assertEquals(new BigDecimal("50.00"), discount);
+        assertEquals(0, c.getUses());
+    }
+
+    @Test
+    void previewDiscount_throwsWhenMaxUsesExhausted() {
+        Coupon c = coupon(10);
+        c.setMaxUses(5);
+        c.setUses(5);
+        when(repo.findByCodeIgnoreCase("FESTIVE10")).thenReturn(Optional.of(c));
+        assertThrows(ConflictException.class,
+            () -> service.previewDiscount("FESTIVE10", new BigDecimal("100.00")));
+    }
+
+    // ─── consume (record one redemption at payment confirmation) ───────────────
+
+    @Test
+    void consume_incrementsUses() {
+        Coupon c = coupon(10);
+        when(repo.findByCodeIgnoreCase("FESTIVE10")).thenReturn(Optional.of(c));
+
+        service.consume("FESTIVE10");
+
+        verify(repo).incrementUses(1L); // atomic, unconditional (records reality)
+    }
+
+    @Test
+    void consume_isNoOpForNullOrBlankCode() {
+        service.consume(null);
+        service.consume("   ");
+        verifyNoInteractions(repo);
+    }
+
+    @Test
+    void consume_isSilentWhenCouponNoLongerExists() {
+        when(repo.findByCodeIgnoreCase("GONE")).thenReturn(Optional.empty());
+        assertDoesNotThrow(() -> service.consume("GONE"));
     }
 }

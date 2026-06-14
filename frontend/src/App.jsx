@@ -221,7 +221,7 @@ export default function App() {
 
         {/* Offline banner */}
         {!isOnline && (
-          <div style={{ background: '#1F2937', color: 'white', textAlign: 'center', padding: '10px 20px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <div style={{ background: '#2C1A0E', color: 'white', textAlign: 'center', padding: '10px 20px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <span>📡</span> You're offline — browsing cached content. Some features may be unavailable.
           </div>
         )}

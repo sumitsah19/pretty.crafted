@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { selectCart, clearCart, removeBox } from '../../store/slices/cartSlice'
+import { selectCart, clearCart, removeBox, removeLocal } from '../../store/slices/cartSlice'
 import { closeCheckout, openLogin } from '../../store/slices/uiSlice'
 import { selectIsLoggedIn } from '../../store/slices/authSlice'
 import { ordersApi, cartApi, couponApi, giftBoxApi } from '../../api/services'
@@ -119,7 +119,11 @@ export default function CheckoutModal() {
       const { data } = await giftBoxApi.list()
       serverBoxes = Array.isArray(data) ? data : []
     } catch {
-      // Can't verify — fail safe rather than risk charging for a removed box.
+      // Can't verify. If the cart actually has boxes, fail safe rather than risk
+      // charging for a removed one. If it has none, a transient gift-box service
+      // blip must not block a product-only checkout — proceed (there's nothing
+      // local to charge; any stray server box is cleaned on a later successful run).
+      if (boxes.length === 0) return true
       setOrderError('Could not verify your gift boxes. Please try again.')
       return false
     }
@@ -178,11 +182,12 @@ export default function CheckoutModal() {
       } else {
         // Make sure the server's gift boxes match the cart before the order is
         // built from them — a box removed locally must not be charged, and a box
-        // that vanished server-side must not be silently ordered.
-        if (boxes.length > 0) {
-          const ok = await reconcileBoxes()
-          if (!ok) { setPlacing(false); return }
-        }
+        // that vanished server-side must not be silently ordered. Always run this,
+        // even with no local boxes: the order is built from the server's IN_CART
+        // set, so a stray box (a delete that never landed) would otherwise be
+        // silently ordered and charged.
+        const ok = await reconcileBoxes()
+        if (!ok) { setPlacing(false); return }
 
         // Non-destructive cart sync: fetch server cart and apply minimal diffs
         const serverRes = await cartApi.get()
@@ -194,17 +199,37 @@ export default function CheckoutModal() {
         const localByProduct = new Map()
         for (const li of items) localByProduct.set(Number(li.product.id), li.qty)
 
-        // Add or update local items on server
+        // Add or update local items on server. A product deleted from the catalog
+        // since it was added to the cart 404s here — drop it locally and flag for
+        // review rather than aborting the whole checkout with an opaque
+        // "Product not found" error the user can't act on.
+        const vanishedItems = []
         for (const [productId, qty] of localByProduct.entries()) {
           const serverItem = serverByProduct.get(productId)
-          if (serverItem) {
-            if (serverItem.quantity !== qty) {
-              await cartApi.update(serverItem.id, qty)
+          try {
+            if (serverItem) {
+              if (serverItem.quantity !== qty) {
+                await cartApi.update(serverItem.id, qty)
+              }
+              serverByProduct.delete(productId)
+            } else {
+              await cartApi.add(productId, qty)
             }
-            serverByProduct.delete(productId)
-          } else {
-            await cartApi.add(productId, qty)
+          } catch (e) {
+            if (e.response?.status === 404) {
+              vanishedItems.push(productId)
+              dispatch(removeLocal(productId))
+              serverByProduct.delete(productId)
+            } else {
+              throw e
+            }
           }
+        }
+
+        if (vanishedItems.length > 0) {
+          setOrderError('Some items in your cart are no longer available and were removed. Please review your order.')
+          setPlacing(false)
+          return
         }
 
         // Any remaining server items are not present locally — remove them

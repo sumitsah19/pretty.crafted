@@ -56,12 +56,45 @@ public class CouponService {
 
     /**
      * Consumes one use of the coupon and returns the discount for the given
-     * subtotal. Called from order placement, inside the same transaction, so a
-     * failed order does not burn a use.
+     * subtotal. Used for payment methods that finalise at placement (COD): the
+     * order is committed in the same transaction, so a failed order does not
+     * burn a use. For online payments the order is still unpaid and may be
+     * abandoned — use {@link #previewDiscount} at placement and {@link #consume}
+     * at confirmation instead.
      */
     public BigDecimal redeem(String code, BigDecimal subtotal) {
         Coupon coupon = requireRedeemable(code);
-        coupon.setUses(coupon.getUses() + 1);
+        // Atomic, conditional increment — the single-statement guard closes the
+        // check-then-increment race when two orders redeem the last use at once.
+        if (repo.incrementUsesIfAvailable(coupon.getId()) == 0) {
+            throw new ConflictException("This coupon has been fully redeemed");
+        }
+        return discountFor(coupon, subtotal);
+    }
+
+    /**
+     * Validates the coupon and returns the discount WITHOUT consuming a use.
+     * Used at placement for online (Razorpay) payments, where the order may be
+     * abandoned before payment completes; the use is consumed only once the
+     * payment is confirmed (see {@link #consume}).
+     */
+    public BigDecimal previewDiscount(String code, BigDecimal subtotal) {
+        return discountFor(requireRedeemable(code), subtotal);
+    }
+
+    /**
+     * Records one redemption of an already-applied coupon, at payment
+     * confirmation. Best effort and non-throwing: the discount was validated and
+     * locked into the order at placement, so a paid order is never failed (or
+     * refunded) just because the coupon has since been exhausted or removed.
+     */
+    public void consume(String code) {
+        if (code == null || code.isBlank()) return;
+        repo.findByCodeIgnoreCase(code.trim())
+            .ifPresent(c -> repo.incrementUses(c.getId()));
+    }
+
+    private static BigDecimal discountFor(Coupon coupon, BigDecimal subtotal) {
         return subtotal
             .multiply(BigDecimal.valueOf(coupon.getDiscountPercent()))
             .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);

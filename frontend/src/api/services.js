@@ -18,10 +18,8 @@ export const authApi = {
 // Backend returns Page<ProductDto> for list — Spring Page shape: { content, totalElements, ... }
 export const productsApi = {
   list:    (params) => api.get('/products', { params }),
-  popular: ()       => api.get('/products/popular'),
   hampers: ()       => api.get('/products/hampers'),
   byId:    (id)     => api.get(`/products/${id}`),
-  search:  (q, filters) => api.get('/products', { params: { q, ...filters } }),
 }
 
 // ── CART ─────────────────────────────────────────────────────────
@@ -45,10 +43,6 @@ export const ordersApi = {
   byId:          (id)      => api.get(`/orders/${id}`),
   cancel:        (id)      => api.delete(`/orders/${id}`),
   verifyPayment: (id, payload) => api.post(`/orders/${id}/payment/verify`, payload),
-}
-
-export const paymentsApi = {
-  createOrder: ({ amount, currency = 'INR', receipt }) => api.post('/create-order', { amount, currency, receipt }),
 }
 
 // ── GIFT BOXES ───────────────────────────────────────────────────

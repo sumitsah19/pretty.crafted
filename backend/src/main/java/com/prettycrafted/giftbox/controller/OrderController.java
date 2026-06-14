@@ -7,6 +7,7 @@ import com.prettycrafted.giftbox.dto.VerifyPaymentRequest;
 import com.prettycrafted.giftbox.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
@@ -58,7 +60,20 @@ public class OrderController {
         try {
             service.applyPostPaymentActions(id, req.razorpayPaymentId());
         } catch (RuntimeException e) {
+            // The payment was captured (signature verified above) but the order
+            // could not be fulfilled — e.g. stock ran out after payment. Cancel it
+            // and refund the captured payment so the customer is never charged for
+            // an order they won't receive. Unlike the webhook (which Razorpay
+            // retries until the refund lands), this path runs once, so the refund
+            // is issued inline. Best effort: a refund failure leaves the order
+            // CANCELLED/FAILED for manual follow-up rather than masking the cause.
             service.markOrderCancelled(id);
+            try {
+                service.refundCapturedPaymentForCancelledOrder(id, req.razorpayPaymentId());
+            } catch (RuntimeException refundEx) {
+                log.error("verifyPayment: FAILED to auto-refund payment {} for order {} after a fulfillment "
+                        + "error — manual refund required: {}", req.razorpayPaymentId(), id, refundEx.getMessage());
+            }
             throw e;
         }
         return service.get(uid, id);

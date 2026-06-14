@@ -143,11 +143,17 @@ public class OrderService {
         }
 
         // Apply the coupon last, on the full subtotal, before the amount is sent
-        // to Razorpay. Redemption shares this transaction, so a failed placement
-        // does not burn a use.
+        // to Razorpay. For COD the order is final now, so the use is consumed in
+        // this same transaction (a failed placement rolls it back). For Razorpay
+        // the order is still unpaid and may be abandoned, so we only validate and
+        // lock in the discount here — the use is consumed at payment confirmation
+        // (applyPostPaymentActions), so abandoned online orders never burn a use.
         if (req.couponCode() != null && !req.couponCode().isBlank()) {
-            BigDecimal discount = couponService.redeem(req.couponCode(), total);
-            order.setCouponCode(req.couponCode().trim().toUpperCase());
+            String code = req.couponCode().trim().toUpperCase();
+            BigDecimal discount = isRazorpay
+                ? couponService.previewDiscount(code, total)
+                : couponService.redeem(code, total);
+            order.setCouponCode(code);
             order.setDiscountAmount(discount);
             total = total.subtract(discount);
         }
@@ -156,6 +162,14 @@ public class OrderService {
 
         String rzpOrderId = null;
         if (isRazorpay) {
+            // Razorpay rejects orders below its ₹1.00 (100 paise) minimum, which a
+            // deep discount (e.g. a 100%-off coupon) can produce. Fail fast with
+            // clear guidance instead of surfacing an opaque gateway error — a free
+            // or near-free order can still be placed as Cash on Delivery.
+            if (total.compareTo(BigDecimal.ONE) < 0) {
+                throw new BadRequestException(
+                    "This order total is below the ₹1 minimum for online payment. Please choose Cash on Delivery.");
+            }
             rzpOrderId = paymentService.createOrder(total);
             order.setRazorpayOrderId(rzpOrderId);
         }
@@ -239,6 +253,13 @@ public class OrderService {
         order.setPaymentStatus(PaymentStatus.SUCCESS);
         order.setStatus(OrderStatus.PAID);
         order.setRazorpayPaymentId(razorpayPaymentId);
+
+        // Consume the coupon now that payment is confirmed — deferred from
+        // placement so an abandoned online order never burns a use. The early
+        // return above (already SUCCESS) keeps this from double-counting on a
+        // retried verify/webhook.
+        couponService.consume(order.getCouponCode());
+
         orderRepo.save(order);
 
         Order confirmedOrder = order;
