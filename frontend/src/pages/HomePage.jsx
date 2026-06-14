@@ -231,8 +231,8 @@ export default function HomePage() {
           </div>
         </div>
         <div ref={carouselRef} className="no-scrollbar" style={{ display: 'flex', gap: isMobile ? 12 : 20, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 8 }}>
-          {bestsellers.concat(bestsellers).map((p, i) => (
-            <div key={i} style={{ scrollSnapAlign: 'start', flexShrink: 0, width: isMobile ? 170 : 220 }}>
+          {bestsellers.map(p => (
+            <div key={p.id} style={{ scrollSnapAlign: 'start', flexShrink: 0, width: isMobile ? 170 : 220 }}>
               <ProductCard product={p} onClick={() => dispatch(setActiveProduct(p))} />
             </div>
           ))}
