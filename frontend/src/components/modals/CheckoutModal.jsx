@@ -285,9 +285,11 @@ export default function CheckoutModal() {
             handler: async (response) => {
               try {
                 await ordersApi.verifyPayment(orderId, {
-                  razorpayOrderId: response.razorpay_order_id,
-                  razorpayPaymentId: response.razorpay_payment_id,
-                  razorpaySignature: response.razorpay_signature,
+                  // Backend's VerifyPaymentRequest binds snake_case keys (@JsonProperty),
+                  // which is also exactly how Razorpay names them — pass them through as-is.
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
                 })
                 resolve()
               } catch (verifyErr) {
