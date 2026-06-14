@@ -70,7 +70,7 @@ export default function App() {
 
   useEffect(() => {
     dispatch(fetchMe())
-    dispatch(fetchProducts())
+    dispatch(fetchProducts({ size: 100 }))
     dispatch(fetchHampers())
   }, [dispatch])
 
