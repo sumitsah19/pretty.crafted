@@ -49,7 +49,7 @@ function Sidebar({ active, setActive, collapsed, setCollapsed, isMobile, mobileO
         </div>
 
         {/* Nav items */}
-        <nav style={{ flex: 1, padding: '12px 0' }}>
+        <nav style={{ flex: 1, padding: '12px 0', overflowY: 'auto' }}>
           {NAV_ITEMS.map(item => {
             const isActive = active === item.id
             return (

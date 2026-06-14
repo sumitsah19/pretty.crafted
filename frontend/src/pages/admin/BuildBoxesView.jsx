@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { uploadApi, buildBoxAdminApi } from '../../api/services'
 import { TC, DARK, MID, LIGHT, BEIGE, CREAM, SectionHeader } from './shared'
 
 // ─── BUILD BOXES VIEW ──────────────────────────────────────────────
 // Curates the "Build Your Own Box" CoverFlow. Each box is an uploaded image with a
 // display order and active flag. Clicking a box on the storefront opens the box builder.
-export default function BuildBoxesView({ onToast }) {
+export default function BuildBoxesView({ onToast = () => {} }) {
   const [boxes, setBoxes] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -142,9 +143,9 @@ export default function BuildBoxesView({ onToast }) {
         )}
       </div>
 
-      {showForm && (
-        <div onClick={e => e.target === e.currentTarget && setShowForm(false)} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(44,26,14,0.45)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: CREAM, borderRadius: 24, padding: '32px 28px', width: '100%', maxWidth: 440, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(44,26,14,0.2)', animation: 'fadeUp 0.25s ease' }}>
+      {showForm && createPortal(
+        <div onClick={e => e.target === e.currentTarget && setShowForm(false)} style={{ position: 'fixed', inset: 0, zIndex: 1400, background: 'rgba(44,26,14,0.45)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: CREAM, borderRadius: 24, padding: '32px 28px', width: '100%', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(44,26,14,0.2)', animation: 'fadeUp 0.25s ease' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700 }}>{editItem ? 'Edit Box' : 'Add Box'}</div>
               <button onClick={() => { setShowForm(false); setEditItem(null) }} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
@@ -210,7 +211,7 @@ export default function BuildBoxesView({ onToast }) {
               {saving ? 'Saving…' : editItem ? 'Save Changes' : 'Add Box'}
             </button>
           </div>
-        </div>
+        </div>, document.body
       )}
     </div>
   )

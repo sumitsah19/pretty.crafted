@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { uploadApi, heroCardAdminApi, productsApi } from '../../api/services'
 import { TC, DARK, MID, LIGHT, BEIGE, CREAM, SAGE, SectionHeader } from './shared'
 
@@ -7,7 +8,7 @@ import { TC, DARK, MID, LIGHT, BEIGE, CREAM, SAGE, SectionHeader } from './share
 // real catalog product/hamper (picked from the live catalog), and reuses that
 // item's image. Because the card points at an existing product, that item also
 // shows up on the shop / hamper page and its detail opens when the card is clicked.
-export default function HeroCardsView({ onToast }) {
+export default function HeroCardsView({ onToast = () => {} }) {
   const [cards, setCards] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -164,9 +165,9 @@ export default function HeroCardsView({ onToast }) {
         )}
       </div>
 
-      {showForm && (
-        <div onClick={e => e.target === e.currentTarget && setShowForm(false)} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(44,26,14,0.45)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: CREAM, borderRadius: 24, padding: '32px 28px', width: '100%', maxWidth: 440, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(44,26,14,0.2)', animation: 'fadeUp 0.25s ease' }}>
+      {showForm && createPortal(
+        <div onClick={e => e.target === e.currentTarget && setShowForm(false)} style={{ position: 'fixed', inset: 0, zIndex: 1400, background: 'rgba(44,26,14,0.45)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: CREAM, borderRadius: 24, padding: '32px 28px', width: '100%', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(44,26,14,0.2)', animation: 'fadeUp 0.25s ease' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700 }}>{editItem ? 'Edit Hero Card' : 'Add Hero Card'}</div>
               <button onClick={() => { setShowForm(false); setEditItem(null) }} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
@@ -276,7 +277,7 @@ export default function HeroCardsView({ onToast }) {
               )
             })()}
           </div>
-        </div>
+        </div>, document.body
       )}
     </div>
   )

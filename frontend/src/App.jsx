@@ -10,6 +10,8 @@ import { promotionsApi } from './api/services'
 import ErrorBoundary from './components/ErrorBoundary'
 
 import Nav from './components/Nav'
+import HeroCardsView from './pages/admin/HeroCardsView'
+import BuildBoxesView from './pages/admin/BuildBoxesView'
 import SEO from './components/SEO'
 import HomePage from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
@@ -213,6 +215,10 @@ export default function App() {
     )
   }
 
+  // Dev-only admin routes (local debugging) — allow opening the admin views
+  // directly without authentication. Only enabled on localhost.
+  const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
   return (
     <ErrorBoundary>
       {/* Route-level SEO — updates on every navigation */}
@@ -294,6 +300,12 @@ export default function App() {
           />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsPage />} />
+          {isLocalhost && (
+            <>
+              <Route path="/__dev/admin/hero" element={<HeroCardsView />} />
+              <Route path="/__dev/admin/buildboxes" element={<BuildBoxesView />} />
+            </>
+          )}
         </Routes>
 
         {/* Modals — each in its own Suspense+ErrorBoundary so one crash

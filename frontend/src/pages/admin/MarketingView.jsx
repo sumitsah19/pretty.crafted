@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { couponAdminApi } from '../../api/services'
+import { useWindowWidth } from '../../hooks/useWindowWidth'
 import { TC, DARK, MID, LIGHT, BEIGE, CREAM, SectionHeader } from './shared'
 
 // ─── MARKETING VIEW ────────────────────────────────────────────────
@@ -17,6 +18,7 @@ export default function MarketingView({ onToast }) {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ code: '', value: '', expires: '' })
+  const isMobile = useWindowWidth() < 768
 
   useEffect(() => {
     couponAdminApi.list()
@@ -88,7 +90,7 @@ export default function MarketingView({ onToast }) {
 
         {/* New coupon form */}
         {showForm && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr auto', gap: 10, alignItems: 'end', marginBottom: 18, padding: '16px', background: CREAM, borderRadius: 14, border: `1px solid ${BEIGE}` }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.2fr 0.8fr 1fr auto', gap: 10, alignItems: 'end', marginBottom: 18, padding: '16px', background: CREAM, borderRadius: 14, border: `1px solid ${BEIGE}` }}>
             <div>
               <label style={{ fontSize: 10, fontWeight: 700, color: MID, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Code</label>
               <input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="WELCOME10" style={inp} />
@@ -101,15 +103,15 @@ export default function MarketingView({ onToast }) {
               <label style={{ fontSize: 10, fontWeight: 700, color: MID, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Expires</label>
               <input type="date" value={form.expires} onChange={e => setForm(f => ({ ...f, expires: e.target.value }))} style={{ ...inp, cursor: 'pointer' }} />
             </div>
-            <button onClick={createCoupon} disabled={saving} style={{ padding: '10px 20px', borderRadius: 99, border: 'none', background: saving ? BEIGE : TC, color: saving ? LIGHT : 'white', fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', height: 40 }}>{saving ? '…' : 'Add'}</button>
+            <button onClick={createCoupon} disabled={saving} style={{ padding: '10px 20px', borderRadius: 99, border: 'none', background: saving ? BEIGE : TC, color: saving ? LIGHT : 'white', fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', height: 40, width: isMobile ? '100%' : 'auto' }}>{saving ? '…' : 'Add'}</button>
           </div>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {coupons.map(c => (
-            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 16px', borderRadius: 14, background: c.active ? CREAM : '#F9F9F9', border: `1px solid ${BEIGE}`, opacity: busyId === c.id ? 0.6 : 1 }}>
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 16, flexWrap: 'wrap', padding: '14px 16px', borderRadius: 14, background: c.active ? CREAM : '#F9F9F9', border: `1px solid ${BEIGE}`, opacity: busyId === c.id ? 0.6 : 1 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontWeight: 700, fontSize: 16, color: TC, minWidth: 90 }}>{c.code}</div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 140 }}>
                 <div style={{ fontWeight: 600, color: DARK, fontSize: 13 }}>{c.disc}</div>
                 <div style={{ fontSize: 11, color: LIGHT }}>{c.uses} uses · Expires {c.expires}</div>
               </div>
