@@ -245,13 +245,14 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           userSelect: 'none', perspective: '1500px', perspectiveOrigin: 'center center',
           overflow: contained ? 'hidden' : 'visible', cursor: 'grab',
+          touchAction: 'pan-y', // allow native vertical scrolling and smoother touch handling
         }}
         onMouseDown={(e) => { e.preventDefault(); startDrag(e.clientX) }}
         onMouseMove={(e) => { if (isDraggingRef.current) { e.preventDefault(); moveDrag(e.clientX) } }}
         onMouseUp={endDrag} onMouseLeave={endDrag}
-        onTouchStart={(e) => startDrag(e.touches[0].clientX)}
-        onTouchMove={(e) => { e.preventDefault(); moveDrag(e.touches[0].clientX) }}
-        onTouchEnd={endDrag}
+        onTouchStart={(e) => { if (e.touches && e.touches[0]) startDrag(e.touches[0].clientX) }}
+        onTouchMove={(e) => { if (e.touches && e.touches[0]) moveDrag(e.touches[0].clientX) }}
+        onTouchEnd={endDrag} onTouchCancel={endDrag}
         onWheel={handleWheel}
       >
         {songs.map((song, index) => {
@@ -262,7 +263,7 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
             <div
               key={song.id}
               ref={getCardCb(index)}
-              style={{ position: 'absolute', userSelect: 'none', transformOrigin: 'center center', transformStyle: 'preserve-3d' }}
+              style={{ position: 'absolute', userSelect: 'none', transformOrigin: 'center center', transformStyle: 'preserve-3d', willChange: 'transform' }}
               onClick={() => {
                 if (!isDraggingRef.current && !dragMovedRef.current) {
                   pause()
@@ -351,7 +352,8 @@ export default function GiftBoxCTASection({ isHero = true }) {
     return () => { cancelled = true }
   }, [isHero])
 
-  const albumSize = mobile ? 140 : 172
+  // Make the hero cards slightly larger than the standalone "build" section
+  const albumSize = isHero ? (mobile ? 160 : 196) : (mobile ? 140 : 172)
 
   // Hero section maps hero-card DTOs into the CoverFlow's card shape; the build section maps
   // build-box DTOs. Either falls back to the gradient SONGS boxes when no admin cards exist.
@@ -379,15 +381,17 @@ export default function GiftBoxCTASection({ isHero = true }) {
     // Build-your-box section: every card is a box → open the builder.
     if (!isHero) { dispatch(openBoxBuilder()); return }
 
-    // Hero cards (real images) deep-link to a product or open the hamper shop.
+    // Hero cards (real images) deep-link to a product/hamper detail when linked,
+    // otherwise a HAMPER-type card falls back to the generic hamper shop.
     if (card.imageUrl) {
-      if (card.type === 'HAMPER') { dispatch(openHamperShop()); return }
       if (card.linkedProductId) {
         try {
           const { data } = await productsApi.byId(card.linkedProductId)
           dispatch(setActiveProduct(data))
         } catch { /* product unavailable — no-op */ }
+        return
       }
+      if (card.type === 'HAMPER') { dispatch(openHamperShop()); return }
       return
     }
     const idx = SONGS.findIndex(s => s.id === card.id)
@@ -450,7 +454,7 @@ export default function GiftBoxCTASection({ isHero = true }) {
       </div>
 
       {/* CTA row */}
-      <div style={{ padding: mobile ? '16px 20px 28px' : '18px 40px 32px', display: 'flex', justifyContent: 'center', gap: 12 }}>
+      <div style={{ padding: mobile ? '16px 20px 28px' : '18px 40px 32px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, flexWrap: 'nowrap' }}>
         {isHero && <BuyHampersBtn mobile={mobile} onClick={() => dispatch(openHamperShop())} />}
         <BuildOwnBtn mobile={mobile} onClick={() => dispatch(openBoxBuilder())} />
       </div>
@@ -466,13 +470,15 @@ function BuyHampersBtn({ mobile, onClick }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        padding: mobile ? '13px 28px' : '14px 36px',
+        padding: mobile ? '12px 20px' : '14px 36px',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        whiteSpace: 'nowrap', minWidth: 0, flex: '0 1 auto',
         borderRadius: 99, border: `2px solid ${TC}`,
         background: hovered ? TC : 'transparent',
         color: hovered ? '#fff' : TC,
         fontWeight: 700, fontSize: mobile ? 14 : 15,
         cursor: 'pointer', letterSpacing: '0.01em',
-        transition: 'all 0.2s', minHeight: 48, fontFamily: 'inherit',
+        transition: 'all 0.2s', minHeight: 48, fontFamily: 'inherit', boxSizing: 'border-box',
       }}
     >
       Buy Hampers
@@ -488,14 +494,16 @@ function BuildOwnBtn({ mobile, onClick }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        padding: mobile ? '13px 28px' : '14px 36px',
+        padding: mobile ? '12px 20px' : '14px 36px',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        whiteSpace: 'nowrap', minWidth: 0, flex: '0 1 auto',
         borderRadius: 99, border: 'none',
         background: 'linear-gradient(135deg,#C4704A,#B05F3C)',
         color: '#fff', fontWeight: 700, fontSize: mobile ? 14 : 15,
         cursor: 'pointer', letterSpacing: '0.01em',
         boxShadow: hovered ? '0 10px 28px rgba(196,112,74,0.4)' : '0 6px 20px rgba(196,112,74,0.35)',
         transform: hovered ? 'translateY(-2px)' : 'none',
-        transition: 'all 0.2s', minHeight: 48, fontFamily: 'inherit',
+        transition: 'all 0.2s', minHeight: 48, fontFamily: 'inherit', boxSizing: 'border-box',
       }}
     >
       Build your own
