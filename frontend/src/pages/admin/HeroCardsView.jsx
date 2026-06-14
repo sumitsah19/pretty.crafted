@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
-import { uploadApi, heroCardAdminApi } from '../../api/services'
+import { useState, useEffect, useMemo } from 'react'
+import { uploadApi, heroCardAdminApi, productsApi } from '../../api/services'
 import { TC, DARK, MID, LIGHT, BEIGE, CREAM, SAGE, SectionHeader } from './shared'
 
 // ─── HERO CARDS VIEW ───────────────────────────────────────────────
-// Curates the storefront hero CoverFlow (the moving cards). Each card is an
-// uploaded image tagged PRODUCT or HAMPER, with a display order and active flag.
+// Curates the storefront hero CoverFlow (the moving cards). Each card links to a
+// real catalog product/hamper (picked from the live catalog), and reuses that
+// item's image. Because the card points at an existing product, that item also
+// shows up on the shop / hamper page and its detail opens when the card is clicked.
 export default function HeroCardsView({ onToast }) {
   const [cards, setCards] = useState([])
   const [loading, setLoading] = useState(true)
@@ -14,6 +16,11 @@ export default function HeroCardsView({ onToast }) {
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState(null)
   const [form, setForm] = useState({ imageUrl: '', title: '', type: 'PRODUCT', linkedProductId: '', displayOrder: '', active: true })
+  // Live catalog (products + hampers) the admin picks from. Hampers are just
+  // products in the "Hampers" category, so a single /products fetch covers both.
+  const [products, setProducts] = useState([])
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerSearch, setPickerSearch] = useState('')
 
   const inp = { width: '100%', padding: '10px 14px', borderRadius: 12, border: `1.5px solid ${BEIGE}`, fontSize: 13, background: 'white', fontFamily: "'DM Sans',sans-serif", outline: 'none', color: DARK }
 
@@ -23,6 +30,12 @@ export default function HeroCardsView({ onToast }) {
       .catch(() => onToast('Failed to load hero cards'))
       .finally(() => setLoading(false))
   }, [onToast])
+
+  useEffect(() => {
+    productsApi.list({ size: 500 })
+      .then(({ data }) => setProducts(Array.isArray(data) ? data : data.content || []))
+      .catch(() => { /* picker just stays empty */ })
+  }, [])
 
   const openAdd = () => {
     setEditItem(null)
@@ -96,6 +109,33 @@ export default function HeroCardsView({ onToast }) {
     } catch { onToast('Delete failed') } finally { setBusyId(null) }
   }
 
+  // ── Product picker helpers ──────────────────────────────────────
+  const productImage = (p) => p?.imageUrl || (Array.isArray(p?.imageUrls) ? p.imageUrls[0] : '') || ''
+  const isHamper = (p) => (p?.categoryName || p?.category || '').toLowerCase() === 'hampers'
+  const selectedProduct = products.find(p => String(p.id) === String(form.linkedProductId))
+
+  // Picking an item wires the card to a real product: copy its image (so the card
+  // shows the product), derive the PRODUCT/HAMPER type from its category, and use
+  // its name as the default title. Admin can still override image/title afterward.
+  const pickProduct = (p) => {
+    setForm(f => ({
+      ...f,
+      linkedProductId: p.id,
+      type: isHamper(p) ? 'HAMPER' : 'PRODUCT',
+      imageUrl: productImage(p) || f.imageUrl,
+      title: f.title || p.name || '',
+    }))
+    setPickerOpen(false)
+    setPickerSearch('')
+  }
+
+  const pickerResults = useMemo(() => {
+    const q = pickerSearch.trim().toLowerCase()
+    return products
+      .filter(p => !q || (p.name || '').toLowerCase().includes(q))
+      .slice(0, 50)
+  }, [products, pickerSearch])
+
   return (
     <div>
       <SectionHeader title="Hero Cards" sub={loading ? 'Loading…' : `${cards.length} cards in the hero carousel`} action="+ Add Card" onAction={openAdd} />
@@ -132,7 +172,50 @@ export default function HeroCardsView({ onToast }) {
               <button onClick={() => { setShowForm(false); setEditItem(null) }} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
             </div>
 
-            {/* Image upload */}
+            {/* Linked product / hamper picker — the card's source of truth */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Linked product / hamper</label>
+              {selectedProduct ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 10, borderRadius: 12, border: `1.5px solid ${BEIGE}`, background: 'white' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 8, overflow: 'hidden', background: CREAM, flexShrink: 0 }}>
+                    {productImage(selectedProduct) && <img src={productImage(selectedProduct)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, color: DARK, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedProduct.name}</div>
+                    <div style={{ fontSize: 11, color: LIGHT }}>{(selectedProduct.categoryName || selectedProduct.category || '—')} · #{selectedProduct.id}</div>
+                  </div>
+                  <button onClick={() => { setPickerOpen(true); setPickerSearch('') }} style={{ padding: '6px 12px', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Change</button>
+                </div>
+              ) : (
+                <button onClick={() => { setPickerOpen(true); setPickerSearch('') }} style={{ width: '100%', padding: '12px 14px', borderRadius: 12, border: `1.5px dashed ${TC}`, background: '#FDF6F1', color: TC, fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}>
+                  + Choose a product or hamper
+                </button>
+              )}
+              <div style={{ fontSize: 10, color: LIGHT, marginTop: 6 }}>The card opens this item's detail and reuses its image. The item also appears on the shop / hamper page.</div>
+
+              {pickerOpen && (
+                <div style={{ marginTop: 8, border: `1.5px solid ${BEIGE}`, borderRadius: 12, background: 'white', overflow: 'hidden' }}>
+                  <input autoFocus value={pickerSearch} onChange={e => setPickerSearch(e.target.value)} placeholder="Search by name…" style={{ ...inp, border: 'none', borderBottom: `1px solid ${BEIGE}`, borderRadius: 0 }} />
+                  <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                    {pickerResults.length === 0 && <div style={{ padding: 14, fontSize: 12, color: LIGHT, textAlign: 'center' }}>No products found</div>}
+                    {pickerResults.map(p => (
+                      <button key={p.id} onClick={() => pickProduct(p)} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '8px 12px', border: 'none', borderBottom: `1px solid ${CREAM}`, background: String(p.id) === String(form.linkedProductId) ? '#FDF6F1' : 'white', cursor: 'pointer', textAlign: 'left' }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 6, overflow: 'hidden', background: CREAM, flexShrink: 0 }}>
+                          {productImage(p) && <img src={productImage(p)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, color: DARK, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                          <div style={{ fontSize: 10, color: LIGHT }}>{(p.categoryName || p.category || '—')} · ₹{p.price} · #{p.id}</div>
+                        </div>
+                        {isHamper(p) && <span style={{ fontSize: 9, fontWeight: 700, color: SAGE, background: '#EEF4EA', padding: '2px 7px', borderRadius: 99, flexShrink: 0 }}>HAMPER</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Image upload — auto-filled from the linked product, override optional */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Card Image</label>
               {form.imageUrl ? (
@@ -170,16 +253,10 @@ export default function HeroCardsView({ onToast }) {
               </select>
             </div>
 
-            {/* Display order + linked product */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Order</label>
-                <input type="number" value={form.displayOrder} onChange={e => setForm(f => ({ ...f, displayOrder: e.target.value }))} placeholder="0" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Link product ID</label>
-                <input type="number" value={form.linkedProductId} onChange={e => setForm(f => ({ ...f, linkedProductId: e.target.value }))} placeholder="optional" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
-              </div>
+            {/* Display order */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Order</label>
+              <input type="number" value={form.displayOrder} onChange={e => setForm(f => ({ ...f, displayOrder: e.target.value }))} placeholder="0" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
             </div>
 
             {/* Active toggle */}
@@ -188,10 +265,16 @@ export default function HeroCardsView({ onToast }) {
               <span style={{ fontSize: 13, color: DARK, fontWeight: 500 }}>Visible on storefront</span>
             </label>
 
-            <button onClick={handleSave} disabled={saving || uploading || !form.imageUrl}
-              style={{ width: '100%', padding: 13, borderRadius: 99, border: 'none', background: (saving || !form.imageUrl) ? BEIGE : TC, color: (saving || !form.imageUrl) ? LIGHT : 'white', fontWeight: 700, fontSize: 14, cursor: (saving || !form.imageUrl) ? 'default' : 'pointer' }}>
-              {saving ? 'Saving…' : editItem ? 'Save Changes' : 'Add Card'}
-            </button>
+            {!form.linkedProductId && <div style={{ fontSize: 11, color: LIGHT, marginBottom: 10, textAlign: 'center' }}>Choose a product or hamper to link before saving.</div>}
+            {(() => {
+              const canSave = !!form.imageUrl && !!form.linkedProductId
+              return (
+                <button onClick={handleSave} disabled={saving || uploading || !canSave}
+                  style={{ width: '100%', padding: 13, borderRadius: 99, border: 'none', background: (saving || !canSave) ? BEIGE : TC, color: (saving || !canSave) ? LIGHT : 'white', fontWeight: 700, fontSize: 14, cursor: (saving || !canSave) ? 'default' : 'pointer' }}>
+                  {saving ? 'Saving…' : editItem ? 'Save Changes' : 'Add Card'}
+                </button>
+              )
+            })()}
           </div>
         </div>
       )}
