@@ -43,6 +43,15 @@ body {
 
 button, a { -webkit-tap-highlight-color: transparent; }
 
+/* iOS Safari auto-zooms the page when a focused input's font-size is below 16px,
+   and since we deliberately keep maximum-scale off (for pinch-zoom accessibility)
+   it never zooms back out. Force 16px on form controls at the mobile breakpoint so
+   focusing a field (e.g. checkout address / coupon) doesn't trigger the zoom. The
+   components style inputs inline at ~13px, so !important is required to win. */
+@media (max-width: 640px) {
+  input, select, textarea { font-size: 16px !important; }
+}
+
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
