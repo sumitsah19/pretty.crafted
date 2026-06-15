@@ -228,6 +228,8 @@ function HelpCenterPage({ onToast }) {
 function OrdersPage({ onToast }) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
 
   useEffect(() => {
     ordersApi.list({ size: 20, sort: 'createdAt,desc' })
@@ -289,7 +291,7 @@ function OrdersPage({ onToast }) {
               <OrderTimeline status={toTimelineStatus(order.status)} />
             )}
             <div style={{ display:'flex', gap:8, marginTop:12 }}>
-              <button onClick={() => onToast('Order details')} style={{ padding:'7px 16px', borderRadius:99, border:'1.5px solid #EDE4D8', background:'white', color:'#6B4F3A', fontSize:12, fontWeight:600, cursor:'pointer' }}>View Details</button>
+              <button onClick={() => { dispatch(closeUserAccount()); navigate(`/orders/${order.id}`) }} style={{ padding:'7px 16px', borderRadius:99, border:'1.5px solid #EDE4D8', background:'white', color:'#6B4F3A', fontSize:12, fontWeight:600, cursor:'pointer' }}>View Details</button>
               <button onClick={() => onToast('Added to cart')} style={{ padding:'7px 16px', borderRadius:99, border:'none', background:TC, color:'white', fontSize:12, fontWeight:600, cursor:'pointer' }}>Reorder</button>
             </div>
           </div>

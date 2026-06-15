@@ -14,6 +14,7 @@ import com.prettycrafted.giftbox.dto.OrderDto;
 import com.prettycrafted.giftbox.dto.PlaceOrderRequest;
 import com.prettycrafted.giftbox.dto.PlaceOrderResponse;
 import com.prettycrafted.giftbox.dto.UpdateOrderStatusRequest;
+import com.prettycrafted.giftbox.dto.UpdateTrackingRequest;
 import com.prettycrafted.giftbox.dto.VerifyPaymentRequest;
 import com.prettycrafted.giftbox.exception.BadRequestException;
 import com.prettycrafted.giftbox.exception.ConflictException;
@@ -151,8 +152,8 @@ public class OrderService {
         if (req.couponCode() != null && !req.couponCode().isBlank()) {
             String code = req.couponCode().trim().toUpperCase();
             BigDecimal discount = isRazorpay
-                ? couponService.previewDiscount(code, total)
-                : couponService.redeem(code, total);
+                    ? couponService.previewDiscount(code, total)
+                    : couponService.redeem(code, total);
             order.setCouponCode(code);
             order.setDiscountAmount(discount);
             total = total.subtract(discount);
@@ -168,7 +169,7 @@ public class OrderService {
             // or near-free order can still be placed as Cash on Delivery.
             if (total.compareTo(BigDecimal.ONE) < 0) {
                 throw new BadRequestException(
-                    "This order total is below the ₹1 minimum for online payment. Please choose Cash on Delivery.");
+                        "This order total is below the ₹1 minimum for online payment. Please choose Cash on Delivery.");
             }
             rzpOrderId = paymentService.createOrder(total);
             order.setRazorpayOrderId(rzpOrderId);
@@ -190,10 +191,14 @@ public class OrderService {
     }
 
     /**
-     * Validates ownership, order-id match and the Razorpay signature, and records the
-     * payment id. Runs in its own transaction so the caller (OrderController) can then
-     * invoke applyPostPaymentActions / markOrderCancelled in separate transactions —
-     * mirroring the webhook flow so an out-of-stock failure AFTER a successful payment
+     * Validates ownership, order-id match and the Razorpay signature, and records
+     * the
+     * payment id. Runs in its own transaction so the caller (OrderController) can
+     * then
+     * invoke applyPostPaymentActions / markOrderCancelled in separate transactions
+     * —
+     * mirroring the webhook flow so an out-of-stock failure AFTER a successful
+     * payment
      * still persists a CANCELLED order instead of silently rolling back.
      */
     public void verifyPaymentSignature(Long userId, Long orderId, VerifyPaymentRequest req) {
@@ -294,7 +299,10 @@ public class OrderService {
         return true;
     }
 
-    /** Persists FAILED/CANCELLED in its own transaction — safe to call after a rolled-back applyPostPaymentActions. */
+    /**
+     * Persists FAILED/CANCELLED in its own transaction — safe to call after a
+     * rolled-back applyPostPaymentActions.
+     */
     public void markOrderCancelled(Long orderId) {
         orderRepo.findById(orderId).ifPresent(order -> {
             order.setPaymentStatus(PaymentStatus.FAILED);
@@ -413,6 +421,21 @@ public class OrderService {
             return orderRepo.findByStatus(status, pageable).map(OrderDto::from);
         }
         return orderRepo.findAll(pageable).map(OrderDto::from);
+    }
+
+    public OrderDto adminUpdateTracking(Long orderId, UpdateTrackingRequest req) {
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new NotFoundException("Order not found: " + orderId));
+        order.setCourier(trimToNull(req.courier()));
+        order.setTrackingNumber(trimToNull(req.trackingNumber()));
+        order.setTrackingUrl(trimToNull(req.trackingUrl()));
+        return OrderDto.from(order);
+    }
+
+    private static String trimToNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
     }
 
     public OrderDto adminUpdateStatus(Long orderId, UpdateOrderStatusRequest req) {

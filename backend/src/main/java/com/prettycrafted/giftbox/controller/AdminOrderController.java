@@ -3,6 +3,7 @@ package com.prettycrafted.giftbox.controller;
 import com.prettycrafted.giftbox.domain.OrderStatus;
 import com.prettycrafted.giftbox.dto.OrderDto;
 import com.prettycrafted.giftbox.dto.UpdateOrderStatusRequest;
+import com.prettycrafted.giftbox.dto.UpdateTrackingRequest;
 import com.prettycrafted.giftbox.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,5 +34,11 @@ public class AdminOrderController {
     public OrderDto updateStatus(@PathVariable Long id,
                                  @Valid @RequestBody UpdateOrderStatusRequest req) {
         return service.adminUpdateStatus(id, req);
+    }
+
+    @PatchMapping("/{id}/tracking")
+    public OrderDto updateTracking(@PathVariable Long id,
+                                   @Valid @RequestBody UpdateTrackingRequest req) {
+        return service.adminUpdateTracking(id, req);
     }
 }

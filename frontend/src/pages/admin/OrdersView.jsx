@@ -3,12 +3,18 @@ import { adminApi } from '../../api/services'
 import { TC, DARK, MID, LIGHT, BEIGE, CREAM, Badge, SectionHeader } from './shared'
 
 // ─── ORDER DETAIL MODAL ────────────────────────────────────────────
-function OrderDetailModal({ order, onClose, onUpdateStatus, updatingId }) {
+function OrderDetailModal({ order, onClose, onUpdateStatus, onUpdateTracking, updatingId, savingTracking }) {
   const nextStatus = (status) => {
     const map = { PENDING: 'PAID', PAID: 'SHIPPED', SHIPPED: 'DELIVERED' }
     return map[status] || null
   }
   const next = nextStatus(order.status)
+
+  const [courier, setCourier] = useState(order.courier || '')
+  const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || '')
+  const [trackingUrl, setTrackingUrl] = useState(order.trackingUrl || '')
+  const trackingDirty = courier !== (order.courier || '') || trackingNumber !== (order.trackingNumber || '') || trackingUrl !== (order.trackingUrl || '')
+  const inputStyle = { width: '100%', padding: '9px 12px', borderRadius: 10, border: `1.5px solid ${BEIGE}`, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: 'white', color: DARK, outline: 'none', boxSizing: 'border-box' }
 
   return (
     <div onClick={e => e.target === e.currentTarget && onClose()} style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(44,26,14,0.5)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -80,6 +86,25 @@ function OrderDetailModal({ order, onClose, onUpdateStatus, updatingId }) {
             </div>
           </div>
 
+          {/* Shipment tracking */}
+          <div style={{ background: 'white', borderRadius: 16, padding: '16px 18px', border: `1px solid ${BEIGE}` }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: TC, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Shipment Tracking</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input value={courier} onChange={e => setCourier(e.target.value)} placeholder="Courier (e.g. Delhivery)" style={inputStyle}
+                onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+              <input value={trackingNumber} onChange={e => setTrackingNumber(e.target.value)} placeholder="Tracking / AWB number" style={inputStyle}
+                onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+              <input value={trackingUrl} onChange={e => setTrackingUrl(e.target.value)} placeholder="Tracking URL (https://…)" style={inputStyle}
+                onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+              <button
+                disabled={!trackingDirty || savingTracking}
+                onClick={() => onUpdateTracking(order.id, { courier, trackingNumber, trackingUrl })}
+                style={{ alignSelf: 'flex-start', padding: '9px 18px', borderRadius: 99, border: 'none', background: (!trackingDirty || savingTracking) ? BEIGE : TC, color: (!trackingDirty || savingTracking) ? MID : 'white', fontSize: 12, fontWeight: 700, cursor: (!trackingDirty || savingTracking) ? 'default' : 'pointer' }}>
+                {savingTracking ? 'Saving…' : 'Save Tracking'}
+              </button>
+            </div>
+          </div>
+
           {/* Actions */}
           {(next || order.status === 'PENDING') && (
             <div style={{ display: 'flex', gap: 10 }}>
@@ -113,6 +138,7 @@ export default function OrdersView({ onToast }) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState(null)
+  const [savingTracking, setSavingTracking] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState(null)
 
   const STATUS_FILTERS = ['all', 'PENDING', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']
@@ -141,6 +167,16 @@ export default function OrdersView({ onToast }) {
       if (selectedOrder?.id === id) setSelectedOrder(data)
       onToast(`Order #${id} → ${newStatus}`)
     } catch { onToast('Status update failed') } finally { setUpdatingId(null) }
+  }
+
+  const updateTracking = async (id, tracking) => {
+    setSavingTracking(true)
+    try {
+      const { data } = await adminApi.updateOrderTracking(id, tracking)
+      setOrders(os => os.map(o => o.id === data.id ? data : o))
+      if (selectedOrder?.id === id) setSelectedOrder(data)
+      onToast(`Tracking saved for order #${id}`)
+    } catch { onToast('Tracking update failed') } finally { setSavingTracking(false) }
   }
 
   const nextStatus = (status) => {
@@ -218,7 +254,9 @@ export default function OrdersView({ onToast }) {
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
           onUpdateStatus={updateStatus}
+          onUpdateTracking={updateTracking}
           updatingId={updatingId}
+          savingTracking={savingTracking}
         />
       )}
     </div>

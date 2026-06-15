@@ -96,6 +96,9 @@ function getBoxCover(song) {
 
 function fmtInr(n) { return '₹' + n.toLocaleString('en-IN') }
 
+// A product's image gallery: explicit imageUrls, else its single imageUrl.
+function galleryUrls(p) { return p?.imageUrls?.length ? p.imageUrls : (p?.imageUrl ? [p.imageUrl] : []) }
+
 /* ── Reflection ─────────────────────────────────────────── */
 function Reflection({ gradient, imageUrl }) {
   if (!gradient && !imageUrl) return null
@@ -366,9 +369,13 @@ export default function GiftBoxModal() {
   const [error, setError]               = useState('')
   // Set when "Add to Cart" was interrupted by login; the add resumes once logged in.
   const [pendingAdd, setPendingAdd]     = useState(false)
+  // Product whose image gallery is open in the lightbox (tap the 🔍 on a tile).
+  const [previewProduct, setPreviewProduct] = useState(null)
+  const [previewIdx, setPreviewIdx]     = useState(0)
 
-  const boxRef     = useRef(null)
-  const productRef = useRef(null)
+  const boxRef        = useRef(null)
+  const productRef    = useRef(null)
+  const previewTouchX = useRef(0)
 
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -377,10 +384,25 @@ export default function GiftBoxModal() {
   }, [])
 
   useEffect(() => {
-    const fn = (e) => { if (e.key === 'Escape' && !showLogin) dispatch(closeBoxBuilder()) }
+    // Escape closes the builder — but if the image lightbox is open, leave the
+    // builder alone (the lightbox handles its own Escape below).
+    const fn = (e) => { if (e.key === 'Escape' && !showLogin && !previewProduct) dispatch(closeBoxBuilder()) }
     window.addEventListener('keydown', fn)
     return () => window.removeEventListener('keydown', fn)
-  }, [dispatch, showLogin])
+  }, [dispatch, showLogin, previewProduct])
+
+  // Lightbox keyboard nav: ←/→ to slide between images, Escape to close.
+  useEffect(() => {
+    if (!previewProduct) return
+    const urls = galleryUrls(previewProduct)
+    const fn = (e) => {
+      if (e.key === 'Escape') setPreviewProduct(null)
+      else if (e.key === 'ArrowRight') setPreviewIdx(i => (i + 1) % urls.length)
+      else if (e.key === 'ArrowLeft') setPreviewIdx(i => (i - 1 + urls.length) % urls.length)
+    }
+    window.addEventListener('keydown', fn)
+    return () => window.removeEventListener('keydown', fn)
+  }, [previewProduct])
 
   // Load the admin-curated "Build Your Own Box" designs; fall back to the built-in gradient boxes
   // when none are configured (or on error) so the builder always has something to pick.
@@ -711,10 +733,12 @@ export default function GiftBoxModal() {
                   const pct       = rating != null ? Math.max(0, Math.min(100, rating / 5 * 100)) : 0
                   return (
                     <div key={p.id}
-                      onClick={() => !disabled && toggleProduct(p)}
-                      onMouseEnter={(e) => { if (!disabled && !isSelected) e.currentTarget.style.transform = 'translateY(-3px)' }}
+                      // Tap opens the product (image gallery + details); adding to the box
+                      // happens from the "Add to box" button inside that lightbox.
+                      onClick={() => { setPreviewProduct(p); setPreviewIdx(0) }}
+                      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.transform = 'translateY(-3px)' }}
                       onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.transform = 'none' }}
-                      style={{ display: 'flex', flexDirection: 'column', cursor: disabled ? 'not-allowed' : 'pointer', transition: 'all 0.2s', opacity: disabled ? 0.4 : 1, transform: isSelected ? 'translateY(-3px)' : 'none' }}>
+                      style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'all 0.2s', opacity: disabled ? 0.55 : 1, transform: isSelected ? 'translateY(-3px)' : 'none' }}>
                       <div style={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: 14, background: catGrad, overflow: 'hidden', marginBottom: 8, boxShadow: isSelected ? `0 0 0 2.5px ${GOLD}, 0 8px 22px rgba(192,138,30,0.22)` : '0 1px 4px rgba(44,26,14,0.08)', transition: 'box-shadow 0.25s ease' }}>
                         {p.imageUrl
                           ? <img src={p.imageUrl} alt={p.name} draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -728,6 +752,13 @@ export default function GiftBoxModal() {
                           <div style={{ position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: '50%', background: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                           </div>
+                        )}
+                        {/* Hint that the tile opens a gallery; badge shows the image count. */}
+                        {p.imageUrls?.length > 1 && (
+                          <span style={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', alignItems: 'center', gap: 3, padding: '3px 7px', borderRadius: 99, background: 'rgba(44,26,14,0.6)', color: '#fff', fontSize: 9, fontWeight: 700, lineHeight: 1 }}>
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
+                            {p.imageUrls.length}
+                          </span>
                         )}
                       </div>
                       <h4 style={{ margin: '0 0 4px', textAlign: 'center', fontSize: 12.5, fontWeight: 600, color: '#2C1A0E', fontFamily: "'Playfair Display',serif", lineHeight: 1.3 }}>{p.name}</h4>
@@ -869,6 +900,80 @@ export default function GiftBoxModal() {
           )}
         </div>
       )}
+
+      {/* ── PRODUCT IMAGE LIGHTBOX ────────────────────────────── */}
+      {previewProduct && (() => {
+        const urls    = galleryUrls(previewProduct)
+        const idx     = Math.min(previewIdx, Math.max(0, urls.length - 1))
+        const multi   = urls.length > 1
+        const isSel   = selectedProducts.some(sp => sp.id === previewProduct.id)
+        const atMax   = selectedProducts.length >= BOX_MAX
+        const catGrad = CAT_GRADIENT[previewProduct.category] || 'linear-gradient(135deg,#f5eee6,#c9956b)'
+        const go      = (dir) => setPreviewIdx(i => (i + dir + urls.length) % urls.length)
+        return (
+          <div onClick={() => setPreviewProduct(null)}
+            style={{ position: 'fixed', inset: 0, top: navH, zIndex: 1250, background: 'rgba(44,26,14,0.82)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div onClick={(e) => e.stopPropagation()} className="animate-fade-up"
+              style={{ background: '#FAF7F2', borderRadius: 20, width: '100%', maxWidth: 420, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(44,26,14,0.45)' }}>
+
+              {/* Swipeable image stage */}
+              <div
+                onTouchStart={(e) => { previewTouchX.current = e.touches[0].clientX }}
+                onTouchEnd={(e) => { const dx = e.changedTouches[0].clientX - previewTouchX.current; if (multi && Math.abs(dx) > 40) go(dx < 0 ? 1 : -1) }}
+                style={{ position: 'relative', aspectRatio: '1 / 1', background: catGrad, overflow: 'hidden', userSelect: 'none' }}>
+                {urls[idx]
+                  ? <img src={urls[idx]} alt={`${previewProduct.name} — image ${idx + 1}`} draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64 }}>{previewProduct.emoji}</div>}
+
+                <button type="button" onClick={() => setPreviewProduct(null)} aria-label="Close"
+                  style={{ position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', border: 'none', cursor: 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>×</button>
+
+                {multi && (
+                  <>
+                    <button type="button" onClick={() => go(-1)} aria-label="Previous image"
+                      style={{ position: 'absolute', top: '50%', left: 10, transform: 'translateY(-50%)', width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2C1A0E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                    </button>
+                    <button type="button" onClick={() => go(1)} aria-label="Next image"
+                      style={{ position: 'absolute', top: '50%', right: 10, transform: 'translateY(-50%)', width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2C1A0E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                    </button>
+                    <span style={{ position: 'absolute', top: 12, left: 12, padding: '3px 9px', borderRadius: 99, background: 'rgba(44,26,14,0.6)', color: '#fff', fontSize: 11, fontWeight: 600 }}>{idx + 1}/{urls.length}</span>
+                  </>
+                )}
+              </div>
+
+              {/* Dots */}
+              {multi && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 6, padding: '12px 0 0' }}>
+                  {urls.map((_, i) => (
+                    <button key={i} type="button" onClick={() => setPreviewIdx(i)} aria-label={`Go to image ${i + 1}`}
+                      style={{ width: i === idx ? 18 : 7, height: 7, borderRadius: 99, border: 'none', cursor: 'pointer', padding: 0, background: i === idx ? TC : 'rgba(0,0,0,0.18)', transition: 'all 0.2s' }} />
+                  ))}
+                </div>
+              )}
+
+              {/* Info + add/remove */}
+              <div style={{ padding: '14px 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#2C1A0E', fontFamily: "'Playfair Display',serif", lineHeight: 1.3 }}>{previewProduct.name}</h3>
+                  <span style={{ flexShrink: 0, fontSize: 15, fontWeight: 700, color: TC }}>{fmtInr(previewProduct.price)}</span>
+                </div>
+                {previewProduct.description && (
+                  <p style={{ margin: 0, fontSize: 12.5, color: '#6B4F3A', lineHeight: 1.5, maxHeight: 96, overflowY: 'auto' }}>{previewProduct.description}</p>
+                )}
+                <button type="button" disabled={!isSel && atMax}
+                  onClick={() => { toggleProduct(previewProduct); setPreviewProduct(null) }}
+                  style={{ height: 42, borderRadius: 11, border: isSel ? `1.5px solid ${GOLD}` : 'none', cursor: (!isSel && atMax) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s',
+                    background: isSel ? 'rgba(192,138,30,0.12)' : (!isSel && atMax) ? 'rgba(0,0,0,0.08)' : 'linear-gradient(135deg,#C4704A,#B05F3C)',
+                    color: isSel ? GOLD : (!isSel && atMax) ? '#9C7A63' : '#fff' }}>
+                  {isSel ? '✓ In your box — remove' : (atMax ? `Box full · ${BOX_MAX} max` : '+ Add to box')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

@@ -1,1 +1,0 @@
-curl -s -L https://prettycrafted.com/ | grep -i "<title>"

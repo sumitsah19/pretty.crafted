@@ -73,6 +73,18 @@ public class Order {
     @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.PENDING;
 
+    /** Courier/carrier name, set by admin once the order ships. */
+    @Column(name = "courier", length = 80)
+    private String courier;
+
+    /** Tracking/AWB number, set by admin once the order ships. */
+    @Column(name = "tracking_number", length = 120)
+    private String trackingNumber;
+
+    /** Carrier tracking page URL the customer can open. */
+    @Column(name = "tracking_url", length = 500)
+    private String trackingUrl;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @BatchSize(size = 20)
     @Builder.Default

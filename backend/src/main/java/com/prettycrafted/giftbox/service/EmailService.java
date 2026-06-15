@@ -3,10 +3,14 @@ package com.prettycrafted.giftbox.service;
 import com.prettycrafted.giftbox.domain.Order;
 import com.prettycrafted.giftbox.domain.User;
 import io.sentry.Sentry;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +53,8 @@ public class EmailService {
     @Async
     public void sendOrderConfirmation(Order order) {
         User user = order.getUser();
-        if (!user.isEmailNotifications()) return;
+        if (!user.isEmailNotifications())
+            return;
 
         Context ctx = new Context();
         ctx.setVariable("name", user.getName());
@@ -61,14 +66,36 @@ public class EmailService {
         ctx.setVariable("unsubscribeUrl", buildUnsubscribeUrl(user));
 
         String html = templateEngine.process("order-confirmation", ctx);
+        // Try to render invoice PDF and attach it to the confirmation email. If PDF
+        // generation fails, fall back to sending the HTML email only.
+        try {
+            byte[] pdf = renderHtmlToPdf(html);
+            if (pdf != null && pdf.length > 0) {
+                List<Map<String, Object>> attachments = new ArrayList<>();
+                Map<String, Object> a = new HashMap<>();
+                a.put("type", "application/pdf");
+                a.put("name", "invoice-" + order.getId() + ".pdf");
+                a.put("data", Base64.getEncoder().encodeToString(pdf));
+                attachments.add(a);
+                sendHtml(user.getEmail(), "Your PrettyCrafted order #" + order.getId(), html,
+                        "order-confirm-" + order.getId(), attachments);
+                return;
+            }
+        } catch (Exception e) {
+            log.warn("Invoice PDF generation failed for order {}: {}", order.getId(), e.getMessage());
+            Sentry.captureException(e);
+        }
+
+        // Fallback: send HTML-only
         sendHtml(user.getEmail(), "Your PrettyCrafted order #" + order.getId(), html,
-            "order-confirm-" + order.getId());
+                "order-confirm-" + order.getId());
     }
 
     @Async
     public void sendPaymentConfirmation(Order order) {
         User user = order.getUser();
-        if (!user.isEmailNotifications()) return;
+        if (!user.isEmailNotifications())
+            return;
 
         Context ctx = new Context();
         ctx.setVariable("name", user.getName());
@@ -80,8 +107,42 @@ public class EmailService {
         ctx.setVariable("unsubscribeUrl", buildUnsubscribeUrl(user));
 
         String html = templateEngine.process("order-confirmation", ctx);
+        try {
+            byte[] pdf = renderHtmlToPdf(html);
+            if (pdf != null && pdf.length > 0) {
+                List<Map<String, Object>> attachments = new ArrayList<>();
+                Map<String, Object> a = new HashMap<>();
+                a.put("type", "application/pdf");
+                a.put("name", "invoice-" + order.getId() + ".pdf");
+                a.put("data", Base64.getEncoder().encodeToString(pdf));
+                attachments.add(a);
+                sendHtml(user.getEmail(), "Payment confirmed for order #" + order.getId(), html,
+                        "payment-confirm-" + order.getId(), attachments);
+                return;
+            }
+        } catch (Exception e) {
+            log.warn("Invoice PDF generation failed for payment confirmation for order {}: {}", order.getId(),
+                    e.getMessage());
+            Sentry.captureException(e);
+        }
+
         sendHtml(user.getEmail(), "Payment confirmed for order #" + order.getId(), html,
-            "payment-confirm-" + order.getId());
+                "payment-confirm-" + order.getId());
+    }
+
+    // Render HTML to PDF bytes using OpenHTMLToPDF
+    private byte[] renderHtmlToPdf(String html) {
+        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+            PdfRendererBuilder builder = new PdfRendererBuilder();
+            builder.useFastMode();
+            builder.withHtmlContent(html, null);
+            builder.toStream(os);
+            builder.run();
+            return os.toByteArray();
+        } catch (Exception e) {
+            log.error("Failed to render HTML to PDF: {}", e.getMessage());
+            return null;
+        }
     }
 
     @Async
@@ -96,7 +157,7 @@ public class EmailService {
         ctx.setVariable("verifyUrl", verifyUrl);
         String html = templateEngine.process("email-verification", ctx);
         sendHtml(user.getEmail(), "Verify your PrettyCrafted email address", html,
-            "verify-" + user.getId() + "-" + token.substring(0, 8));
+                "verify-" + user.getId() + "-" + token.substring(0, 8));
     }
 
     @Async
@@ -113,7 +174,7 @@ public class EmailService {
         ctx.setVariable("resetUrl", resetUrl);
         String html = templateEngine.process("password-reset", ctx);
         sendHtml(user.getEmail(), "Reset your Pretty.Crafted password", html,
-            "reset-" + user.getId() + "-" + token.substring(0, 8));
+                "reset-" + user.getId() + "-" + token.substring(0, 8));
     }
 
     @Async
@@ -123,13 +184,14 @@ public class EmailService {
         ctx.setVariable("otp", otp);
         String html = templateEngine.process("otp-email", ctx);
         sendHtml(user.getEmail(), "Your PrettyCrafted login code: " + otp, html,
-            "otp-" + user.getId() + "-" + otp);
+                "otp-" + user.getId() + "-" + otp);
     }
 
     // ── Synchronous test (used by AdminDashboardController) ───────────────────
 
     /**
      * Sends a plain test email synchronously.
+     * 
      * @return null on success, error message string on failure.
      */
     public String sendTestEmail(String to) {
@@ -138,11 +200,11 @@ public class EmailService {
         }
         try {
             doSend(to,
-                "Pretty.Crafted — Email test ✓",
-                "<p>This is a test email from your Pretty.Crafted backend via <strong>Resend API</strong>.</p>" +
-                "<p><strong>Email delivery is working correctly!</strong></p>" +
-                "<p>From: " + fromAddress + "</p>",
-                "test-" + System.currentTimeMillis());
+                    "Pretty.Crafted — Email test ✓",
+                    "<p>This is a test email from your Pretty.Crafted backend via <strong>Resend API</strong>.</p>" +
+                            "<p><strong>Email delivery is working correctly!</strong></p>" +
+                            "<p>From: " + fromAddress + "</p>",
+                    "test-" + System.currentTimeMillis(), null);
             return null; // success
         } catch (Exception e) {
             return e.getMessage();
@@ -171,15 +233,23 @@ public class EmailService {
      * Async-safe wrapper: logs in dev mode, captures to Sentry on failure.
      */
     private void sendHtml(String to, String subject, String html, String messageId) {
+        sendHtml(to, subject, html, messageId, null);
+    }
+
+    private void sendHtml(String to, String subject, String html, String messageId,
+            List<Map<String, Object>> attachments) {
         if (resendApiKey == null || resendApiKey.isBlank()) {
             log.warn("RESEND_API_KEY not set — email NOT sent. Dev preview:");
             log.warn("  TO:      {}", to);
             log.warn("  SUBJECT: {}", subject);
             log.warn("  BODY:    {}", html.replaceAll("<[^>]+>", "").replaceAll("\\s+", " ").trim());
+            if (attachments != null && !attachments.isEmpty()) {
+                log.warn("  ATTACHMENTS: {} files", attachments.size());
+            }
             return;
         }
         try {
-            doSend(to, subject, html, messageId);
+            doSend(to, subject, html, messageId, attachments);
             log.info("Email sent via Resend: subject='{}' to='{}'", subject, to);
         } catch (Exception e) {
             log.error("Failed to send email to {}: {}", to, e.getMessage());
@@ -191,26 +261,30 @@ public class EmailService {
      * Calls the Resend POST /emails endpoint.
      * Throws on any non-2xx response — caller decides how to handle.
      */
-    private void doSend(String to, String subject, String html, String messageId) {
-        Map<String, Object> body = Map.of(
-            "from", fromAddress,
-            "to", List.of(to),
-            "subject", subject,
-            "html", html,
-            "headers", Map.of("X-Message-Id", messageId + "@prettycrafted.com")
-        );
+    private void doSend(String to, String subject, String html, String messageId,
+            List<Map<String, Object>> attachments) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("from", fromAddress);
+        body.put("to", List.of(to));
+        body.put("subject", subject);
+        body.put("html", html);
+        body.put("headers", Map.of("X-Message-Id", messageId + "@prettycrafted.com"));
+        if (attachments != null && !attachments.isEmpty()) {
+            body.put("attachments", attachments);
+        }
         try {
             resendClient.post()
-                .uri("/emails")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + resendApiKey)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
-                .retrieve()
-                .toBodilessEntity();
+                    .uri("/emails")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + resendApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .toBodilessEntity();
         } catch (HttpStatusCodeException e) {
-            // Surface Resend's own error body (e.g. "Invalid API key", "Domain not verified")
+            // Surface Resend's own error body (e.g. "Invalid API key", "Domain not
+            // verified")
             throw new RuntimeException(
-                "Resend API " + e.getStatusCode() + ": " + e.getResponseBodyAsString(), e);
+                    "Resend API " + e.getStatusCode() + ": " + e.getResponseBodyAsString(), e);
         }
     }
 
@@ -225,4 +299,5 @@ public class EmailService {
             return "";
         }
     }
+
 }

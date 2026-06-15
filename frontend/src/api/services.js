@@ -41,6 +41,7 @@ export const ordersApi = {
   create:        (payload) => api.post('/orders', payload),
   list:          (params)  => api.get('/orders', { params }),
   byId:          (id)      => api.get(`/orders/${id}`),
+  invoice:       (id)      => api.get(`/orders/${id}/invoice`, { responseType: 'blob' }),
   cancel:        (id)      => api.delete(`/orders/${id}`),
   verifyPayment: (id, payload) => api.post(`/orders/${id}/payment/verify`, payload),
 }
@@ -115,6 +116,7 @@ export const adminApi = {
   updateStock:       (id, quantity)      => api.patch(`/admin/products/${id}/stock`, { quantity }),
   orders:            (params)            => api.get('/admin/orders', { params }),
   updateOrderStatus: (id, status)        => api.patch(`/admin/orders/${id}/status`, { status }),
+  updateOrderTracking: (id, tracking)    => api.patch(`/admin/orders/${id}/tracking`, tracking),
   customers:         (params)            => api.get('/admin/customers', { params }),
   testEmail:         (to)               => api.get('/admin/test-email', { params: { to } }),
 }
