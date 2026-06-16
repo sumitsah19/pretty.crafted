@@ -10,6 +10,9 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 // (safe in the frontend); the secret AuthKey lives only on the backend.
 const MSG91_WIDGET_ID = import.meta.env.VITE_MSG91_WIDGET_ID || '36666d6e7743373331303331'
 const MSG91_TOKEN_AUTH = import.meta.env.VITE_MSG91_TOKEN_AUTH
+// DOM id MSG91 renders its anti-abuse captcha into. Without a valid target the
+// widget's captcha render callback throws — so it must always exist in the DOM.
+const MSG91_CAPTCHA_ID = 'msg91-captcha'
 const RESEND_COOLDOWN = 30 // seconds before "Resend OTP" re-enables
 
 export default function LoginModal() {
@@ -114,6 +117,7 @@ export default function LoginModal() {
         widgetId: MSG91_WIDGET_ID,
         tokenAuth: MSG91_TOKEN_AUTH,
         exposeMethods: true, // attaches window.sendOtp / verifyOtp / retryOtp
+        captchaRenderId: MSG91_CAPTCHA_ID, // valid render target so captcha doesn't throw
         success: () => {},   // per-call callbacks below drive the flow
         failure: () => {},
       })
@@ -192,7 +196,7 @@ export default function LoginModal() {
     if (resendIn > 0 || typeof window.retryOtp !== 'function') return
     setOtpError('')
     window.retryOtp(
-      null, // null → resend on the original channel (SMS)
+      '11', // MSG91 channel: '11'=SMS, '4'=Voice, '3'=Email, '12'=WhatsApp (mandatory)
       () => startResendCooldown(),
       (err) => setOtpError(err?.message || 'Could not resend OTP.'),
     )
@@ -388,6 +392,11 @@ export default function LoginModal() {
             </div>
           )}
         </div>}
+
+        {/* MSG91 anti-abuse captcha target — must stay mounted across views so
+            both sendOtp (main) and retryOtp (phone) have a valid render target.
+            Empty (0 height) unless the widget actually renders a captcha. */}
+        <div id={MSG91_CAPTCHA_ID} style={{ display: 'flex', justifyContent: 'center', padding: '0 32px' }} />
       </div>
     </div>
   )
