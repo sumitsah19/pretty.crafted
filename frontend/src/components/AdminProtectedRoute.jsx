@@ -23,7 +23,7 @@ export default function AdminProtectedRoute({ children }) {
     )
   }
 
-  if (!isLoggedIn || !hasAdminRole(user)) return <Navigate to="/" replace />
+  if (!isLoggedIn || !hasAdminRole(user)) return <Navigate to="/admin/login" replace />
 
   return children
 }

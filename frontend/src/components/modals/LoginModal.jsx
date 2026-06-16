@@ -1,31 +1,38 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { login, register, googleLogin, clearError } from '../../store/slices/authSlice'
+import { googleLogin, otpLogin, clearError } from '../../store/slices/authSlice'
 import { closeLogin } from '../../store/slices/uiSlice'
-import { authApi } from '../../api/services'
 
 const TC = '#C4704A'
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
+// MSG91 OTP widget. Widget ID + Token Auth are public, widget-scoped values
+// (safe in the frontend); the secret AuthKey lives only on the backend.
+const MSG91_WIDGET_ID = import.meta.env.VITE_MSG91_WIDGET_ID || '36666d6e7743373331303331'
+const MSG91_TOKEN_AUTH = import.meta.env.VITE_MSG91_TOKEN_AUTH
+const RESEND_COOLDOWN = 30 // seconds before "Resend OTP" re-enables
+
 export default function LoginModal() {
   const dispatch = useDispatch()
-  const { loading, error } = useSelector((s) => s.auth)
+  const { error } = useSelector((s) => s.auth)
 
-  const [tab, setTab] = useState('login')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
-  const [showPw, setShowPw] = useState(false)
   const [done, setDone] = useState(false)
   const [googleReady, setGoogleReady] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [googleError, setGoogleError] = useState('')
 
-  // ── Forgot password state ──────────────────────────────────────
-  const [view, setView] = useState('main') // 'main' | 'forgot' | 'forgotSent'
-  const [forgotEmail, setForgotEmail] = useState('')
-  const [forgotLoading, setForgotLoading] = useState(false)
-  const [forgotError, setForgotError] = useState('')
+  // Customer auth is Google or Phone OTP only — no email/password.
+  const [view, setView] = useState('main') // 'main' | 'phone'
+
+  // ── Phone OTP (MSG91 widget) state ─────────────────────────────
+  const [mobile, setMobile] = useState('')
+  const [otp, setOtp] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpError, setOtpError] = useState('')
+  const [msg91Ready, setMsg91Ready] = useState(false)
+  const [resendIn, setResendIn] = useState(0)
+  const resendTimer = useRef(null)
 
   const hiddenGoogleBtn = useRef(null)
 
@@ -97,47 +104,98 @@ export default function LoginModal() {
     else window.google?.accounts?.id?.prompt()
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    try {
-      if (tab === 'login') {
-        await dispatch(login({ email, password })).unwrap()
-      } else {
-        await dispatch(register({ name, email, password })).unwrap()
-      }
-      setDone(true)
-      setTimeout(() => dispatch(closeLogin()), 1000)
-    } catch {
-      // error stored in auth.error and displayed below
+  // ── Load MSG91 OTP widget + expose sendOtp / verifyOtp / retryOtp ──
+  useEffect(() => {
+    if (!MSG91_TOKEN_AUTH) return
+
+    const initWidget = () => {
+      if (typeof window.initSendOTP !== 'function') return
+      window.initSendOTP({
+        widgetId: MSG91_WIDGET_ID,
+        tokenAuth: MSG91_TOKEN_AUTH,
+        exposeMethods: true, // attaches window.sendOtp / verifyOtp / retryOtp
+        success: () => {},   // per-call callbacks below drive the flow
+        failure: () => {},
+      })
+      setMsg91Ready(true)
     }
-  }
 
-  const switchTab = (t) => {
-    setTab(t)
-    dispatch(clearError())
-  }
+    if (typeof window.initSendOTP === 'function') { initWidget(); return }
 
-  const openForgot = () => {
-    setForgotEmail(email) // pre-fill with whatever was typed in the login form
-    setForgotError('')
-    setView('forgot')
-    dispatch(clearError())
-  }
-
-  const handleForgotSubmit = async (e) => {
-    e.preventDefault()
-    if (!forgotEmail.trim()) return
-    setForgotLoading(true)
-    setForgotError('')
-    try {
-      await authApi.forgotPassword(forgotEmail.trim())
-      setView('forgotSent')
-    } catch (err) {
-      const msg = err?.response?.data?.message || err?.response?.data || 'Something went wrong. Please try again.'
-      setForgotError(typeof msg === 'string' ? msg : 'Something went wrong. Please try again.')
-    } finally {
-      setForgotLoading(false)
+    const existing = document.getElementById('msg91-otp-script')
+    if (existing) {
+      existing.addEventListener('load', initWidget, { once: true })
+      return () => existing.removeEventListener('load', initWidget)
     }
+
+    const script = document.createElement('script')
+    script.id = 'msg91-otp-script'
+    script.src = 'https://verify.msg91.com/otp-provider.js'
+    script.async = true
+    script.addEventListener('load', initWidget, { once: true })
+    document.body.appendChild(script)
+    return () => script.removeEventListener('load', initWidget)
+  }, [])
+
+  // Clear the resend countdown timer on unmount
+  useEffect(() => () => { if (resendTimer.current) clearInterval(resendTimer.current) }, [])
+
+  const startResendCooldown = () => {
+    setResendIn(RESEND_COOLDOWN)
+    if (resendTimer.current) clearInterval(resendTimer.current)
+    resendTimer.current = setInterval(() => {
+      setResendIn((s) => {
+        if (s <= 1) { clearInterval(resendTimer.current); return 0 }
+        return s - 1
+      })
+    }, 1000)
+  }
+
+  const handleSendOtp = () => {
+    if (!/^[6-9]\d{9}$/.test(mobile)) { setOtpError('Enter a valid 10-digit Indian mobile number'); return }
+    if (!msg91Ready || typeof window.sendOtp !== 'function') {
+      setOtpError('OTP service is still loading — please wait a moment.'); return
+    }
+    setOtpError(''); setOtpLoading(true)
+    window.sendOtp(
+      '91' + mobile,
+      () => { setOtpLoading(false); setOtpSent(true); setOtp(''); setView('phone'); startResendCooldown() },
+      (err) => { setOtpLoading(false); setOtpError(err?.message || 'Could not send OTP. Please try again.') },
+    )
+  }
+
+  const handleVerifyOtp = () => {
+    if (!/^\d{4,6}$/.test(otp)) { setOtpError('Enter the OTP you received'); return }
+    if (typeof window.verifyOtp !== 'function') { setOtpError('OTP service unavailable. Please retry.'); return }
+    setOtpError(''); setOtpLoading(true)
+    window.verifyOtp(
+      otp,
+      async (data) => {
+        // On success MSG91 returns the access token in data.message
+        const accessToken = data?.message
+        if (!accessToken) { setOtpLoading(false); setOtpError('Verification failed. Please try again.'); return }
+        try {
+          await dispatch(otpLogin({ accessToken, phone: mobile })).unwrap()
+          setDone(true); setView('main')
+          setTimeout(() => dispatch(closeLogin()), 1000)
+        } catch (e) {
+          setOtpError(typeof e === 'string' ? e : 'Login failed. Please try again.')
+        } finally {
+          setOtpLoading(false)
+        }
+      },
+      (err) => { setOtpLoading(false); setOtpError(err?.message || 'Invalid OTP. Please try again.') },
+    )
+  }
+
+  const handleResendOtp = () => {
+    if (resendIn > 0 || typeof window.retryOtp !== 'function') return
+    setOtpError('')
+    window.retryOtp(
+      null, // null → resend on the original channel (SMS)
+      () => startResendCooldown(),
+      (err) => setOtpError(err?.message || 'Could not resend OTP.'),
+    )
   }
 
   const inputStyle = {
@@ -158,145 +216,149 @@ export default function LoginModal() {
           <div style={{ fontSize: 36, marginBottom: 6 }}>🎁</div>
           <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: 'white' }}>Pretty<span style={{ opacity: 0.75 }}>.</span>Crafted</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 4 }}>
-            {view === 'forgot' || view === 'forgotSent' ? 'Reset your password' : 'Your gifting account'}
+            {view === 'phone' ? 'Sign in with your mobile' : 'Your gifting account'}
           </div>
         </div>
 
-        {/* ── FORGOT PASSWORD VIEW ── */}
-        {view === 'forgot' && (
+        {/* ── PHONE / OTP VIEW ── */}
+        {view === 'phone' && (
           <div style={{ padding: '28px 32px 32px' }}>
-            <button type="button" onClick={() => setView('main')}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#9C7A63', fontSize: 13, fontWeight: 600, padding: 0, marginBottom: 20, fontFamily: "'DM Sans',sans-serif" }}>
-              ← Back to Sign In
-            </button>
-            <p style={{ fontSize: 14, color: '#6B4F3A', marginBottom: 20, lineHeight: 1.5 }}>
-              Enter your email address and we'll send you a link to reset your password.
-            </p>
-            <form onSubmit={handleForgotSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 6 }}>Email Address</label>
-                <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
-                  placeholder="you@email.com" required autoFocus style={inputStyle}
-                  onFocus={(e) => e.target.style.borderColor = TC} onBlur={(e) => e.target.style.borderColor = '#EDE4D8'} />
+            {done ? (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+                <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700 }}>Welcome!</div>
+                <div style={{ color: '#9C7A63', fontSize: 14, marginTop: 6 }}>Redirecting you...</div>
               </div>
-              {forgotError && (
-                <div style={{ background: '#FEE2E2', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#C44A4A' }}>
-                  {forgotError}
+            ) : (
+              <>
+                <button type="button" onClick={() => { setView('main'); setOtpError(''); dispatch(clearError()) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#9C7A63', fontSize: 13, fontWeight: 600, padding: 0, marginBottom: 20, fontFamily: "'DM Sans',sans-serif" }}>
+                  ← Back to Sign In
+                </button>
+
+                <p style={{ fontSize: 14, color: '#6B4F3A', marginBottom: 20, lineHeight: 1.5 }}>
+                  {otpSent
+                    ? <>Enter the OTP sent to <strong style={{ color: '#2C1A0E' }}>+91 {mobile}</strong>.</>
+                    : 'We\'ll send a one-time password to your mobile number.'}
+                </p>
+
+                {/* Mobile number */}
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 6 }}>Mobile Number</label>
+                  <div style={{ display: 'flex', alignItems: 'stretch', border: '1.5px solid #EDE4D8', borderRadius: 12, background: '#FDFAF7', overflow: 'hidden' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: 14, fontWeight: 600, color: '#6B4F3A', background: '#F3ECE3', borderRight: '1.5px solid #EDE4D8' }}>+91</span>
+                    <input
+                      type="tel" inputMode="numeric" value={mobile}
+                      onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="10-digit number" disabled={otpSent} autoFocus
+                      style={{ flex: 1, padding: '13px 16px', fontSize: 14, border: 'none', outline: 'none', background: 'transparent', color: '#2C1A0E', fontFamily: "'DM Sans',sans-serif", letterSpacing: '0.04em' }} />
+                    {otpSent && (
+                      <button type="button" onClick={() => { setOtpSent(false); setOtp(''); setOtpError(''); setResendIn(0) }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: TC, fontSize: 12, fontWeight: 600, padding: '0 14px', fontFamily: "'DM Sans',sans-serif" }}>
+                        Edit
+                      </button>
+                    )}
+                  </div>
                 </div>
-              )}
-              <button type="submit" disabled={forgotLoading}
-                style={{ padding: '14px', borderRadius: 99, border: 'none', background: forgotLoading ? '#EDE4D8' : TC, color: forgotLoading ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: forgotLoading ? 'default' : 'pointer', transition: 'all 0.2s', minHeight: 50 }}>
-                {forgotLoading ? 'Sending...' : 'Send Reset Link →'}
-              </button>
-            </form>
+
+                {/* OTP input — shown once an OTP has been sent */}
+                {otpSent && (
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 6 }}>Enter OTP</label>
+                    <input
+                      type="tel" inputMode="numeric" value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="••••" autoFocus style={{ ...inputStyle, letterSpacing: '0.5em', textAlign: 'center', fontSize: 18 }}
+                      onFocus={(e) => e.target.style.borderColor = TC} onBlur={(e) => e.target.style.borderColor = '#EDE4D8'} />
+                    <div style={{ textAlign: 'right', marginTop: 8 }}>
+                      <button type="button" onClick={handleResendOtp} disabled={resendIn > 0}
+                        style={{ background: 'none', border: 'none', cursor: resendIn > 0 ? 'default' : 'pointer', color: resendIn > 0 ? '#9C7A63' : TC, fontSize: 12, fontWeight: 600, padding: 0, fontFamily: "'DM Sans',sans-serif", textDecoration: resendIn > 0 ? 'none' : 'underline' }}>
+                        {resendIn > 0 ? `Resend OTP in ${resendIn}s` : 'Resend OTP'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {otpError && (
+                  <div style={{ background: '#FEE2E2', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#C44A4A', marginBottom: 14 }}>
+                    {otpError}
+                  </div>
+                )}
+
+                {!otpSent ? (
+                  <button type="button" onClick={handleSendOtp} disabled={otpLoading || !msg91Ready}
+                    style={{ width: '100%', padding: '14px', borderRadius: 99, border: 'none', background: (otpLoading || !msg91Ready) ? '#EDE4D8' : TC, color: (otpLoading || !msg91Ready) ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: (otpLoading || !msg91Ready) ? 'default' : 'pointer', transition: 'all 0.2s', minHeight: 50 }}>
+                    {otpLoading ? 'Sending OTP...' : msg91Ready ? 'Send OTP →' : 'Loading...'}
+                  </button>
+                ) : (
+                  <button type="button" onClick={handleVerifyOtp} disabled={otpLoading}
+                    style={{ width: '100%', padding: '14px', borderRadius: 99, border: 'none', background: otpLoading ? '#EDE4D8' : TC, color: otpLoading ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: otpLoading ? 'default' : 'pointer', transition: 'all 0.2s', minHeight: 50 }}>
+                    {otpLoading ? 'Verifying...' : 'Verify & Continue →'}
+                  </button>
+                )}
+              </>
+            )}
           </div>
         )}
 
-        {/* ── FORGOT PASSWORD SENT VIEW ── */}
-        {view === 'forgotSent' && (
-          <div style={{ padding: '28px 32px 32px', textAlign: 'center' }}>
-            <div style={{ fontSize: 56, marginBottom: 16 }}>📬</div>
-            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: '#2C1A0E', marginBottom: 10 }}>
-              Check your inbox!
-            </div>
-            <p style={{ fontSize: 14, color: '#6B4F3A', lineHeight: 1.6, marginBottom: 24 }}>
-              We've sent a password reset link to <strong>{forgotEmail}</strong>.
-              The link expires in 1 hour.
-            </p>
-            <p style={{ fontSize: 12, color: '#9C7A63', marginBottom: 24 }}>
-              Didn't get the email? Check your spam folder, or{' '}
-              <button type="button" onClick={() => { setView('forgot'); setForgotError('') }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: TC, fontSize: 12, padding: 0, fontFamily: "'DM Sans',sans-serif", textDecoration: 'underline' }}>
-                try again
-              </button>.
-            </p>
-            <button type="button" onClick={() => setView('main')}
-              style={{ padding: '12px 32px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'none', color: TC, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-              Back to Sign In
-            </button>
-          </div>
-        )}
-
-        {/* ── TABS (hidden when in forgot flow) ── */}
-        {view === 'main' && (
-          <div style={{ display: 'flex', borderBottom: '1px solid #EDE4D8' }}>
-            {[['login', 'Sign In'], ['signup', 'Create Account']].map(([t, label]) => (
-              <button key={t} onClick={() => switchTab(t)}
-                style={{ flex: 1, padding: '14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, transition: 'all 0.2s', color: tab === t ? TC : '#9C7A63', borderBottom: tab === t ? `2px solid ${TC}` : '2px solid transparent', marginBottom: -1 }}>
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Form */}
+        {/* ── MAIN VIEW — Google + Phone OTP only ── */}
         {view === 'main' && <div style={{ padding: '28px 32px 32px' }}>
           {done ? (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700 }}>{tab === 'login' ? 'Welcome back!' : 'Account created!'}</div>
+              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700 }}>Welcome!</div>
               <div style={{ color: '#9C7A63', fontSize: 14, marginTop: 6 }}>Redirecting you...</div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {tab === 'signup' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <p style={{ fontSize: 14, color: '#6B4F3A', textAlign: 'center', lineHeight: 1.5, margin: '0 0 4px' }}>
+                Login or sign up in seconds — no password needed.
+              </p>
+
+              {/* Mobile number — primary; Continue sends the OTP */}
+              {MSG91_TOKEN_AUTH && (
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 6 }}>Full Name</label>
-                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" required style={inputStyle}
-                    onFocus={(e) => e.target.style.borderColor = TC} onBlur={(e) => e.target.style.borderColor = '#EDE4D8'} />
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 6 }}>Mobile Number</label>
+                  <div style={{ display: 'flex', alignItems: 'stretch', border: '1.5px solid #EDE4D8', borderRadius: 12, background: '#FDFAF7', overflow: 'hidden' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: 14, fontWeight: 600, color: '#6B4F3A', background: '#F3ECE3', borderRight: '1.5px solid #EDE4D8' }}>+91</span>
+                    <input
+                      type="tel" inputMode="numeric" value={mobile}
+                      onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSendOtp() }}
+                      placeholder="Mobile number" autoFocus
+                      style={{ flex: 1, padding: '13px 16px', fontSize: 14, border: 'none', outline: 'none', background: 'transparent', color: '#2C1A0E', fontFamily: "'DM Sans',sans-serif", letterSpacing: '0.04em' }} />
+                  </div>
                 </div>
               )}
 
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 6 }}>Email Address</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" required style={inputStyle}
-                  onFocus={(e) => e.target.style.borderColor = TC} onBlur={(e) => e.target.style.borderColor = '#EDE4D8'} />
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#6B4F3A' }}>Password</label>
-                  {tab === 'login' && (
-                    <button type="button" onClick={openForgot}
-                      style={{ fontSize: 12, color: TC, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: "'DM Sans',sans-serif", textDecoration: 'underline' }}>
-                      Forgot password?
-                    </button>
-                  )}
-                </div>
-                <div style={{ position: 'relative' }}>
-                  <input type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••" required style={{ ...inputStyle, paddingRight: 44 }}
-                    onFocus={(e) => e.target.style.borderColor = TC} onBlur={(e) => e.target.style.borderColor = '#EDE4D8'} />
-                  <button type="button" onClick={() => setShowPw(v => !v)}
-                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9C7A63', fontSize: 16, padding: 4, display: 'flex', alignItems: 'center' }}>
-                    {showPw ? '🙈' : '👁️'}
-                  </button>
-                </div>
-              </div>
-
-              {(error || googleError) && (
+              {(error || googleError || otpError) && (
                 <div style={{ background: '#FEE2E2', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#C44A4A' }}>
-                  {error || googleError}
+                  {error || googleError || otpError}
                 </div>
               )}
 
-              <button type="submit" disabled={loading}
-                style={{ marginTop: 4, padding: '14px', borderRadius: 99, border: 'none', background: loading ? '#EDE4D8' : TC, color: loading ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: loading ? 'default' : 'pointer', transition: 'all 0.2s', minHeight: 50 }}>
-                {loading ? 'Please wait...' : tab === 'login' ? 'Sign In →' : 'Create Account →'}
-              </button>
+              {MSG91_TOKEN_AUTH && (
+                <button type="button" onClick={handleSendOtp} disabled={otpLoading || !msg91Ready}
+                  style={{ width: '100%', padding: '14px', borderRadius: 99, border: 'none', background: (otpLoading || !msg91Ready) ? '#EDE4D8' : TC, color: (otpLoading || !msg91Ready) ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: (otpLoading || !msg91Ready) ? 'default' : 'pointer', transition: 'all 0.2s', minHeight: 50 }}>
+                  {otpLoading ? 'Sending OTP...' : msg91Ready ? 'Continue →' : 'Loading...'}
+                </button>
+              )}
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ flex: 1, height: 1, background: '#EDE4D8' }} />
-                <span style={{ fontSize: 12, color: '#9C7A63' }}>or continue with</span>
-                <div style={{ flex: 1, height: 1, background: '#EDE4D8' }} />
-              </div>
+              {/* Divider — only when both methods are available */}
+              {MSG91_TOKEN_AUTH && GOOGLE_CLIENT_ID && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ flex: 1, height: 1, background: '#EDE4D8' }} />
+                  <span style={{ fontSize: 12, color: '#9C7A63' }}>or</span>
+                  <div style={{ flex: 1, height: 1, background: '#EDE4D8' }} />
+                </div>
+              )}
 
               {/* Google Sign-In */}
-              <div style={{ position: 'relative' }}>
+              {GOOGLE_CLIENT_ID && <div style={{ position: 'relative' }}>
                 <div ref={hiddenGoogleBtn} aria-hidden="true"
                   style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', top: 0, left: 0, width: '100%', height: '100%', overflow: 'hidden' }} />
                 <button type="button" onClick={handleGoogleClick} disabled={!googleReady || googleLoading}
-                  style={{ width: '100%', padding: '11px 8px', borderRadius: 12, border: `1.5px solid ${!googleReady ? '#EDE4D8' : '#d0ccc8'}`, background: 'white', cursor: (!googleReady || googleLoading) ? 'default' : 'pointer', fontWeight: 600, fontSize: 13, color: googleLoading ? '#9C7A63' : '#4285F4', minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'border-color 0.2s', opacity: !googleReady ? 0.6 : 1 }}
+                  style={{ width: '100%', padding: '13px 8px', borderRadius: 12, border: `1.5px solid ${!googleReady ? '#EDE4D8' : '#d0ccc8'}`, background: 'white', cursor: (!googleReady || googleLoading) ? 'default' : 'pointer', fontWeight: 600, fontSize: 14, color: googleLoading ? '#9C7A63' : '#4285F4', minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'border-color 0.2s', opacity: !googleReady ? 0.6 : 1 }}
                   onMouseEnter={(e) => { if (googleReady && !googleLoading) e.currentTarget.style.borderColor = '#4285F4' }}
                   onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#d0ccc8' }}>
                   {googleLoading ? (
@@ -316,14 +378,14 @@ export default function LoginModal() {
                     </>
                   )}
                 </button>
-              </div>
+              </div>}
 
-              {!GOOGLE_CLIENT_ID && (
-                <div style={{ fontSize: 11, color: '#9C7A63', textAlign: 'center', marginTop: -8 }}>
-                  Google Sign-In is not configured in this environment
+              {!GOOGLE_CLIENT_ID && !MSG91_TOKEN_AUTH && (
+                <div style={{ fontSize: 11, color: '#9C7A63', textAlign: 'center' }}>
+                  No sign-in methods are configured in this environment
                 </div>
               )}
-            </form>
+            </div>
           )}
         </div>}
       </div>

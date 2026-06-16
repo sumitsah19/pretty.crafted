@@ -12,6 +12,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
 
+    // Phone is not DB-unique (legacy email/password accounts may share or lack a
+    // number), so resolve OTP logins deterministically to the oldest match.
+    Optional<User> findFirstByPhoneOrderByIdAsc(String phone);
+
     @Query("SELECT u FROM User u WHERE u.role = 'USER' AND " +
            "(:q IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%',:q,'%')) " +
            "OR LOWER(u.email) LIKE LOWER(CONCAT('%',:q,'%'))) " +

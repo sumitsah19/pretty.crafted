@@ -5,6 +5,9 @@ export const authApi = {
   login:          (email, password) => api.post('/auth/login', { email, password }),
   register:       (name, email, password) => api.post('/auth/register', { name, email, password }),
   googleLogin:    (credential) => api.post('/auth/google', { credential }),
+  // Phone OTP: the MSG91 widget verifies the OTP client-side and returns an
+  // access token; the backend re-verifies it and issues our JWT.
+  otpVerify:      (accessToken, phone) => api.post('/auth/otp/verify', { accessToken, phone }),
   me:             () => api.get('/auth/me'),
   updateMe:       (data) => api.put('/auth/me', data),
   logout:         () => api.post('/auth/logout'),

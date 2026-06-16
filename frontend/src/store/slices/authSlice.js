@@ -36,6 +36,15 @@ export const googleLogin = createAsyncThunk('auth/google', async (credential, { 
   }
 })
 
+export const otpLogin = createAsyncThunk('auth/otp', async ({ accessToken, phone }, { rejectWithValue }) => {
+  try {
+    const { data } = await authApi.otpVerify(accessToken, phone)
+    return data
+  } catch (err) {
+    return rejectWithValue(err.response?.data?.message || 'Phone login failed')
+  }
+})
+
 export const verifyEmail = createAsyncThunk('auth/verifyEmail', async (token, { rejectWithValue }) => {
   try {
     await authApi.verifyEmail(token)
@@ -123,6 +132,12 @@ const authSlice = createSlice({
         if (action.payload.user) { analytics.login('google'); identify(action.payload.user.id, { email: action.payload.user.email }) }
       })
       .addCase(googleLogin.rejected, rejected)
+      .addCase(otpLogin.pending, pending)
+      .addCase(otpLogin.fulfilled, (state, action) => {
+        fulfilled(state, action); state.authChecked = true
+        if (action.payload.user) { analytics.login('phone'); identify(action.payload.user.id, { phone: action.payload.user.phone }) }
+      })
+      .addCase(otpLogin.rejected, rejected)
       .addCase(fetchMe.pending, pending)
       .addCase(fetchMe.fulfilled, (state, action) => {
         state.loading = false

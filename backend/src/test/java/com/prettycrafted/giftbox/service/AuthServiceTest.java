@@ -4,6 +4,7 @@ import com.prettycrafted.giftbox.domain.PasswordResetToken;
 import com.prettycrafted.giftbox.domain.Role;
 import com.prettycrafted.giftbox.domain.User;
 import com.prettycrafted.giftbox.dto.LoginRequest;
+import com.prettycrafted.giftbox.dto.OtpVerifyRequest;
 import com.prettycrafted.giftbox.dto.RegisterRequest;
 import com.prettycrafted.giftbox.dto.ResetPasswordRequest;
 import com.prettycrafted.giftbox.dto.UpdateProfileRequest;
@@ -15,9 +16,11 @@ import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -33,6 +36,7 @@ class AuthServiceTest {
     @Mock PasswordEncoder passwordEncoder;
     @Mock JwtService jwtService;
     @Mock EmailService emailService;
+    @Mock Msg91Service msg91Service;
 
     @InjectMocks AuthService service;
 
@@ -59,6 +63,22 @@ class AuthServiceTest {
 
         assertNotNull(result.token());
         verify(userRepo).save(any(User.class));
+    }
+
+    @Test
+    void register_normalizesPhoneToE164() {
+        when(userRepo.existsByEmail("new@example.com")).thenReturn(false);
+        when(passwordEncoder.encode(any())).thenReturn("hashed");
+        when(userRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(jwtService.generate(any())).thenReturn("jwt");
+        when(jwtService.expirationSeconds()).thenReturn(86400L);
+
+        service.register(new RegisterRequest("new@example.com", "password1", "New", "09876543210"));
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepo).save(captor.capture());
+        // 0-prefixed input must be stored canonically so OTP login matches it later.
+        assertEquals("+919876543210", captor.getValue().getPhone());
     }
 
     // ─── Login ────────────────────────────────────────────────────────────────
@@ -183,6 +203,84 @@ class AuthServiceTest {
         assertEquals("New Name", user.getName());
         assertEquals("hashed", user.getPasswordHash());
         verify(passwordEncoder, never()).matches(any(), any());
+    }
+
+    @Test
+    void updateProfile_normalizesPhoneToE164() {
+        User user = User.builder().id(1L).email("u@example.com").name("Old").passwordHash("hashed").role(Role.USER).build();
+        when(userRepo.findById(1L)).thenReturn(Optional.of(user));
+
+        service.updateProfile(1L, new UpdateProfileRequest("Name", "9876543210", null, null));
+
+        assertEquals("+919876543210", user.getPhone());
+    }
+
+    // ─── Phone OTP login ──────────────────────────────────────────────────────
+
+    @Test
+    void loginWithOtp_failsClosedWhenMsg91ReturnsNoNumber() {
+        when(msg91Service.verifyAccessToken("tok")).thenReturn(null);
+        assertThrows(BadRequestException.class,
+            () -> service.loginWithOtp(new OtpVerifyRequest("tok", "9876543210")));
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
+    void loginWithOtp_rejectsClaimedPhoneMismatch() {
+        // MSG91 verified a different number than the one the client claims.
+        when(msg91Service.verifyAccessToken("tok")).thenReturn("9876543210");
+        assertThrows(BadRequestException.class,
+            () -> service.loginWithOtp(new OtpVerifyRequest("tok", "9000000000")));
+        verify(userRepo, never()).save(any());
+    }
+
+    @Test
+    void loginWithOtp_reusesExistingAccountForVerifiedNumber() {
+        when(msg91Service.verifyAccessToken("tok")).thenReturn("919876543210");
+        User existing = User.builder().id(1L).phone("+919876543210").email("u@example.com").role(Role.USER).build();
+        when(userRepo.findFirstByPhoneOrderByIdAsc("+919876543210")).thenReturn(Optional.of(existing));
+        when(jwtService.generate(existing)).thenReturn("jwt");
+        when(jwtService.expirationSeconds()).thenReturn(86400L);
+
+        var result = service.loginWithOtp(new OtpVerifyRequest("tok", "9876543210"));
+
+        assertEquals("jwt", result.token());
+        verify(userRepo, never()).save(any()); // no duplicate created
+    }
+
+    @Test
+    void loginWithOtp_createsAccountWhenNoneExists() {
+        when(msg91Service.verifyAccessToken("tok")).thenReturn("9876543210");
+        when(userRepo.findFirstByPhoneOrderByIdAsc("+919876543210")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode(any())).thenReturn("hashed");
+        when(userRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(jwtService.generate(any())).thenReturn("jwt");
+        when(jwtService.expirationSeconds()).thenReturn(86400L);
+
+        var result = service.loginWithOtp(new OtpVerifyRequest("tok", "9876543210"));
+
+        assertEquals("jwt", result.token());
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepo).save(captor.capture());
+        assertEquals("+919876543210", captor.getValue().getPhone());
+    }
+
+    @Test
+    void loginWithOtp_refetchesWinnerWhenInsertRacesUniqueConstraint() {
+        when(msg91Service.verifyAccessToken("tok")).thenReturn("9876543210");
+        User winner = User.builder().id(7L).phone("+919876543210").email("w@example.com").role(Role.USER).build();
+        // First lookup finds nothing; after the unique-constraint hit, re-fetch finds the winner.
+        when(userRepo.findFirstByPhoneOrderByIdAsc("+919876543210"))
+            .thenReturn(Optional.empty())
+            .thenReturn(Optional.of(winner));
+        when(passwordEncoder.encode(any())).thenReturn("hashed");
+        when(userRepo.save(any())).thenThrow(new DataIntegrityViolationException("duplicate phone"));
+        when(jwtService.generate(winner)).thenReturn("jwt");
+        when(jwtService.expirationSeconds()).thenReturn(86400L);
+
+        var result = service.loginWithOtp(new OtpVerifyRequest("tok", "9876543210"));
+
+        assertEquals("jwt", result.token());
     }
 
     // ─── Unsubscribe ──────────────────────────────────────────────────────────

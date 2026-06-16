@@ -4,6 +4,7 @@ import com.prettycrafted.giftbox.dto.AuthResponse;
 import com.prettycrafted.giftbox.dto.ForgotPasswordRequest;
 import com.prettycrafted.giftbox.dto.GoogleAuthRequest;
 import com.prettycrafted.giftbox.dto.LoginRequest;
+import com.prettycrafted.giftbox.dto.OtpVerifyRequest;
 import com.prettycrafted.giftbox.dto.RegisterRequest;
 import com.prettycrafted.giftbox.dto.ResetPasswordRequest;
 import com.prettycrafted.giftbox.dto.UpdateProfileRequest;
@@ -97,6 +98,18 @@ public class AuthController {
     @PostMapping("/google")
     public AuthResponse googleLogin(@Valid @RequestBody GoogleAuthRequest req, HttpServletResponse response) {
         AuthResponse auth = service.loginWithGoogle(req);
+        setAuthCookie(response, auth.token());
+        return auth;
+    }
+
+    /**
+     * Phone OTP login. The MSG91 widget verifies the OTP client-side and returns
+     * an access token; we re-verify it server-side and issue our own JWT. There is
+     * deliberately no /otp/send endpoint — the widget SDK sends the OTP directly.
+     */
+    @PostMapping("/otp/verify")
+    public AuthResponse otpVerify(@Valid @RequestBody OtpVerifyRequest req, HttpServletResponse response) {
+        AuthResponse auth = service.loginWithOtp(req);
         setAuthCookie(response, auth.token());
         return auth;
     }

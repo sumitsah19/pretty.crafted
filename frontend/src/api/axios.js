@@ -34,7 +34,7 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       // A 401 from a credential endpoint just means "wrong credentials" — it must not
       // nuke an existing session or fire a global logout (e.g. a failed login attempt).
-      const isCredentialAttempt = /\/auth\/(login|register|google|forgot-password|reset-password)/.test(config?.url || '')
+      const isCredentialAttempt = /\/auth\/(login|register|google|otp\/verify|forgot-password|reset-password)/.test(config?.url || '')
       if (!isCredentialAttempt) {
         clearToken()
         window.dispatchEvent(new Event('pc:logout'))

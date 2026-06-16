@@ -3,6 +3,7 @@ package com.prettycrafted.giftbox.exception;
 import io.sentry.Sentry;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -47,6 +48,15 @@ public class GlobalExceptionHandler {
             .collect(Collectors.joining("; "));
         return ResponseEntity.badRequest()
             .body(new ApiError("validation_failed", message));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
+        // A unique-constraint hit (e.g. a phone already linked to another account)
+        // is a client conflict, not a server fault — keep the detail out of the body.
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(new ApiError("conflict", "This information is already linked to another account."));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

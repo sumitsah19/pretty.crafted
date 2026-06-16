@@ -15,6 +15,7 @@ import BuildBoxesView from './pages/admin/BuildBoxesView'
 import SEO from './components/SEO'
 import HomePage from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
+import AdminLoginPage from './pages/AdminLoginPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
@@ -206,6 +207,7 @@ export default function App() {
       <ErrorBoundary>
         <SEO title="Admin Dashboard" url="/admin" noIndex />
         <Routes>
+          <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin" element={
             <AdminProtectedRoute>
               <AdminPage />
