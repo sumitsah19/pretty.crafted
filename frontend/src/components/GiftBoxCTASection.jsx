@@ -245,6 +245,9 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           userSelect: 'none', perspective: '1500px', perspectiveOrigin: 'center center',
           overflow: contained ? 'hidden' : 'visible', cursor: 'grab',
+          // Nudge the whole stage up so cards sit slightly higher in the hero
+          // Increased offsets per request: move a little more upwards
+          transform: isMobile ? 'translateY(-20px)' : 'translateY(-34px)',
           touchAction: 'pan-y', // allow native vertical scrolling and smoother touch handling
         }}
         onMouseDown={(e) => { e.preventDefault(); startDrag(e.clientX) }}
@@ -455,7 +458,7 @@ export default function GiftBoxCTASection({ isHero = true }) {
       </div>
 
       {/* CTA row */}
-      <div style={{ padding: mobile ? '16px 20px 28px' : '18px 40px 32px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, flexWrap: 'nowrap' }}>
+      <div style={{ position: 'relative', zIndex: 600, padding: mobile ? '12px 20px 12px' : '10px 40px 10px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, flexWrap: 'nowrap', transform: isHero ? (mobile ? 'translateY(-12px)' : 'translateY(-22px)') : 'none' }}>
         {isHero && <BuyHampersBtn mobile={mobile} onClick={() => dispatch(openHamperShop())} />}
         <BuildOwnBtn mobile={mobile} onClick={() => dispatch(openBoxBuilder())} />
       </div>
@@ -507,7 +510,7 @@ function BuildOwnBtn({ mobile, onClick }) {
         transition: 'all 0.2s', minHeight: 48, fontFamily: 'inherit', boxSizing: 'border-box',
       }}
     >
-      Build your own
+      Customize hamper
     </button>
   )
 }
