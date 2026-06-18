@@ -316,7 +316,7 @@ export default function LoginModal() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <p style={{ fontSize: 14, color: '#6B4F3A', textAlign: 'center', lineHeight: 1.5, margin: '0 0 4px' }}>
-                Login or sign up in seconds — no password needed.
+                Login or sign up
               </p>
 
               {/* Mobile number — primary; Continue sends the OTP */}

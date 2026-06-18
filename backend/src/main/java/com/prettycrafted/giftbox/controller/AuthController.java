@@ -126,18 +126,6 @@ public class AuthController {
         service.resetPassword(req);
     }
 
-    @GetMapping("/verify-email")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void verifyEmail(@RequestParam String token) {
-        service.verifyEmail(token);
-    }
-
-    @PostMapping("/resend-verification")
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public void resendVerification(@AuthenticationPrincipal Jwt jwt) {
-        service.resendVerification(Long.valueOf(jwt.getSubject()));
-    }
-
     @GetMapping("/unsubscribe")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void unsubscribe(@RequestParam Long id, @RequestParam String sig) {

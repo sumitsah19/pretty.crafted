@@ -116,11 +116,16 @@ export default function Nav({ onScrollTo }) {
               )}
             </div>
 
-            {/* CENTER — Logo */}
-            <div onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#2C1A0E', letterSpacing: '-0.02em', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+            {/* CENTER — Logo (crawlable home link + brand entity signal) */}
+            <a href="/" aria-label="Prettycrafted home"
+              onClick={(e) => {
+                e.preventDefault()
+                if (window.location.pathname !== '/') window.history.pushState({}, '', '/')
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#2C1A0E', letterSpacing: '-0.02em', whiteSpace: 'nowrap', cursor: 'pointer', textDecoration: 'none' }}>
               Prettycrafted
-            </div>
+            </a>
 
             {/* RIGHT — icon actions */}
             <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 2 : 12, justifyContent: 'flex-end' }}>

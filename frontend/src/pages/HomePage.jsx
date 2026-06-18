@@ -164,6 +164,9 @@ export default function HomePage() {
 
   return (
     <>
+      
+        
+      
       <Hero />
 
       {/* ── SHOP BY RECIPIENT ─────────────────────────────── */}

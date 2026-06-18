@@ -45,22 +45,6 @@ export const otpLogin = createAsyncThunk('auth/otp', async ({ accessToken, phone
   }
 })
 
-export const verifyEmail = createAsyncThunk('auth/verifyEmail', async (token, { rejectWithValue }) => {
-  try {
-    await authApi.verifyEmail(token)
-  } catch (err) {
-    return rejectWithValue(err.response?.data?.message || 'Verification failed')
-  }
-})
-
-export const resendVerification = createAsyncThunk('auth/resendVerification', async (_, { rejectWithValue }) => {
-  try {
-    await authApi.resendVerification()
-  } catch (err) {
-    return rejectWithValue(err.response?.data?.message || 'Failed to resend verification email')
-  }
-})
-
 export const fetchMe = createAsyncThunk('auth/me', async (_, { rejectWithValue }) => {
   try {
     const { data } = await authApi.me()
@@ -143,9 +127,6 @@ const authSlice = createSlice({
         state.loading = false
         state.user = action.payload
         state.authChecked = true
-      })
-      .addCase(verifyEmail.fulfilled, (state) => {
-        if (state.user) state.user = { ...state.user, emailVerified: true }
       })
       .addCase(fetchMe.rejected, (state) => {
         state.loading = false

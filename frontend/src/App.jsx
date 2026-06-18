@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { fetchMe, logout, selectUser, resendVerification } from './store/slices/authSlice'
+import { fetchMe, logout } from './store/slices/authSlice'
 import { fetchProducts, fetchHampers } from './store/slices/productsSlice'
 import { selectUI, selectCartOpen, selectWishlistOpen, openUserAccount } from './store/slices/uiSlice'
 import { useWindowWidth } from './hooks/useWindowWidth'
@@ -16,7 +16,6 @@ import SEO from './components/SEO'
 import HomePage from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
 import AdminLoginPage from './pages/AdminLoginPage'
-import VerifyEmailPage from './pages/VerifyEmailPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import TermsPage from './pages/TermsPage'
@@ -66,9 +65,6 @@ export default function App() {
   const isOnline = useOnlineStatus()
   const { pathname } = useLocation()
   const isAdmin = pathname.startsWith('/admin')
-  const isVerifyEmail = pathname === '/verify-email'
-  const user = useSelector(selectUser)
-  const [resendState, setResendState] = useState('idle') // idle | loading | sent | error
 
   const [bannerMessages, setBannerMessages] = useState(BANNER_BASE)
 
@@ -177,18 +173,6 @@ export default function App() {
     || (pathname.startsWith('/occasions/') ? routeSEO['/occasions'] : null)
     || routeSEO['/']
 
-  // Verify-email page is standalone — no nav or storefront shell
-  if (isVerifyEmail) {
-    return (
-      <ErrorBoundary>
-        <SEO title="Verify Your Email" url="/verify-email" noIndex />
-        <Routes>
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
-        </Routes>
-      </ErrorBoundary>
-    )
-  }
-
   // Reset-password page is standalone — user arrives from email link, not logged in
   if (pathname === '/reset-password') {
     return (
@@ -245,36 +229,6 @@ export default function App() {
             ))}
           </div>
         </div>
-
-        {/* Email verification banner */}
-        {user && !user.emailVerified && (
-          <div style={{ background: '#FEF3C7', borderBottom: '1px solid #FDE68A', padding: isMobile ? '10px 16px' : '10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, color: '#92400E' }}>
-              {resendState === 'sent'
-                ? '✅ Verification email sent — check your inbox.'
-                : resendState === 'error'
-                ? '❌ Failed to send. Please try again.'
-                : '✉️ Please verify your email address to secure your account.'}
-            </span>
-            {resendState !== 'sent' && (
-              <button
-                disabled={resendState === 'loading'}
-                onClick={async () => {
-                  setResendState('loading')
-                  try {
-                    await dispatch(resendVerification()).unwrap()
-                    setResendState('sent')
-                  } catch {
-                    setResendState('error')
-                    setTimeout(() => setResendState('idle'), 4000)
-                  }
-                }}
-                style={{ fontSize: 12, fontWeight: 700, color: '#92400E', background: 'none', border: '1px solid #D97706', borderRadius: 99, padding: '3px 12px', cursor: resendState === 'loading' ? 'default' : 'pointer', opacity: resendState === 'loading' ? 0.6 : 1 }}>
-                {resendState === 'loading' ? 'Sending...' : 'Resend email'}
-              </button>
-            )}
-          </div>
-        )}
 
         <Nav onScrollTo={scrollTo} />
 

@@ -77,9 +77,6 @@ public class SecurityConfig {
                                 "/api/auth/forgot-password",
                                 "/api/auth/reset-password",
                                 "/api/auth/unsubscribe",
-                                "/api/auth/verify-email",
-                                // resend-verification intentionally excluded — needs JWT to identify the user
-                                // (falls through to secured chain where @AuthenticationPrincipal is populated)
                                 // ── Other public endpoints ───────────────────
                                 "/api/payments/webhook",
                                 "/api/sentry-test",

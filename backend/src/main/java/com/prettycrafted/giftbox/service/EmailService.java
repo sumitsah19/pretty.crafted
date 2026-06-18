@@ -146,21 +146,6 @@ public class EmailService {
     }
 
     @Async
-    public void sendVerificationEmail(User user, String token) {
-        String verifyUrl = frontendUrl + "/verify-email?token=" + token;
-        if (resendApiKey == null || resendApiKey.isBlank()) {
-            log.warn(">>> DEV: Email verification link for {} <<<", user.getEmail());
-            log.warn(">>> {}", verifyUrl);
-        }
-        Context ctx = new Context();
-        ctx.setVariable("name", user.getName());
-        ctx.setVariable("verifyUrl", verifyUrl);
-        String html = templateEngine.process("email-verification", ctx);
-        sendHtml(user.getEmail(), "Verify your PrettyCrafted email address", html,
-                "verify-" + user.getId() + "-" + token.substring(0, 8));
-    }
-
-    @Async
     public void sendPasswordResetEmail(User user, String token) {
         // Always sent regardless of emailNotifications preference.
         String resetUrl = frontendUrl + "/reset-password?token=" + token;

@@ -1,6 +1,5 @@
 package com.prettycrafted.giftbox.service;
 
-import com.prettycrafted.giftbox.domain.EmailVerificationToken;
 import com.prettycrafted.giftbox.domain.PasswordResetToken;
 import com.prettycrafted.giftbox.domain.Role;
 import com.prettycrafted.giftbox.domain.User;
@@ -15,7 +14,6 @@ import com.prettycrafted.giftbox.dto.UpdateProfileRequest;
 import com.prettycrafted.giftbox.dto.UserDto;
 import com.prettycrafted.giftbox.exception.BadRequestException;
 import com.prettycrafted.giftbox.exception.NotFoundException;
-import com.prettycrafted.giftbox.repository.EmailVerificationTokenRepository;
 import com.prettycrafted.giftbox.repository.PasswordResetTokenRepository;
 import com.prettycrafted.giftbox.repository.UserRepository;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -42,7 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
     private final UserRepository userRepo;
     private final PasswordResetTokenRepository resetTokenRepo;
-    private final EmailVerificationTokenRepository verificationTokenRepo;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final EmailService emailService;
@@ -79,42 +76,7 @@ public class AuthService {
             .role(Role.USER)
             .build();
         userRepo.save(user);
-        sendVerificationEmail(user);
         return buildResponse(user);
-    }
-
-    public void verifyEmail(String token) {
-        EmailVerificationToken evt = verificationTokenRepo.findByToken(token)
-            .orElseThrow(() -> new BadRequestException("Invalid or expired verification link"));
-        if (evt.isUsed()) {
-            throw new BadRequestException("This verification link has already been used");
-        }
-        if (evt.getExpiresAt().isBefore(Instant.now())) {
-            throw new BadRequestException("Verification link has expired — please request a new one");
-        }
-        User user = evt.getUser();
-        user.setEmailVerified(true);
-        evt.setUsed(true);
-    }
-
-    public void resendVerification(Long userId) {
-        User user = userRepo.findById(userId)
-            .orElseThrow(() -> new NotFoundException("User not found: " + userId));
-        if (user.isEmailVerified()) {
-            throw new BadRequestException("Email is already verified");
-        }
-        verificationTokenRepo.deleteByUser(user);
-        sendVerificationEmail(user);
-    }
-
-    private void sendVerificationEmail(User user) {
-        String token = UUID.randomUUID().toString().replace("-", "");
-        verificationTokenRepo.save(EmailVerificationToken.builder()
-            .token(token)
-            .user(user)
-            .expiresAt(Instant.now().plusSeconds(86400))
-            .build());
-        emailService.sendVerificationEmail(user, token);
     }
 
     public AuthResponse login(LoginRequest req) {
