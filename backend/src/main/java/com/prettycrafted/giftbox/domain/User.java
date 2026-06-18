@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,7 +19,13 @@ import org.hibernate.annotations.BatchSize;
 
 @BatchSize(size = 20)
 @Entity
-@Table(name = "users")
+// uk_users_phone enforces one account per phone number. The name matches the
+// Flyway migration (V7) so the constraint is identical whether the schema is
+// built by Flyway (prod) or Hibernate ddl-auto (local) — without it, the
+// race-safe find-or-create in AuthService.createPhoneUser has no backing index
+// and concurrent OTP logins could create duplicate accounts. MySQL permits
+// repeated NULLs, so phone-less (legacy email/password) accounts are unaffected.
+@Table(name = "users", uniqueConstraints = @UniqueConstraint(name = "uk_users_phone", columnNames = "phone"))
 @Getter
 @Setter
 @NoArgsConstructor

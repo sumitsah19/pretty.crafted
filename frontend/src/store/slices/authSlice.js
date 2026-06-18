@@ -18,15 +18,6 @@ export const login = createAsyncThunk('auth/login', async ({ email, password }, 
   }
 })
 
-export const register = createAsyncThunk('auth/register', async ({ name, email, password }, { rejectWithValue }) => {
-  try {
-    const { data } = await authApi.register(name, email, password)
-    return data
-  } catch (err) {
-    return rejectWithValue(err.response?.data?.message || 'Registration failed')
-  }
-})
-
 export const googleLogin = createAsyncThunk('auth/google', async (credential, { rejectWithValue }) => {
   try {
     const { data } = await authApi.googleLogin(credential)
@@ -104,12 +95,6 @@ const authSlice = createSlice({
         if (action.payload.user) { analytics.login('email'); identify(action.payload.user.id, { email: action.payload.user.email }) }
       })
       .addCase(login.rejected, rejected)
-      .addCase(register.pending, pending)
-      .addCase(register.fulfilled, (state, action) => {
-        fulfilled(state, action); state.authChecked = true
-        if (action.payload.user) { analytics.signup('email'); identify(action.payload.user.id, { email: action.payload.user.email }) }
-      })
-      .addCase(register.rejected, rejected)
       .addCase(googleLogin.pending, pending)
       .addCase(googleLogin.fulfilled, (state, action) => {
         fulfilled(state, action); state.authChecked = true

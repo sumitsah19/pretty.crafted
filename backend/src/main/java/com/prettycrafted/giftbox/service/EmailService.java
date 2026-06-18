@@ -162,16 +162,6 @@ public class EmailService {
                 "reset-" + user.getId() + "-" + token.substring(0, 8));
     }
 
-    @Async
-    public void sendOtpEmail(User user, String otp) {
-        Context ctx = new Context();
-        ctx.setVariable("name", user.getName());
-        ctx.setVariable("otp", otp);
-        String html = templateEngine.process("otp-email", ctx);
-        sendHtml(user.getEmail(), "Your PrettyCrafted login code: " + otp, html,
-                "otp-" + user.getId() + "-" + otp);
-    }
-
     // ── Synchronous test (used by AdminDashboardController) ───────────────────
 
     /**

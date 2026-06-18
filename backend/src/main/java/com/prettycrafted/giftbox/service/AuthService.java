@@ -58,8 +58,8 @@ public class AuthService {
         if (googleClientId != null && !googleClientId.isBlank()) {
             googleVerifier = new GoogleIdTokenVerifier.Builder(
                     new NetHttpTransport(), GsonFactory.getDefaultInstance())
-                .setAudience(Collections.singletonList(googleClientId))
-                .build();
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
         }
     }
 
@@ -69,12 +69,12 @@ public class AuthService {
             throw new BadRequestException("Email already registered");
         }
         User user = User.builder()
-            .email(email)
-            .passwordHash(passwordEncoder.encode(req.password()))
-            .name(req.name().trim())
-            .phone(canonicalPhone(req.phone()))
-            .role(Role.USER)
-            .build();
+                .email(email)
+                .passwordHash(passwordEncoder.encode(req.password()))
+                .name(req.name().trim())
+                .phone(canonicalPhone(req.phone()))
+                .role(Role.USER)
+                .build();
         userRepo.save(user);
         return buildResponse(user);
     }
@@ -82,7 +82,7 @@ public class AuthService {
     public AuthResponse login(LoginRequest req) {
         String email = req.email().trim().toLowerCase();
         User user = userRepo.findByEmail(email)
-            .orElseThrow(() -> new BadRequestException("Invalid email or password"));
+                .orElseThrow(() -> new BadRequestException("Invalid email or password"));
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
             throw new BadRequestException("Invalid email or password");
         }
@@ -92,12 +92,12 @@ public class AuthService {
     @Transactional(readOnly = true)
     public UserDto getById(Long id) {
         return userRepo.findById(id).map(UserDto::from)
-            .orElseThrow(() -> new NotFoundException("User not found: " + id));
+                .orElseThrow(() -> new NotFoundException("User not found: " + id));
     }
 
     public UserDto updateProfile(Long id, UpdateProfileRequest req) {
         User user = userRepo.findById(id)
-            .orElseThrow(() -> new NotFoundException("User not found: " + id));
+                .orElseThrow(() -> new NotFoundException("User not found: " + id));
         user.setName(req.name().trim());
         if (req.phone() != null && !req.phone().isBlank()) {
             user.setPhone(canonicalPhone(req.phone()));
@@ -120,17 +120,17 @@ public class AuthService {
             resetTokenRepo.deleteByUser(user);
             String token = UUID.randomUUID().toString().replace("-", "");
             resetTokenRepo.save(PasswordResetToken.builder()
-                .token(token)
-                .user(user)
-                .expiresAt(Instant.now().plusSeconds(3600))
-                .build());
+                    .token(token)
+                    .user(user)
+                    .expiresAt(Instant.now().plusSeconds(3600))
+                    .build());
             emailService.sendPasswordResetEmail(user, token);
         });
     }
 
     public void resetPassword(ResetPasswordRequest req) {
         PasswordResetToken prt = resetTokenRepo.findByToken(req.token())
-            .orElseThrow(() -> new BadRequestException("Invalid or expired token"));
+                .orElseThrow(() -> new BadRequestException("Invalid or expired token"));
         if (prt.isUsed()) {
             throw new BadRequestException("Token already used");
         }
@@ -148,7 +148,8 @@ public class AuthService {
             throw new BadRequestException("Google login is not configured on this server");
         }
 
-        // Verify signature, audience, issuer and expiry locally — no HTTP call per login
+        // Verify signature, audience, issuer and expiry locally — no HTTP call per
+        // login
         GoogleIdToken idToken;
         try {
             idToken = googleVerifier.verify(req.credential());
@@ -167,19 +168,18 @@ public class AuthService {
         }
 
         String email = payload.getEmail().trim().toLowerCase();
-        String name  = (String) payload.getOrDefault("name", email.split("@")[0]);
+        String name = (String) payload.getOrDefault("name", email.split("@")[0]);
 
         // Find existing user (any sign-in method) or create a new Google-only account
-        User user = userRepo.findByEmail(email).orElseGet(() ->
-            userRepo.save(User.builder()
+        User user = userRepo.findByEmail(email).orElseGet(() -> userRepo.save(User.builder()
                 .email(email)
                 .name(name != null ? name.trim() : email.split("@")[0])
                 .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
                 .role(Role.USER)
                 .emailVerified(true)
-                .build())
-        );
-        // Mark existing Google users as verified (Google has already confirmed their email)
+                .build()));
+        // Mark existing Google users as verified (Google has already confirmed their
+        // email)
         if (!user.isEmailVerified()) {
             user.setEmailVerified(true);
         }
@@ -193,7 +193,8 @@ public class AuthService {
      * (AuthKey stays on the backend), then find-or-create the user by phone and
      * issue our own JWT — mirroring {@link #loginWithGoogle}.
      *
-     * <p>Runs outside the class-level transaction ({@code NOT_SUPPORTED}) so that
+     * <p>
+     * Runs outside the class-level transaction ({@code NOT_SUPPORTED}) so that
      * the find-or-create insert commits in its own transaction: if a concurrent
      * OTP login for the same new number wins the race, the unique index on
      * {@code users.phone} rejects our insert and we can re-fetch the winner
@@ -202,8 +203,8 @@ public class AuthService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public AuthResponse loginWithOtp(OtpVerifyRequest req) {
         // 1) Prove the OTP flow completed AND learn the number MSG91 actually
-        //    verified. Identity is derived solely from MSG91's response — never
-        //    from client-supplied input.
+        // verified. Identity is derived solely from MSG91's response — never
+        // from client-supplied input.
         String verifiedDigits = msg91Service.verifyAccessToken(req.accessToken());
         String phone = normalizeIndianPhone(verifiedDigits);
         if (phone == null) {
@@ -217,8 +218,8 @@ public class AuthService {
         }
 
         // 2) Defense in depth: the client tells us which number it expects to log
-        //    in as. It must match the number MSG91 actually verified — otherwise
-        //    the token was issued for a different number than the one claimed.
+        // in as. It must match the number MSG91 actually verified — otherwise
+        // the token was issued for a different number than the one claimed.
         if (req.phone() != null && !req.phone().isBlank()) {
             String claimed = normalizeIndianPhone(req.phone());
             if (claimed == null || !claimed.equals(phone)) {
@@ -229,7 +230,7 @@ public class AuthService {
 
         // 3) Find-or-create, race-safe (see method javadoc).
         User user = userRepo.findFirstByPhoneOrderByIdAsc(phone)
-            .orElseGet(() -> createPhoneUser(phone));
+                .orElseGet(() -> createPhoneUser(phone));
         return buildResponse(user);
     }
 
@@ -238,25 +239,26 @@ public class AuthService {
      * non-routable placeholder email (the column is NOT NULL + unique) and a
      * random password hash they never use — same trick the Google flow uses.
      *
-     * <p>If a concurrent OTP login for the same new number inserted first, the
+     * <p>
+     * If a concurrent OTP login for the same new number inserted first, the
      * unique index on {@code users.phone} makes our insert fail; we then re-fetch
      * and return the winner rather than creating a duplicate row.
      */
     private User createPhoneUser(String phone) {
         try {
             return userRepo.save(User.builder()
-                .phone(phone)
-                .name("Customer")
-                .email(phone.replace("+", "") + "@phone.prettycrafted.invalid")
-                .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
-                .role(Role.USER)
-                .emailVerified(false)
-                .emailNotifications(false)
-                .build());
+                    .phone(phone)
+                    .name("User")
+                    .email(phone.replace("+", "") + "@phone.prettycrafted.invalid")
+                    .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
+                    .role(Role.USER)
+                    .emailVerified(false)
+                    .emailNotifications(false)
+                    .build());
         } catch (DataIntegrityViolationException raceLost) {
             log.info("Lost phone-account creation race for a number — using the existing account");
             return userRepo.findFirstByPhoneOrderByIdAsc(phone)
-                .orElseThrow(() -> raceLost);
+                    .orElseThrow(() -> raceLost);
         }
     }
 
@@ -295,7 +297,7 @@ public class AuthService {
         return "+91" + d;
     }
 
-public void unsubscribe(Long userId, String sig) {
+    public void unsubscribe(Long userId, String sig) {
         if (!emailService.verifyUnsubscribeToken(userId, sig)) {
             throw new BadRequestException("Invalid unsubscribe link");
         }

@@ -353,7 +353,8 @@ export default function GiftBoxCTASection({ isHero = true }) {
   }, [isHero])
 
   // Make the hero cards slightly larger than the standalone "build" section
-  const albumSize = isHero ? (mobile ? 160 : 196) : (mobile ? 140 : 172)
+  // Make hero cards slightly larger for stronger visual presence
+  const albumSize = isHero ? (mobile ? 250 : 290) : (mobile ? 140 : 172)
 
   // Hero section maps hero-card DTOs into the CoverFlow's card shape; the build section maps
   // build-box DTOs. Either falls back to the gradient SONGS boxes when no admin cards exist.
