@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+﻿import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useDispatch } from 'react-redux'
 import { openBoxBuilder, openHamperShop, setActiveProduct } from '../store/slices/uiSlice'
 import { heroCardsApi, buildBoxApi, productsApi } from '../api/services'
@@ -458,7 +458,7 @@ export default function GiftBoxCTASection({ isHero = true }) {
       </div>
 
       {/* CTA row */}
-      <div style={{ position: 'relative', zIndex: 600, padding: mobile ? '12px 20px 12px' : '10px 40px 10px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, flexWrap: 'nowrap', transform: isHero ? (mobile ? 'translateY(-12px)' : 'translateY(-22px)') : 'none' }}>
+      <div style={{ padding: mobile ? '12px 20px 12px' : '10px 40px 10px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, flexWrap: 'nowrap', transform: isHero ? (mobile ? 'translateY(-12px)' : 'translateY(-22px)') : 'none' }}>
         {isHero && <BuyHampersBtn mobile={mobile} onClick={() => dispatch(openHamperShop())} />}
         <BuildOwnBtn mobile={mobile} onClick={() => dispatch(openBoxBuilder())} />
       </div>

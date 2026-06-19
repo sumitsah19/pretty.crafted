@@ -288,7 +288,7 @@ export default function ProductDetailModal({ product }) {
 
             {/* Shipping trust badges */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '16px', background: 'white', borderRadius: 16, border: '1px solid #EDE4D8', marginBottom: 24 }}>
-              {[['🚚', 'Free shipping', 'on orders over $60'], ['💌', 'Gift wrapping', 'available at checkout'], ['↩️', 'Free returns', '30-day hassle-free returns'], ['🔒', 'Secure checkout', 'SSL encrypted payment']].map(([e, t, s]) => (
+              {[['🚚', 'Free shipping', 'on orders over ₹799'], ['💌', 'Gift wrapping', 'available at checkout'], ['↩️', 'Free returns', '30-day hassle-free returns'], ['🔒', 'Secure checkout', 'SSL encrypted payment']].map(([e, t, s]) => (
                 <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span style={{ fontSize: 18, flexShrink: 0, width: 24, textAlign: 'center' }}>{e}</span>
                   <div>
