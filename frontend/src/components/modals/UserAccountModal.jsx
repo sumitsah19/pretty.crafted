@@ -7,7 +7,7 @@ import { selectWishlistIds, toggleWishlist, wishlistKey } from '../../store/slic
 import { selectProducts } from '../../store/slices/productsSlice'
 import { addLocal } from '../../store/slices/cartSlice'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
-import { ordersApi, authApi } from '../../api/services'
+import { ordersApi, authApi, addressApi } from '../../api/services'
 
 const TC = '#C4704A'
 
@@ -339,68 +339,175 @@ function WishlistPage({ onToast }) {
 }
 
 // ── ADDRESSES PAGE ────────────────────────────────────────────────
-const MOCK_ADDRESSES = [
-  { id:1, label:'Home',   name:'', line:'42 Maple Grove, Apt 3B',     city:'Mumbai, MH 400001', default:true  },
-  { id:2, label:'Office', name:'', line:'Tower C, Floor 9, BKC',       city:'Mumbai, MH 400051', default:false },
-]
+const BLANK_ADDR = { label:'', recipientName:'', phone:'', line1:'', line2:'', city:'', state:'', zip:'', country:'India', isDefault:false }
+
+const addrInputSt = { width:'100%', padding:'10px 13px', borderRadius:11, border:'1.5px solid #EDE4D8', fontSize:13, fontFamily:"'DM Sans',sans-serif", background:'white', color:'#2C1A0E', outline:'none', transition:'border-color 0.2s' }
+
+function AddressForm({ initial, user, onCancel, onSaved, onToast }) {
+  const [form, setForm] = useState({ ...BLANK_ADDR, recipientName: user?.name || '', ...(initial || {}) })
+  const [saving, setSaving] = useState(false)
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  const valid = form.recipientName.trim() && form.phone.trim() && form.line1.trim() && form.city.trim() && form.zip.trim()
+  const editing = Boolean(initial?.id)
+
+  const save = async () => {
+    if (!valid || saving) return
+    setSaving(true)
+    try {
+      const payload = {
+        label: form.label.trim() || undefined,
+        recipientName: form.recipientName.trim(),
+        phone: form.phone.trim(),
+        line1: form.line1.trim(),
+        line2: form.line2.trim() || undefined,
+        city: form.city.trim(),
+        state: form.state.trim() || undefined,
+        zip: form.zip.trim(),
+        country: form.country.trim() || 'India',
+        isDefault: form.isDefault,
+      }
+      if (editing) await addressApi.update(initial.id, payload)
+      else await addressApi.create(payload)
+      onToast(editing ? 'Address updated' : 'Address saved')
+      onSaved()
+    } catch {
+      onToast('Save failed — please try again')
+      setSaving(false)
+    }
+  }
+
+  const field = (k, label, ph) => (
+    <div style={{ marginBottom:12 }}>
+      <label style={{ fontSize:11, fontWeight:700, color:'#6B4F3A', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</label>
+      <input value={form[k]} onChange={e => set(k, e.target.value)} placeholder={ph} style={addrInputSt}
+        onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = '#EDE4D8'} />
+    </div>
+  )
+
+  return (
+    <div onClick={e => e.target === e.currentTarget && onCancel()}
+      style={{ position:'fixed', inset:0, zIndex:1300, background:'rgba(44,26,14,0.4)', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+      <div style={{ background:'#FAF7F2', borderRadius:24, padding:'26px', width:'100%', maxWidth:420, maxHeight:'90vh', overflowY:'auto', boxShadow:'0 24px 64px rgba(44,26,14,0.18)' }} className="ua-no-scrollbar">
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:17, fontWeight:700 }}>{editing ? 'Edit Address' : 'New Address'}</div>
+          <button onClick={onCancel} style={{ background:'#F5EEE6', border:'none', borderRadius:'50%', width:30, height:30, cursor:'pointer', fontSize:16, color:'#6B4F3A', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+        </div>
+        {field('label', 'Label (Home / Office)', 'Home')}
+        {field('recipientName', 'Full Name *', 'Jane Doe')}
+        {field('phone', 'Phone *', '+91 98765 43210')}
+        {field('line1', 'Address Line 1 *', '123 Main Street')}
+        {field('line2', 'Address Line 2', 'Apt, Suite (optional)')}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+          {field('city', 'City *', 'Mumbai')}
+          {field('state', 'State', 'Maharashtra')}
+        </div>
+        {field('zip', 'Pincode *', '400001')}
+        <label style={{ display:'flex', alignItems:'center', gap:9, margin:'4px 0 16px', cursor:'pointer', fontSize:13, color:'#6B4F3A', fontWeight:500 }}>
+          <input type="checkbox" checked={form.isDefault} onChange={e => set('isDefault', e.target.checked)} style={{ accentColor:TC, width:16, height:16 }} />
+          Set as default address
+        </label>
+        <button onClick={save} disabled={!valid || saving}
+          style={{ width:'100%', padding:'13px', borderRadius:99, border:'none', background: !valid || saving ? '#EDE4D8' : TC, color: !valid || saving ? '#9C7A63' : 'white', fontWeight:700, fontSize:14, cursor: !valid || saving ? 'default' : 'pointer' }}>
+          {saving ? 'Saving…' : editing ? 'Update Address' : 'Save Address'}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function AddressesPage({ onToast }) {
   const user = useSelector(selectUser)
-  const [addresses, setAddresses] = useState(MOCK_ADDRESSES.map(a => ({ ...a, name: user?.name || '' })))
-  const [showAdd, setShowAdd] = useState(false)
+  const [addresses, setAddresses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(null) // address being edited, or {} for new, or null when closed
+
+  const load = () => {
+    setLoading(true)
+    addressApi.list()
+      .then(({ data }) => setAddresses(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }
+  // Initial fetch — inlined (not via load()) so we don't call setState
+  // synchronously inside the effect; `loading` already starts true.
+  useEffect(() => {
+    let cancelled = false
+    addressApi.list()
+      .then(({ data }) => { if (!cancelled) setAddresses(Array.isArray(data) ? data : []) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  const onSaved = () => { setEditing(null); load() }
+
+  const setDefault = async (id) => {
+    try { await addressApi.setDefault(id); onToast('Default address set'); load() }
+    catch { onToast('Could not update — please try again') }
+  }
+  const remove = async (id) => {
+    try { await addressApi.remove(id); onToast('Address removed'); load() }
+    catch { onToast('Could not remove — please try again') }
+  }
+
+  if (loading) return (
+    <div style={{ textAlign:'center', padding:'48px', color:'#9C7A63' }}>
+      <div style={{ width:32, height:32, border:'3px solid #EDE4D8', borderTopColor:TC, borderRadius:'50%', margin:'0 auto 12px', animation:'uaSpin 0.8s linear infinite' }} />
+      Loading addresses…
+    </div>
+  )
 
   return (
     <div>
-      <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:18 }}>
-        {addresses.map(addr => (
-          <div key={addr.id} style={{ background:'white', borderRadius:16, padding:'16px 18px', border:`1.5px solid ${addr.default ? TC : '#EDE4D8'}` }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-              <div>
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-                  <span style={{ fontWeight:700, fontSize:13, color:'#2C1A0E' }}>{addr.label}</span>
-                  {addr.default && <span style={{ fontSize:10, fontWeight:700, color:TC, background:'#FDF6F1', padding:'2px 8px', borderRadius:99 }}>Default</span>}
+      {addresses.length === 0 ? (
+        <div style={{ textAlign:'center', padding:'48px 20px 28px' }}>
+          <div style={{ fontSize:44, marginBottom:14 }}>📍</div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:600, marginBottom:6 }}>No saved addresses</div>
+          <div style={{ fontSize:13, color:'#9C7A63' }}>Add one to check out faster next time</div>
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:18 }}>
+          {addresses.map(addr => (
+            <div key={addr.id} style={{ background:'white', borderRadius:16, padding:'16px 18px', border:`1.5px solid ${addr.isDefault ? TC : '#EDE4D8'}` }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10 }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                    <span style={{ fontWeight:700, fontSize:13, color:'#2C1A0E' }}>{addr.label || 'Address'}</span>
+                    {addr.isDefault && <span style={{ fontSize:10, fontWeight:700, color:TC, background:'#FDF6F1', padding:'2px 8px', borderRadius:99 }}>Default</span>}
+                  </div>
+                  <div style={{ fontSize:12, color:'#6B4F3A', lineHeight:1.7 }}>
+                    {addr.recipientName}{addr.phone ? ` · ${addr.phone}` : ''}<br/>
+                    {addr.line1}{addr.line2 ? `, ${addr.line2}` : ''}<br/>
+                    {addr.city}{addr.state ? `, ${addr.state}` : ''} {addr.zip}, {addr.country}
+                  </div>
                 </div>
-                <div style={{ fontSize:12, color:'#6B4F3A', lineHeight:1.7 }}>{addr.name}<br/>{addr.line}<br/>{addr.city}</div>
-              </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                <button onClick={() => onToast('Edit address')} style={{ padding:'5px 12px', borderRadius:99, border:'1.5px solid #EDE4D8', background:'white', color:'#6B4F3A', fontSize:11, fontWeight:600, cursor:'pointer' }}>Edit</button>
-                {!addr.default && (
-                  <button onClick={() => { setAddresses(a => a.map(x => ({ ...x, default: x.id === addr.id }))); onToast('Default set') }}
-                    style={{ padding:'5px 12px', borderRadius:99, border:'none', background:'#F5EEE6', color:TC, fontSize:11, fontWeight:600, cursor:'pointer' }}>Set Default</button>
-                )}
+                <div style={{ display:'flex', flexDirection:'column', gap:6, flexShrink:0 }}>
+                  <button onClick={() => setEditing(addr)} style={{ padding:'5px 12px', borderRadius:99, border:'1.5px solid #EDE4D8', background:'white', color:'#6B4F3A', fontSize:11, fontWeight:600, cursor:'pointer' }}>Edit</button>
+                  {!addr.isDefault && (
+                    <button onClick={() => setDefault(addr.id)}
+                      style={{ padding:'5px 12px', borderRadius:99, border:'none', background:'#F5EEE6', color:TC, fontSize:11, fontWeight:600, cursor:'pointer' }}>Set Default</button>
+                  )}
+                  <button onClick={() => remove(addr.id)} style={{ padding:'5px 12px', borderRadius:99, border:'1.5px solid #F3D9D9', background:'white', color:'#C44A4A', fontSize:11, fontWeight:600, cursor:'pointer' }}>Delete</button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-      <button onClick={() => setShowAdd(true)}
-        style={{ width:'100%', padding:'13px', borderRadius:99, border:'2px dashed #D9CBBF', background:'white', color:'#9C7A63', fontWeight:600, fontSize:13, cursor:'pointer' }}
+          ))}
+        </div>
+      )}
+      <button onClick={() => setEditing({})}
+        style={{ width:'100%', marginTop: addresses.length === 0 ? 8 : 0, padding:'13px', borderRadius:99, border:'2px dashed #D9CBBF', background:'white', color:'#9C7A63', fontWeight:600, fontSize:13, cursor:'pointer' }}
         onMouseEnter={e => { e.currentTarget.style.borderColor = TC; e.currentTarget.style.color = TC }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = '#D9CBBF'; e.currentTarget.style.color = '#9C7A63' }}>
         + Add New Address
       </button>
-      {showAdd && (
-        <div onClick={e => e.target === e.currentTarget && setShowAdd(false)}
-          style={{ position:'fixed', inset:0, zIndex:1300, background:'rgba(44,26,14,0.4)', backdropFilter:'blur(6px)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-          <div style={{ background:'#FAF7F2', borderRadius:24, padding:'26px', width:'100%', maxWidth:420, boxShadow:'0 24px 64px rgba(44,26,14,0.18)' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <div style={{ fontFamily:"'Playfair Display',serif", fontSize:17, fontWeight:700 }}>New Address</div>
-              <button onClick={() => setShowAdd(false)} style={{ background:'#F5EEE6', border:'none', borderRadius:'50%', width:30, height:30, cursor:'pointer', fontSize:16, color:'#6B4F3A', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
-            </div>
-            {['Label (Home / Office)', 'Full Name', 'Street Address', 'City, State, Pincode'].map(l => (
-              <div key={l} style={{ marginBottom:12 }}>
-                <label style={{ fontSize:11, fontWeight:700, color:'#6B4F3A', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>{l}</label>
-                <input style={{ width:'100%', padding:'10px 13px', borderRadius:11, border:'1.5px solid #EDE4D8', fontSize:13, fontFamily:"'DM Sans',sans-serif", background:'white', outline:'none' }}
-                  onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = '#EDE4D8'} />
-              </div>
-            ))}
-            <button
-              onClick={() => { setShowAdd(false); setAddresses(a => [...a, { id:Date.now(), label:'New', name: user?.name || '', line:'New address', city:'Mumbai', default:false }]); onToast('Address saved') }}
-              style={{ width:'100%', padding:'13px', borderRadius:99, border:'none', background:TC, color:'white', fontWeight:700, fontSize:14, cursor:'pointer', marginTop:6 }}>
-              Save Address
-            </button>
-          </div>
-        </div>
+      {editing && (
+        <AddressForm
+          initial={editing.id ? editing : null}
+          user={user}
+          onCancel={() => setEditing(null)}
+          onSaved={onSaved}
+          onToast={onToast}
+        />
       )}
     </div>
   )

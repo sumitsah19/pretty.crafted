@@ -16,7 +16,6 @@ import SEO from './components/SEO'
 import HomePage from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
 import AdminLoginPage from './pages/AdminLoginPage'
-import ResetPasswordPage from './pages/ResetPasswordPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import TermsPage from './pages/TermsPage'
 import OrderDetailPage from './pages/OrderDetailPage'
@@ -172,18 +171,6 @@ export default function App() {
   const currentSEO = routeSEO[pathname]
     || (pathname.startsWith('/occasions/') ? routeSEO['/occasions'] : null)
     || routeSEO['/']
-
-  // Reset-password page is standalone — user arrives from email link, not logged in
-  if (pathname === '/reset-password') {
-    return (
-      <ErrorBoundary>
-        <SEO title="Reset Your Password" url="/reset-password" noIndex />
-        <Routes>
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-        </Routes>
-      </ErrorBoundary>
-    )
-  }
 
   // Admin has its own full-page layout — skip storefront shell entirely
   if (isAdmin) {

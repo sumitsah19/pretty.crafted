@@ -1,17 +1,12 @@
 package com.prettycrafted.giftbox.service;
 
-import com.prettycrafted.giftbox.domain.PasswordResetToken;
 import com.prettycrafted.giftbox.domain.Role;
 import com.prettycrafted.giftbox.domain.User;
 import com.prettycrafted.giftbox.dto.LoginRequest;
 import com.prettycrafted.giftbox.dto.OtpVerifyRequest;
-import com.prettycrafted.giftbox.dto.RegisterRequest;
-import com.prettycrafted.giftbox.dto.ResetPasswordRequest;
 import com.prettycrafted.giftbox.dto.UpdateProfileRequest;
 import com.prettycrafted.giftbox.exception.BadRequestException;
-import com.prettycrafted.giftbox.repository.PasswordResetTokenRepository;
 import com.prettycrafted.giftbox.repository.UserRepository;
-import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,54 +25,12 @@ import static org.mockito.Mockito.*;
 class AuthServiceTest {
 
     @Mock UserRepository userRepo;
-    @Mock PasswordResetTokenRepository resetTokenRepo;
     @Mock PasswordEncoder passwordEncoder;
     @Mock JwtService jwtService;
     @Mock EmailService emailService;
     @Mock Msg91Service msg91Service;
 
     @InjectMocks AuthService service;
-
-    // ─── Register ─────────────────────────────────────────────────────────────
-
-    @Test
-    void register_throwsWhenEmailAlreadyExists() {
-        when(userRepo.existsByEmail("test@example.com")).thenReturn(true);
-        var req = new RegisterRequest("test@example.com", "password1", "Test User", null);
-        assertThrows(BadRequestException.class, () -> service.register(req));
-        verify(userRepo, never()).save(any());
-    }
-
-    @Test
-    void register_savesNewUserAndReturnsToken() {
-        when(userRepo.existsByEmail("new@example.com")).thenReturn(false);
-        when(passwordEncoder.encode(any())).thenReturn("hashed");
-        User saved = User.builder().id(1L).email("new@example.com").name("New").passwordHash("hashed").role(Role.USER).build();
-        when(userRepo.save(any())).thenReturn(saved);
-        when(jwtService.generate(any())).thenReturn("jwt-token");
-        when(jwtService.expirationSeconds()).thenReturn(86400L);
-
-        var result = service.register(new RegisterRequest("new@example.com", "password1", "New", null));
-
-        assertNotNull(result.token());
-        verify(userRepo).save(any(User.class));
-    }
-
-    @Test
-    void register_normalizesPhoneToE164() {
-        when(userRepo.existsByEmail("new@example.com")).thenReturn(false);
-        when(passwordEncoder.encode(any())).thenReturn("hashed");
-        when(userRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(jwtService.generate(any())).thenReturn("jwt");
-        when(jwtService.expirationSeconds()).thenReturn(86400L);
-
-        service.register(new RegisterRequest("new@example.com", "password1", "New", "09876543210"));
-
-        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepo).save(captor.capture());
-        // 0-prefixed input must be stored canonically so OTP login matches it later.
-        assertEquals("+919876543210", captor.getValue().getPhone());
-    }
 
     // ─── Login ────────────────────────────────────────────────────────────────
 
@@ -107,50 +60,6 @@ class AuthServiceTest {
 
         var result = service.login(new LoginRequest("u@example.com", "correct"));
         assertEquals("jwt", result.token());
-    }
-
-    // ─── Reset password ───────────────────────────────────────────────────────
-
-    @Test
-    void resetPassword_throwsOnInvalidToken() {
-        when(resetTokenRepo.findByToken("bad")).thenReturn(Optional.empty());
-        assertThrows(BadRequestException.class,
-            () -> service.resetPassword(new ResetPasswordRequest("bad", "newpassword")));
-    }
-
-    @Test
-    void resetPassword_throwsOnAlreadyUsedToken() {
-        PasswordResetToken prt = PasswordResetToken.builder()
-            .token("tok").user(User.builder().build())
-            .expiresAt(Instant.now().plusSeconds(3600)).used(true).build();
-        when(resetTokenRepo.findByToken("tok")).thenReturn(Optional.of(prt));
-        assertThrows(BadRequestException.class,
-            () -> service.resetPassword(new ResetPasswordRequest("tok", "newpassword")));
-    }
-
-    @Test
-    void resetPassword_throwsOnExpiredToken() {
-        PasswordResetToken prt = PasswordResetToken.builder()
-            .token("tok").user(User.builder().build())
-            .expiresAt(Instant.now().minusSeconds(1)).used(false).build();
-        when(resetTokenRepo.findByToken("tok")).thenReturn(Optional.of(prt));
-        assertThrows(BadRequestException.class,
-            () -> service.resetPassword(new ResetPasswordRequest("tok", "newpassword")));
-    }
-
-    @Test
-    void resetPassword_updatesPasswordOnValidToken() {
-        User user = User.builder().id(1L).email("u@example.com").passwordHash("old").role(Role.USER).build();
-        PasswordResetToken prt = PasswordResetToken.builder()
-            .token("tok").user(user)
-            .expiresAt(Instant.now().plusSeconds(3600)).used(false).build();
-        when(resetTokenRepo.findByToken("tok")).thenReturn(Optional.of(prt));
-        when(passwordEncoder.encode("newpassword")).thenReturn("newhash");
-
-        service.resetPassword(new ResetPasswordRequest("tok", "newpassword"));
-
-        assertEquals("newhash", user.getPasswordHash());
-        assertTrue(prt.isUsed());
     }
 
     // ─── Update profile (password change) ─────────────────────────────────────

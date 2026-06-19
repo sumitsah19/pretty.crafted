@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { selectCart, clearCart, removeBox, removeLocal } from '../../store/slices/cartSlice'
 import { closeCheckout, openLogin } from '../../store/slices/uiSlice'
 import { selectIsLoggedIn } from '../../store/slices/authSlice'
-import { ordersApi, cartApi, couponApi, giftBoxApi } from '../../api/services'
+import { ordersApi, cartApi, couponApi, giftBoxApi, addressApi } from '../../api/services'
 import { analytics } from '../../analytics'
 
 const TC = '#C4704A'
@@ -53,6 +53,10 @@ export default function CheckoutModal() {
   const [coupon, setCoupon] = useState(null) // { code, discountPercent }
   const [couponMsg, setCouponMsg] = useState('')
   const [couponBusy, setCouponBusy] = useState(false)
+  // Saved address book: prefill the form from the default, and let the user
+  // pick another instead of re-typing. `null` selectedAddrId = "new address".
+  const [savedAddresses, setSavedAddresses] = useState([])
+  const [selectedAddrId, setSelectedAddrId] = useState(null)
 
   useEffect(() => { analytics.checkoutStart() }, [])
   useEffect(() => { analytics.checkoutStep(step) }, [step])
@@ -98,8 +102,38 @@ export default function CheckoutModal() {
     setCouponMsg('')
   }
 
-  const setA = (k, v) => setAddr((p) => ({ ...p, [k]: v }))
+  // Tracks whether the user has manually typed into the form, so the address-book
+  // prefill never overwrites their own input. Written only from event handlers.
+  const touchedRef = useRef(false)
+  const setA = (k, v) => { touchedRef.current = true; setAddr((p) => ({ ...p, [k]: v })) }
   const addrValid = addr.name && addr.phone && addr.line1 && addr.city && addr.zip
+
+  // Map a saved AddressDto onto the checkout form shape.
+  const fillFromSaved = (a) => setAddr({
+    name: a.recipientName || '', phone: a.phone || '',
+    line1: a.line1 || '', line2: a.line2 || '',
+    city: a.city || '', state: a.state || '',
+    zip: a.zip || '', country: a.country || 'India',
+  })
+
+  // Load the address book once signed in; prefill from the default so the
+  // returning customer rarely retypes anything.
+  useEffect(() => {
+    if (!isLoggedIn) return
+    let cancelled = false
+    addressApi.list()
+      .then(({ data }) => {
+        if (cancelled) return
+        const list = Array.isArray(data) ? data : []
+        setSavedAddresses(list)
+        // Only auto-fill an untouched form — never clobber what the user already
+        // typed (e.g. they entered an address while logged out, then signed in).
+        const def = list.find((a) => a.isDefault) || list[0]
+        if (def && !touchedRef.current) { setSelectedAddrId(def.id); fillFromSaved(def) }
+      })
+      .catch(() => { /* address book unavailable — manual entry still works */ })
+    return () => { cancelled = true }
+  }, [isLoggedIn])
   const payValid = payMethod === 'cod' || payMethod === 'online'
 
   const inputSt = { width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: 13, border: '1.5px solid #EDE4D8', background: '#FDFAF7', color: '#2C1A0E', outline: 'none', fontFamily: "'DM Sans',sans-serif", transition: 'border-color 0.2s' }
@@ -385,6 +419,39 @@ export default function CheckoutModal() {
           {step === 1 && !placed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Delivery Address</div>
+
+              {/* Saved address picker — only when the customer has any */}
+              {savedAddresses.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 4 }}>
+                  {savedAddresses.map((a) => {
+                    const sel = selectedAddrId === a.id
+                    return (
+                      <button key={a.id} type="button"
+                        onClick={() => { setSelectedAddrId(a.id); fillFromSaved(a) }}
+                        style={{ textAlign: 'left', display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 14px', borderRadius: 12, border: `1.5px solid ${sel ? TC : '#EDE4D8'}`, background: sel ? '#FDF5F0' : 'white', cursor: 'pointer' }}>
+                        <span style={{ marginTop: 1, width: 16, height: 16, borderRadius: '50%', border: `2px solid ${sel ? TC : '#D9CBBF'}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {sel && <span style={{ width: 8, height: 8, borderRadius: '50%', background: TC }} />}
+                        </span>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#2C1A0E' }}>{a.label || 'Address'}</span>
+                            {a.isDefault && <span style={{ fontSize: 9, fontWeight: 700, color: TC, background: '#FDF6F1', padding: '1px 7px', borderRadius: 99 }}>Default</span>}
+                          </span>
+                          <span style={{ display: 'block', fontSize: 11, color: '#9C7A63', lineHeight: 1.5 }}>
+                            {a.recipientName} · {a.line1}{a.line2 ? `, ${a.line2}` : ''}, {a.city} {a.zip}
+                          </span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                  <button type="button"
+                    onClick={() => { setSelectedAddrId(null); setAddr({ name: '', phone: '', line1: '', line2: '', city: '', state: '', zip: '', country: 'India' }) }}
+                    style={{ textAlign: 'left', padding: '10px 14px', borderRadius: 12, border: `1.5px dashed ${selectedAddrId === null ? TC : '#D9CBBF'}`, background: 'white', color: selectedAddrId === null ? TC : '#9C7A63', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    + Use a new address
+                  </button>
+                </div>
+              )}
+
               {[['name', 'Full Name *', 'Jane Doe'], ['phone', 'Phone Number *', '+91 98765 43210'], ['line1', 'Address Line 1 *', '123 Main Street'], ['line2', 'Address Line 2', 'Apt, Suite (optional)']].map(([k, label, ph]) => (
                 <div key={k}>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 5 }}>{label}</label>

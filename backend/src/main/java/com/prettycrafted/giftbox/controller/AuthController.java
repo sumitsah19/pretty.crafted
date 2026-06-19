@@ -1,12 +1,9 @@
 package com.prettycrafted.giftbox.controller;
 
 import com.prettycrafted.giftbox.dto.AuthResponse;
-import com.prettycrafted.giftbox.dto.ForgotPasswordRequest;
 import com.prettycrafted.giftbox.dto.GoogleAuthRequest;
 import com.prettycrafted.giftbox.dto.LoginRequest;
 import com.prettycrafted.giftbox.dto.OtpVerifyRequest;
-import com.prettycrafted.giftbox.dto.RegisterRequest;
-import com.prettycrafted.giftbox.dto.ResetPasswordRequest;
 import com.prettycrafted.giftbox.dto.UpdateProfileRequest;
 import com.prettycrafted.giftbox.dto.UserDto;
 import com.prettycrafted.giftbox.service.AuthService;
@@ -63,14 +60,6 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
-    @PostMapping("/register")
-    @ResponseStatus(HttpStatus.CREATED)
-    public AuthResponse register(@Valid @RequestBody RegisterRequest req, HttpServletResponse response) {
-        AuthResponse auth = service.register(req);
-        setAuthCookie(response, auth.token());
-        return auth;
-    }
-
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest req, HttpServletResponse response) {
         AuthResponse auth = service.login(req);
@@ -112,18 +101,6 @@ public class AuthController {
         AuthResponse auth = service.loginWithOtp(req);
         setAuthCookie(response, auth.token());
         return auth;
-    }
-
-    @PostMapping("/forgot-password")
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
-        service.forgotPassword(req);
-    }
-
-    @PostMapping("/reset-password")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
-        service.resetPassword(req);
     }
 
     @GetMapping("/unsubscribe")

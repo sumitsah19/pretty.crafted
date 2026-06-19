@@ -66,10 +66,9 @@ OpenAPI JSON: [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-d
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| POST | `/api/auth/register` | Public | Register new user |
-| POST | `/api/auth/login` | Public | Login, receive JWT |
-| POST | `/api/auth/forgot-password` | Public | Request password reset email |
-| POST | `/api/auth/reset-password` | Public | Reset password with token |
+| POST | `/api/auth/login` | Public | Admin email/password login, receive JWT |
+| POST | `/api/auth/google` | Public | Google sign-in, receive JWT |
+| POST | `/api/auth/otp/verify` | Public | Phone OTP login, receive JWT |
 | GET | `/api/products` | Public | List products |
 | GET | `/api/categories` | Public | List categories |
 | POST | `/api/orders` | User | Place order |

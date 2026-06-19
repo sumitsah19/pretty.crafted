@@ -145,23 +145,6 @@ public class EmailService {
         }
     }
 
-    @Async
-    public void sendPasswordResetEmail(User user, String token) {
-        // Always sent regardless of emailNotifications preference.
-        String resetUrl = frontendUrl + "/reset-password?token=" + token;
-        if (resendApiKey == null || resendApiKey.isBlank()) {
-            log.warn(">>> DEV: Password reset link for {} <<<", user.getEmail());
-            log.warn(">>> {}", resetUrl);
-        }
-        Context ctx = new Context();
-        ctx.setVariable("name", user.getName());
-        ctx.setVariable("token", token);
-        ctx.setVariable("resetUrl", resetUrl);
-        String html = templateEngine.process("password-reset", ctx);
-        sendHtml(user.getEmail(), "Reset your Pretty.Crafted password", html,
-                "reset-" + user.getId() + "-" + token.substring(0, 8));
-    }
-
     // ── Synchronous test (used by AdminDashboardController) ───────────────────
 
     /**

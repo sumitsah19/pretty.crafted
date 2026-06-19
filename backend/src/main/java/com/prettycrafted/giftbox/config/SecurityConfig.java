@@ -69,13 +69,10 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/public/**",
                                 // ── Auth endpoints (no token needed) ─────────
-                                "/api/auth/register",
                                 "/api/auth/login",
                                 "/api/auth/google",
                                 "/api/auth/otp/verify",
                                 "/api/auth/logout",
-                                "/api/auth/forgot-password",
-                                "/api/auth/reset-password",
                                 "/api/auth/unsubscribe",
                                 // ── Other public endpoints ───────────────────
                                 "/api/payments/webhook",

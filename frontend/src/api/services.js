@@ -10,7 +10,6 @@ export const authApi = {
   me:             () => api.get('/auth/me'),
   updateMe:       (data) => api.put('/auth/me', data),
   logout:         () => api.post('/auth/logout'),
-  resetPassword:        (token, newPassword) => api.post('/auth/reset-password', { token, newPassword }),
 }
 
 // ── PRODUCTS ─────────────────────────────────────────────────────
@@ -56,6 +55,16 @@ export const giftBoxApi = {
 // Validation does NOT consume a use; the server redeems at order placement.
 export const couponApi = {
   validate: (code) => api.get('/public/coupons/validate', { params: { code } }),
+}
+
+// ── ADDRESSES (authenticated — customer address book) ────────────
+// Backend AddressRequest: { label?, recipientName, phone, line1, line2?, city, state?, zip, country?, isDefault }
+export const addressApi = {
+  list:       ()          => api.get('/addresses'),
+  create:     (data)      => api.post('/addresses', data),
+  update:     (id, data)  => api.put(`/addresses/${id}`, data),
+  setDefault: (id)        => api.patch(`/addresses/${id}/default`),
+  remove:     (id)        => api.delete(`/addresses/${id}`),
 }
 
 // ── CATEGORIES ───────────────────────────────────────────────────

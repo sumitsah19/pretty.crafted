@@ -31,7 +31,7 @@ pretty.crafted/
 │   ├── src/
 │   │   ├── api/           # Axios client & service methods
 │   │   ├── components/    # Nav, modals, UI components
-│   │   ├── pages/         # HomePage, AdminPage, ResetPasswordPage
+│   │   ├── pages/         # HomePage, AdminPage, AdminLoginPage
 │   │   ├── store/         # Redux Toolkit slices
 │   │   └── hooks/         # useWindowWidth, useDebounce
 │   ├── index.html
@@ -174,10 +174,9 @@ Copy `dist/` contents to the Spring Boot `src/main/resources/static/` folder, or
 
 | Method | Path                              | Description                  |
 |--------|-----------------------------------|------------------------------|
-| POST   | /api/auth/register                | Register new user            |
-| POST   | /api/auth/login                   | Email + password login       |
+| POST   | /api/auth/login                   | Admin email + password login |
 | POST   | /api/auth/google                  | Google OAuth2 login          |
-| POST   | /api/auth/forgot-password         | Send reset link              |
+| POST   | /api/auth/otp/verify              | Phone OTP login              |
 | GET    | /api/products                     | List products (paginated)    |
 | GET    | /api/products/popular             | Popular products             |
 | GET    | /api/cart                         | Get cart                     |
