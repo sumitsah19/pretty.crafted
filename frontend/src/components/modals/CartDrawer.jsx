@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { selectCart, updateLocal, removeLocal, addLocal, removeBox } from '../../store/slices/cartSlice'
+import { selectCart, selectCoupon, setCoupon, clearCoupon, updateLocal, removeLocal, addLocal, removeBox } from '../../store/slices/cartSlice'
 import { openCheckout, closeCart } from '../../store/slices/uiSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
-import { giftBoxApi } from '../../api/services'
+import { giftBoxApi, couponApi } from '../../api/services'
 
 const TC = '#C4704A'
 
@@ -16,10 +16,15 @@ const loadSaved = () => {
 export default function CartDrawer() {
   const dispatch = useDispatch()
   const { items, boxes } = useSelector(selectCart)
+  const coupon = useSelector(selectCoupon) // shared with checkout via Redux
   const products = useSelector(selectProducts)
   // Persisted so saved items survive the drawer unmounting (and page reloads),
   // instead of being silently discarded when the drawer closes.
   const [savedItems, setSavedItems] = useState(loadSaved)
+  // Coupon: the typed code and feedback; the validated coupon itself lives in Redux.
+  const [couponInput, setCouponInput] = useState('')
+  const [couponMsg, setCouponMsg] = useState('')
+  const [couponBusy, setCouponBusy] = useState(false)
 
   useEffect(() => {
     try { localStorage.setItem(SAVED_KEY, JSON.stringify(savedItems)) } catch { /* quota/full — non-critical */ }
@@ -42,9 +47,35 @@ export default function CartDrawer() {
     dispatch(removeBox(id))
     try { await giftBoxApi.remove(id) } catch { /* already removed locally; server row is cleaned up on next sync */ }
   }
+  // Discount mirrors the server's redeem() math (round to paise, HALF_UP) so the
+  // amount shown here matches checkout and what the backend actually charges.
+  const discount = coupon ? Math.round(subtotal * coupon.discountPercent) / 100 : 0
   // No client-side fees: delivery is free and the server computes the order total,
-  // so the drawer total must equal the checkout total (= subtotal).
-  const total = subtotal
+  // so the drawer total must equal the checkout total (= subtotal − discount).
+  const total = Math.max(0, subtotal - discount)
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim()
+    if (!code) return
+    setCouponBusy(true)
+    setCouponMsg('')
+    try {
+      const { data } = await couponApi.validate(code)
+      dispatch(setCoupon({ code: data.code, discountPercent: data.discountPercent }))
+      setCouponMsg(`${data.code} applied — ${data.discountPercent}% off`)
+    } catch (err) {
+      dispatch(clearCoupon())
+      setCouponMsg(err.response?.data?.message || 'That code is not valid.')
+    } finally {
+      setCouponBusy(false)
+    }
+  }
+
+  const removeCoupon = () => {
+    dispatch(clearCoupon())
+    setCouponInput('')
+    setCouponMsg('')
+  }
 
   const suggestions = products.filter((p) => p.tag === 'Bestseller' && !items.find((i) => i.product.id === p.id)).slice(0, 3)
 
@@ -166,9 +197,38 @@ export default function CartDrawer() {
         {!isEmpty && (
           <div style={{ padding: '16px 24px 28px', borderTop: '1px solid #EDE4D8', flexShrink: 0, background: '#FAF7F2' }}>
 
+            {/* Coupon — applied here so the discounted total shows before checkout */}
+            <div style={{ marginBottom: 14 }}>
+              {coupon ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 14px', background: '#EAF2E8', borderRadius: 12 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#7A9A6B', letterSpacing: '0.04em' }}>✓ {coupon.code}</span>
+                    <span style={{ fontSize: 12, color: '#6B4F3A' }}>{coupon.discountPercent}% off</span>
+                  </span>
+                  <button onClick={removeCoupon} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#9C7A63', fontWeight: 600, padding: 0, flexShrink: 0 }}>Remove</button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyCoupon() } }}
+                    placeholder="Coupon code"
+                    style={{ flex: 1, minWidth: 0, padding: '11px 14px', borderRadius: 10, fontSize: 13, border: '1.5px solid #EDE4D8', background: '#FDFAF7', color: '#2C1A0E', outline: 'none', fontFamily: "'DM Sans',sans-serif", textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'border-color 0.2s' }}
+                    onFocus={(e) => (e.target.style.borderColor = TC)} onBlur={(e) => (e.target.style.borderColor = '#EDE4D8')}
+                  />
+                  <button onClick={applyCoupon} disabled={couponBusy || !couponInput.trim()}
+                    style={{ flexShrink: 0, padding: '0 18px', borderRadius: 10, border: 'none', background: couponBusy || !couponInput.trim() ? '#EDE4D8' : TC, color: couponBusy || !couponInput.trim() ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 13, cursor: couponBusy || !couponInput.trim() ? 'default' : 'pointer' }}>
+                    {couponBusy ? '…' : 'Apply'}
+                  </button>
+                </div>
+              )}
+              {couponMsg && <div style={{ fontSize: 12, marginTop: 7, color: coupon ? '#7A9A6B' : '#C44A4A' }}>{couponMsg}</div>}
+            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
               <Row label="Subtotal" value={`₹${subtotal.toFixed(2)}`} />
+              {discount > 0 && <Row label={`Discount (${coupon.code})`} value={`−₹${discount.toFixed(2)}`} color="#7A9A6B" />}
               <Row label="Delivery" value="FREE" color="#7A9A6B" />
               <div style={{ height: 1, background: '#EDE4D8', margin: '4px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700 }}>

@@ -3,10 +3,23 @@ import { fetchProducts, fetchHampers } from './productsSlice'
 
 const localKey = 'pc_cart'
 const boxesKey = 'pc_cart_boxes'
+const couponKey = 'pc_cart_coupon'
 const loadLocal = () => { try { return JSON.parse(localStorage.getItem(localKey) || '[]') } catch { return [] } }
 const saveLocal = (items) => { try { localStorage.setItem(localKey, JSON.stringify(items)) } catch { /* storage unavailable — cart stays in-memory */ } }
 const loadBoxes = () => { try { return JSON.parse(localStorage.getItem(boxesKey) || '[]') } catch { return [] } }
 const saveBoxes = (boxes) => { try { localStorage.setItem(boxesKey, JSON.stringify(boxes)) } catch { /* storage unavailable — cart stays in-memory */ } }
+const loadCoupon = () => { try { return JSON.parse(localStorage.getItem(couponKey) || 'null') } catch { return null } }
+const saveCoupon = (coupon) => { try { coupon ? localStorage.setItem(couponKey, JSON.stringify(coupon)) : localStorage.removeItem(couponKey) } catch { /* storage unavailable — coupon stays in-memory */ } }
+
+// A coupon applied to a now-empty cart is stale: it would silently re-apply to a
+// different set of items the next time the cart is filled (and may have expired by
+// then, only surfacing as a failed "Place Order"). Drop it once nothing remains.
+const clearCouponIfEmpty = (state) => {
+  if (state.coupon && state.items.length === 0 && state.boxes.length === 0) {
+    state.coupon = null
+    saveCoupon(null)
+  }
+}
 
 const cartSlice = createSlice({
   name: 'cart',
@@ -15,6 +28,9 @@ const cartSlice = createSlice({
     // Gift boxes are persisted server-side (status IN_CART). We keep the returned
     // GiftBoxDto here purely so the cart drawer & checkout can display/total them.
     boxes: loadBoxes(),
+    // A server-validated coupon applied in the cart, shared with checkout so the
+    // discount the customer saw in the drawer carries into the order. { code, discountPercent }
+    coupon: loadCoupon(),
   },
   reducers: {
     addLocal(state, action) {
@@ -34,11 +50,13 @@ const cartSlice = createSlice({
       if (qty <= 0) state.items.splice(idx, 1)
       else state.items[idx].qty = qty
       saveLocal(state.items)
+      clearCouponIfEmpty(state)
     },
     removeLocal(state, action) {
       const productId = action.payload
       state.items = state.items.filter((i) => i.product.id !== productId)
       saveLocal(state.items)
+      clearCouponIfEmpty(state)
     },
     addBox(state, action) {
       // action.payload is the GiftBoxDto returned by the backend
@@ -49,12 +67,24 @@ const cartSlice = createSlice({
       const id = action.payload
       state.boxes = state.boxes.filter((b) => b.id !== id)
       saveBoxes(state.boxes)
+      clearCouponIfEmpty(state)
+    },
+    setCoupon(state, action) {
+      // action.payload is the validated coupon ({ code, discountPercent }) or null
+      state.coupon = action.payload || null
+      saveCoupon(state.coupon)
+    },
+    clearCoupon(state) {
+      state.coupon = null
+      saveCoupon(null)
     },
     clearCart(state) {
       state.items = []
       state.boxes = []
+      state.coupon = null
       saveLocal([])
       saveBoxes([])
+      saveCoupon(null)
     },
   },
   extraReducers: (builder) => {
@@ -83,10 +113,11 @@ const cartSlice = createSlice({
   },
 })
 
-export const { addLocal, updateLocal, removeLocal, addBox, removeBox, clearCart } = cartSlice.actions
+export const { addLocal, updateLocal, removeLocal, addBox, removeBox, setCoupon, clearCoupon, clearCart } = cartSlice.actions
 export const selectCart = (state) => state.cart
 export const selectCartItems = (state) => state.cart.items
 export const selectCartBoxes = (state) => state.cart.boxes
+export const selectCoupon = (state) => state.cart.coupon
 export const selectCartCount = (state) =>
   state.cart.items.reduce((s, i) => s + i.qty, 0) + state.cart.boxes.length
 export const selectCartTotal = (state) =>

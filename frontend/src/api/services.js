@@ -28,7 +28,6 @@ export const cartApi = {
   add:    (productId, qty = 1)   => api.post('/cart/items', { productId, quantity: qty }),
   update: (itemId, qty)          => api.patch(`/cart/items/${itemId}`, { quantity: qty }),
   remove: (itemId)               => api.delete(`/cart/items/${itemId}`),
-  clear:  ()                     => api.delete('/cart'),
 }
 
 // ── ORDERS ───────────────────────────────────────────────────────

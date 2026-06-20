@@ -312,17 +312,22 @@ public class OrderService {
     }
 
     /**
-     * Cancels abandoned unpaid Razorpay orders (dismissed payment popups) older
-     * than the cutoff. Each is locked and re-checked so a payment that lands via
-     * webhook in the meantime is never clobbered. Returns the number cancelled.
+     * Cancels abandoned unpaid Razorpay orders (dismissed payment popups or hard
+     * payment failures) older than the cutoff. Each is locked and re-checked so a
+     * payment that lands via webhook in the meantime is never clobbered: once the
+     * order leaves PENDING (a verified payment makes it PAID), it is left alone.
+     * Returns the number cancelled.
      */
     public int cancelAbandonedRazorpayOrders(java.time.Instant cutoff) {
         int cancelled = 0;
         for (Order stale : orderRepo.findAbandonedRazorpayOrders(cutoff)) {
             Order order = orderRepo.findByIdWithLock(stale.getId()).orElse(null);
+            // Still PENDING after locking ⇒ no payment was ever applied (success
+            // flips it to PAID). Safe to cancel whether the last attempt was still
+            // PENDING or had hard-FAILED — neither decremented stock.
             if (order != null
                     && order.getStatus() == OrderStatus.PENDING
-                    && order.getPaymentStatus() == PaymentStatus.PENDING) {
+                    && order.getPaymentStatus() != PaymentStatus.SUCCESS) {
                 order.setStatus(OrderStatus.CANCELLED);
                 order.setPaymentStatus(PaymentStatus.FAILED);
                 orderRepo.save(order);

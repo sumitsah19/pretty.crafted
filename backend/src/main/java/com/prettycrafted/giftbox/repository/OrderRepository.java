@@ -25,12 +25,19 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByIdWithLock(@Param("id") Long id);
 
     /**
-     * Unpaid online orders left behind by dismissed Razorpay popups. They never
-     * decremented stock, so cleanup just marks them CANCELLED.
+     * Unpaid online orders left behind by dismissed Razorpay popups or hard
+     * payment failures. The order is still PENDING (payment never succeeded), so
+     * stock was never decremented and cleanup just marks it CANCELLED. FAILED
+     * payment status is swept too: the customer may retry within the cutoff
+     * window (which flips the order to PAID), but an abandoned failed attempt
+     * would otherwise sit in PENDING forever — the webhook's payment.failed
+     * branch records FAILED without touching the order status.
      */
     @Query("select o from Order o "
         + "where o.status = com.prettycrafted.giftbox.domain.OrderStatus.PENDING "
-        + "and o.paymentStatus = com.prettycrafted.giftbox.domain.PaymentStatus.PENDING "
+        + "and o.paymentStatus in ("
+        + "  com.prettycrafted.giftbox.domain.PaymentStatus.PENDING, "
+        + "  com.prettycrafted.giftbox.domain.PaymentStatus.FAILED) "
         + "and o.razorpayOrderId is not null "
         + "and o.createdAt < :cutoff")
     List<Order> findAbandonedRazorpayOrders(@Param("cutoff") java.time.Instant cutoff);

@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { selectCart, clearCart, removeBox, removeLocal } from '../../store/slices/cartSlice'
+import { selectCart, selectCoupon, setCoupon, clearCoupon, clearCart, removeBox, removeLocal } from '../../store/slices/cartSlice'
 import { closeCheckout, openLogin } from '../../store/slices/uiSlice'
 import { selectIsLoggedIn } from '../../store/slices/authSlice'
 import { ordersApi, cartApi, couponApi, giftBoxApi, addressApi } from '../../api/services'
 import { analytics } from '../../analytics'
 
 const TC = '#C4704A'
-const STEPS = ['Address', 'Payment', 'Review']
+const STEPS = ['Address', 'Review', 'Payment']
 const RAZORPAY_CHECKOUT_URL = 'https://checkout.razorpay.com/v1/checkout.js'
 
 let razorpayScriptPromise
@@ -34,6 +34,7 @@ const loadRazorpayScript = () => {
 export default function CheckoutModal() {
   const dispatch = useDispatch()
   const { items, boxes } = useSelector(selectCart)
+  const coupon = useSelector(selectCoupon) // applied in cart or here; shared via Redux
   const isLoggedIn = useSelector(selectIsLoggedIn)
   const showLogin = useSelector(s => s.ui.showLogin) // login can open ON TOP of checkout
   const [step, setStep] = useState(1)
@@ -48,9 +49,9 @@ export default function CheckoutModal() {
   const [pendingOrder, setPendingOrder] = useState(null) // { res, sig }
   // Set when "Place Order" was interrupted by login; the order resumes once logged in.
   const [pendingPlace, setPendingPlace] = useState(false)
-  // Coupon: the typed code, the server-validated coupon, and feedback.
+  // Coupon: the typed code and feedback. The validated coupon itself lives in
+  // Redux (cartSlice) so it's shared with the cart drawer.
   const [couponInput, setCouponInput] = useState('')
-  const [coupon, setCoupon] = useState(null) // { code, discountPercent }
   const [couponMsg, setCouponMsg] = useState('')
   const [couponBusy, setCouponBusy] = useState(false)
   // Saved address book: prefill the form from the default, and let the user
@@ -86,10 +87,10 @@ export default function CheckoutModal() {
     setCouponMsg('')
     try {
       const { data } = await couponApi.validate(code)
-      setCoupon({ code: data.code, discountPercent: data.discountPercent })
+      dispatch(setCoupon({ code: data.code, discountPercent: data.discountPercent }))
       setCouponMsg(`${data.code} applied — ${data.discountPercent}% off`)
     } catch (err) {
-      setCoupon(null)
+      dispatch(clearCoupon())
       setCouponMsg(err.response?.data?.message || 'That code is not valid.')
     } finally {
       setCouponBusy(false)
@@ -97,7 +98,7 @@ export default function CheckoutModal() {
   }
 
   const removeCoupon = () => {
-    setCoupon(null)
+    dispatch(clearCoupon())
     setCouponInput('')
     setCouponMsg('')
   }
@@ -476,8 +477,8 @@ export default function CheckoutModal() {
             </div>
           )}
 
-          {/* STEP 2: PAYMENT (moved up) */}
-          {step === 2 && !placed && (
+          {/* STEP 3: PAYMENT */}
+          {step === 3 && !placed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Payment Method</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -503,10 +504,8 @@ export default function CheckoutModal() {
             </div>
           )}
 
-          {/* previous Payment section moved above as step 2 */}
-
-          {/* STEP 3: REVIEW */}
-          {step === 3 && !placed && (
+          {/* STEP 2: REVIEW */}
+          {step === 2 && !placed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Review Your Order</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -529,7 +528,7 @@ export default function CheckoutModal() {
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{box.boxTitle ? `${box.boxTitle} · ` : ''}{box.size} Gift Box</div>
                       <div style={{ fontSize: 11, color: '#9C7A63' }}>{box.items?.length || 0} items</div>
                     </div>
-                    <div style={{ fontWeight: 700, color: TC, fontSize: 14 }}>₹{Number(box.totalPrice).toFixed(2)}</div>
+                    <div style={{ fontWeight: 700, color: TC, fontSize: 14 }}>₹{Number(box.totalPrice || 0).toFixed(2)}</div>
                   </div>
                 ))}
               </div>
@@ -618,7 +617,7 @@ export default function CheckoutModal() {
               {step < 3 ? (
                 <button onClick={() => setStep((s) => s + 1)} disabled={step === 1 && !addrValid}
                   style={{ flex: 2, padding: '13px', borderRadius: 99, border: 'none', background: (step === 1 ? addrValid : true) ? TC : '#EDE4D8', color: (step === 1 ? addrValid : true) ? 'white' : '#9C7A63', fontWeight: 700, fontSize: 14, cursor: (step === 1 ? addrValid : true) ? 'pointer' : 'default', minHeight: 48 }}>
-                  {step === 1 ? 'Continue to Payment →' : 'Review Order →'}
+                  {step === 1 ? 'Review Order →' : 'Continue to Payment →'}
                 </button>
               ) : (
                 <button onClick={placeOrder} disabled={placing || !payValid}

@@ -76,7 +76,6 @@ public class SecurityConfig {
                                 "/api/auth/unsubscribe",
                                 // ── Other public endpoints ───────────────────
                                 "/api/payments/webhook",
-                                "/api/sentry-test",
                                 "/api/dev/**",
                                 // ── OpenAPI / Swagger (only active when enabled) ──
                                 "/v3/api-docs/**",
