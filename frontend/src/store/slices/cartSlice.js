@@ -120,7 +120,16 @@ export const selectCartBoxes = (state) => state.cart.boxes
 export const selectCoupon = (state) => state.cart.coupon
 export const selectCartCount = (state) =>
   state.cart.items.reduce((s, i) => s + i.qty, 0) + state.cart.boxes.length
-export const selectCartTotal = (state) =>
-  state.cart.items.reduce((s, i) => s + i.product.price * i.qty, 0) +
-  state.cart.boxes.reduce((s, b) => s + Number(b.totalPrice || 0), 0)
+export const selectCartTotal = (state) => {
+  const subtotal =
+    state.cart.items.reduce((s, i) => s + i.product.price * i.qty, 0) +
+    state.cart.boxes.reduce((s, b) => s + Number(b.totalPrice || 0), 0)
+  // Mirror CheckoutModal's discount math (round to paise, HALF_UP) so the cart
+  // drawer and checkout always show the same total when a coupon is applied.
+  const coupon = state.cart.coupon
+  const discount = coupon
+    ? Math.round(subtotal * coupon.discountPercent) / 100
+    : 0
+  return Math.max(0, subtotal - discount)
+}
 export default cartSlice.reducer

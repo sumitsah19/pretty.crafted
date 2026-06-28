@@ -94,6 +94,19 @@ public class CouponService {
             .ifPresent(c -> repo.incrementUses(c.getId()));
     }
 
+    /**
+     * Returns one redemption when an order that had consumed a use is cancelled,
+     * so a limited-use coupon isn't permanently burnt on an order that never
+     * shipped. Best effort and non-throwing (the coupon may have since been
+     * deleted); floored at 0 by the repository so a stray double-call can't push
+     * the count negative.
+     */
+    public void restore(String code) {
+        if (code == null || code.isBlank()) return;
+        repo.findByCodeIgnoreCase(code.trim())
+            .ifPresent(c -> repo.decrementUses(c.getId()));
+    }
+
     private static BigDecimal discountFor(Coupon coupon, BigDecimal subtotal) {
         return subtotal
             .multiply(BigDecimal.valueOf(coupon.getDiscountPercent()))

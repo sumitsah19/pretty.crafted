@@ -205,7 +205,14 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource(
             @Value("${app.cors.allowed-origins}") String origins) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(origins.split(",")));
+        // Trim each origin and drop blanks — a stray space in the env var (e.g.
+        // "https://a.com, https://b.com") would otherwise yield " https://b.com",
+        // which never matches the browser's Origin header and silently breaks CORS.
+        config.setAllowedOrigins(
+                java.util.Arrays.stream(origins.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization"));

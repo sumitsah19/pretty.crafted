@@ -396,6 +396,11 @@ public class OrderService {
             for (Map.Entry<Long, Integer> e : stockByProduct(order).entrySet()) {
                 productRepo.incrementStock(e.getKey(), e.getValue());
             }
+            // A coupon use is consumed at exactly the same moment stock is taken
+            // (COD at placement, online at payment confirmation), so return the use
+            // here too — otherwise a limited-use coupon stays burnt on an order that
+            // never shipped. Unpaid online orders consumed nothing, so they skip this.
+            couponService.restore(order.getCouponCode());
         }
     }
 

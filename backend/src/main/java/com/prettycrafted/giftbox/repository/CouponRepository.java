@@ -29,4 +29,11 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     @Modifying
     @Query("UPDATE Coupon c SET c.uses = c.uses + 1 WHERE c.id = :id")
     void incrementUses(@Param("id") Long id);
+
+    /** Atomically returns one redemption when an order that consumed a use is
+     *  cancelled. Floored at 0 (the {@code c.uses > 0} guard) so a double-restore
+     *  can never push the count negative. */
+    @Modifying
+    @Query("UPDATE Coupon c SET c.uses = c.uses - 1 WHERE c.id = :id AND c.uses > 0")
+    void decrementUses(@Param("id") Long id);
 }

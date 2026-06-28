@@ -4,8 +4,19 @@ import { clearActiveOccasion } from '../../store/slices/uiSlice'
 import { selectWishlistIds, toggleWishlist, wishlistKey } from '../../store/slices/wishlistSlice'
 import { addLocal } from '../../store/slices/cartSlice'
 import { productsApi } from '../../api/services'
+import { ProductFilterBar } from '../ui/ProductFilters'
 
 const TC = '#C4704A'
+
+// OccasionPage has its own data model (rc/rating), so it drives the shared
+// bar with its own sort values rather than the ProductCard sort options.
+const OCC_SORT = [
+  { value: 'popular', label: 'Most Popular' },
+  { value: 'rating', label: 'Top Rated' },
+  { value: 'newest', label: 'Newest First' },
+  { value: 'price-asc', label: 'Price: Low to High' },
+  { value: 'price-desc', label: 'Price: High to Low' },
+]
 
 // ── EXTENDED PRODUCT CATALOG ─────────────────────────────────────
 const OC_PRODUCTS = [
@@ -389,6 +400,21 @@ export default function OccasionPage({ occasion }) {
         {/* All gifts */}
         <div style={{ marginBottom: isMobile ? 52 : 72 }}>
           <SecHead label="Curated collection" title={`All ${occasion.title} Gifts`} isMobile={isMobile} count={!loading ? filtered.length : null} />
+          {!loading && (
+            <div style={{ marginBottom: isMobile ? 18 : 22 }}>
+              <ProductFilterBar
+                count={filtered.length}
+                countLabel="Gifts"
+                filters={categories}
+                activeFilter={catFilter}
+                onFilter={setCatFilter}
+                sort={sortBy}
+                onSort={setSortBy}
+                sortOptions={OCC_SORT}
+                chipsWrap={!isMobile}
+              />
+            </div>
+          )}
           {loading ? skeletonGrid(6, isMobile ? 2 : 3)
             : filtered.length === 0 ? (
               <div style={{ textAlign:'center', padding:'56px 20px', background:'white', borderRadius:24, border:'1px solid #EDE4D8' }}>

@@ -7,6 +7,7 @@ import { useWindowWidth } from '../hooks/useWindowWidth'
 import Hero from '../components/Hero'
 import GiftBoxCTASection from '../components/GiftBoxCTASection'
 import ProductCard, { ProductSkeleton } from '../components/ui/ProductCard'
+import { useProductFilters, ProductFilterBar } from '../components/ui/ProductFilters'
 
 const TC = '#C4704A'
 
@@ -113,23 +114,19 @@ export default function HomePage() {
   const px = isMobile ? '20px' : isTablet ? '32px' : '48px'
   const carouselRef = useRef(null)
   const [activeRecipient, setActiveRecipient] = useState('all')
-  const [activeCategory, setActiveCategory] = useState('All')
   const [emailVal, setEmailVal] = useState('')
   const [subscribed, setSubscribed] = useState(false)
 
-  const categories = useMemo(
-    () => ['All', ...Array.from(new Set(products.map(p => p.category)))],
-    [products]
+  // Featured Collection: recipient (from "Shop by Recipient") narrows the base,
+  // then the shared count + sort + category-chip bar refines it.
+  const recipientProducts = useMemo(
+    () => products.filter(p => activeRecipient === 'all' || p.recipient === activeRecipient),
+    [products, activeRecipient]
   )
-
-  const filtered = useMemo(
-    () => products.filter(p => {
-      const matchRecipient = activeRecipient === 'all' || p.recipient === activeRecipient
-      const matchCategory = activeCategory === 'All' || p.category === activeCategory
-      return matchRecipient && matchCategory
-    }),
-    [products, activeRecipient, activeCategory]
-  )
+  const {
+    filters: featFilters, activeFilter: featFilter, setActiveFilter: setFeatFilter,
+    sort: featSort, setSort: setFeatSort, sorted: featSorted,
+  } = useProductFilters(recipientProducts)
 
   // Featured Collection shows a preview; "View all" opens the full shop page
   const featuredCap = 12
@@ -169,50 +166,39 @@ export default function HomePage() {
       
       <Hero />
 
-      {/* ── SHOP BY RECIPIENT ─────────────────────────────── */}
-      <section style={{ padding: isMobile ? '48px 20px' : isTablet ? '60px 32px' : '72px 48px', textAlign: 'center' }}>
-        <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Find the Perfect Gift</div>
-        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 26 : 36, fontWeight: 700, marginBottom: 28 }}>Shop by Recipient</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: 12, maxWidth: 700, margin: '0 auto' }}>
-          {[
-            { key: 'all',  label: 'Everyone', emoji: '🌟', bg: '#F5EEE6', count: products.length },
-            { key: 'her',  label: 'For Her',  emoji: '🌸', bg: '#F5E8E8', count: products.filter(p => p.recipient === 'her').length },
-            { key: 'him',  label: 'For Him',  emoji: '🍂', bg: '#E8F0E8', count: products.filter(p => p.recipient === 'him').length },
-            { key: 'kids', label: 'For Kids', emoji: '🌈', bg: '#E8E8F5', count: products.filter(p => p.recipient === 'kids').length },
-          ].map(r => (
-            <button key={r.key} onClick={() => setActiveRecipient(r.key)}
-              style={{ padding: isMobile ? '16px 12px' : '20px 24px', borderRadius: 20, border: '2px solid', borderColor: activeRecipient === r.key ? TC : '#EDE4D8', background: activeRecipient === r.key ? r.bg : 'white', cursor: 'pointer', transition: 'all 0.2s', transform: activeRecipient === r.key ? 'scale(1.04)' : 'none', minHeight: 44 }}>
-              <div style={{ fontSize: isMobile ? 28 : 32, marginBottom: 6 }}>{r.emoji}</div>
-              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 14 : 16, fontWeight: 600, color: '#2C1A0E' }}>{r.label}</div>
-              <div style={{ fontSize: 11, color: '#9C7A63', marginTop: 2 }}>{r.count} gifts</div>
-            </button>
-          ))}
-        </div>
-      </section>
-
       {/* ── FEATURED COLLECTION ───────────────────────────── */}
       <section id="featured-collection" style={{ padding: isMobile ? `0 20px 56px` : `0 ${px} 80px` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20 }}>
-          <div>
-            <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
-              {activeRecipient === 'all' ? 'All Products' : activeRecipient === 'her' ? 'For Her' : activeRecipient === 'him' ? 'For Him' : 'For Kids'}
-            </div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 32, fontWeight: 700 }}>Featured Collection</h2>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
+            {activeRecipient === 'all' ? 'All Products' : activeRecipient === 'her' ? 'For Her' : activeRecipient === 'him' ? 'For Him' : 'For Kids'}
           </div>
-          <a href="#" onClick={e => { e.preventDefault(); dispatch(openShop()) }}
-            style={{ color: TC, fontSize: 13, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>View all →</a>
+          <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 32, fontWeight: 700 }}>Featured Collection</h2>
+          <div style={{ fontSize: 13, color: '#6B4F3A', fontWeight: 600, marginTop: 8 }}>{featSorted.length} Products</div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-          {categories.map(cat => (
-            <button key={cat} onClick={() => setActiveCategory(cat)}
-              style={{ padding: isMobile ? '7px 14px' : '8px 18px', borderRadius: 99, border: 'none', cursor: 'pointer', fontSize: isMobile ? 11 : 12, fontWeight: 600, background: activeCategory === cat ? TC : '#F5EEE6', color: activeCategory === cat ? 'white' : '#6B4F3A', transition: 'all 0.18s', whiteSpace: 'nowrap', boxShadow: activeCategory === cat ? '0 4px 12px rgba(196,112,74,0.25)' : 'none' }}>
-              {cat}
-            </button>
-          ))}
+        <div style={{ marginBottom: 14 }}>
+          <ProductFilterBar
+            count={featSorted.length}
+            filters={featFilters}
+            activeFilter={featFilter}
+            onFilter={setFeatFilter}
+            sort={featSort}
+            onSort={setFeatSort}
+            chipsWrap={!isMobile}
+            showCount={false}
+            inlineSort
+          />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(3,1fr)' : 'repeat(auto-fill, minmax(200px,1fr))', gap: isMobile ? 12 : 20 }}>
           {loading ? Array.from({ length: isMobile ? 4 : 6 }).map((_, i) => <ProductSkeleton key={i} />) :
-            filtered.slice(0, featuredCap).map(p => <ProductCard key={p.id} product={p} onClick={() => dispatch(setActiveProduct(p))} />)}
+            featSorted.slice(0, featuredCap).map(p => <ProductCard key={p.id} product={p} onClick={() => dispatch(setActiveProduct(p))} />)}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: isMobile ? 32 : 40 }}>
+          <button onClick={() => dispatch(openShop())}
+            style={{ padding: isMobile ? '13px 32px' : '14px 38px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all 0.3s', boxShadow: '0 2px 12px rgba(44,26,14,0.06)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = TC; e.currentTarget.style.color = 'white'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(196,112,74,0.28)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = TC; e.currentTarget.style.boxShadow = '0 2px 12px rgba(44,26,14,0.06)' }}>
+            View All Products →
+          </button>
         </div>
       </section>
 
@@ -244,16 +230,9 @@ export default function HomePage() {
 
       {/* ── OCCASIONS ─────────────────────────────────────── */}
       <section style={{ padding: isMobile ? '48px 20px 56px' : isTablet ? '60px 32px 72px' : '72px 48px 96px', background: '#FAF7F2' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: isMobile ? 28 : 36 }}>
-          <div>
-            <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Browse by Moment</div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 26 : 36, fontWeight: 700, color: '#2C1A0E', lineHeight: 1.1 }}>Gifts for Every Occasion</h2>
-          </div>
-          {!isMobile && (
-            <button onClick={() => dispatch(openOccasions())} style={{ padding: '11px 22px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
-              Browse All {OCCASIONS.length} →
-            </button>
-          )}
+        <div style={{ marginBottom: isMobile ? 28 : 36 }}>
+          <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Browse by Moment</div>
+          <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 26 : 36, fontWeight: 700, color: '#2C1A0E', lineHeight: 1.1 }}>Gifts for Every Occasion</h2>
         </div>
 
         {/* Featured occasion card */}
@@ -300,23 +279,21 @@ export default function HomePage() {
           ))}
         </div>
 
-        {isMobile && (
-          <div style={{ padding: '24px 0 0', textAlign: 'center' }}>
-            <button onClick={() => dispatch(openOccasions())} style={{ padding: '13px 28px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontWeight: 700, fontSize: 14, cursor: 'pointer', width: '100%' }}>
-              Browse All {OCCASIONS.length} Occasions →
-            </button>
-          </div>
-        )}
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: isMobile ? 32 : 40 }}>
+          <button onClick={() => dispatch(openOccasions())}
+            style={{ padding: isMobile ? '13px 32px' : '14px 38px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontWeight: 700, fontSize: 14, cursor: 'pointer', width: isMobile ? '100%' : 'auto', transition: 'all 0.3s', boxShadow: '0 2px 12px rgba(44,26,14,0.06)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = TC; e.currentTarget.style.color = 'white'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(196,112,74,0.28)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = TC; e.currentTarget.style.boxShadow = '0 2px 12px rgba(44,26,14,0.06)' }}>
+            Browse All {OCCASIONS.length} Occasions →
+          </button>
+        </div>
       </section>
 
       {/* ── HAMPER FOR YOU ────────────────────────────────── */}
       <section id="hamper-for-you" style={{ padding: isMobile ? '0 20px 56px' : `0 ${px} 80px` }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div>
-            <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Curated Collections</div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 32, fontWeight: 700 }}>Hamper For You</h2>
-          </div>
-          <button onClick={() => dispatch(openHamperShop())} style={{ padding: '8px 18px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Show All →</button>
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Curated Collections</div>
+          <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 32, fontWeight: 700 }}>Hamper For You</h2>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? '1fr 1fr' : 'repeat(4,1fr)', gap: isMobile ? 12 : 20 }}>
           {hampers.slice(0, 4).map((h, i) => (
@@ -324,6 +301,14 @@ export default function HomePage() {
               <ProductCard product={h} onClick={() => dispatch(setActiveProduct(h))} />
             </div>
           ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: isMobile ? 32 : 40 }}>
+          <button onClick={() => dispatch(openHamperShop())}
+            style={{ padding: isMobile ? '13px 32px' : '14px 38px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all 0.3s', boxShadow: '0 2px 12px rgba(44,26,14,0.06)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = TC; e.currentTarget.style.color = 'white'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(196,112,74,0.28)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = TC; e.currentTarget.style.boxShadow = '0 2px 12px rgba(44,26,14,0.06)' }}>
+            Show All Hampers →
+          </button>
         </div>
       </section>
 
