@@ -11,79 +11,9 @@ import { useProductFilters, ProductFilterBar } from '../components/ui/ProductFil
 
 const TC = '#C4704A'
 
-const TESTIMONIALS = [
-  { name: 'Priya N.', location: 'Mumbai', rating: 5, text: "The gift box I built for my mum's birthday was perfect. She cried when she opened it — in the best way possible. The packaging alone is worth it.", occasion: "Mother's Day", avatar: 'P' },
-  { name: 'James W.', location: 'London', rating: 5, text: "I've ordered three times now. The quality is genuinely handcrafted — you can feel the care in every piece. My anniversary gift was a huge hit.", occasion: 'Anniversary', avatar: 'J' },
-  { name: 'Sofia B.', location: 'Paris',  rating: 5, text: 'Ordered for a wedding gift. The personal message card, the ribbon choice, the wrapping — every detail was stunning. Will be back for sure.', occasion: 'Wedding', avatar: 'S' },
-]
-
-function TestimonialCard({ t }) {
-  return (
-    <div style={{ background: 'white', borderRadius: 20, padding: '24px', border: '1px solid #EDE4D8', boxShadow: '0 2px 12px rgba(44,26,14,0.05)', display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', gap: 2 }}>
-        {Array.from({ length: t.rating }).map((_, j) => <span key={j} style={{ color: TC, fontSize: 14 }}>★</span>)}
-      </div>
-      <p style={{ fontFamily: "'Lora',serif", fontSize: 14, color: '#6B4F3A', lineHeight: 1.75, fontStyle: 'italic', flex: 1 }}>"{t.text}"</p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ width: 38, height: 38, borderRadius: '50%', background: TC, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 15, fontWeight: 700, flexShrink: 0 }}>{t.avatar}</div>
-        <div>
-          <div style={{ fontWeight: 700, color: '#2C1A0E', fontSize: 13 }}>{t.name}</div>
-          <div style={{ fontSize: 11, color: '#9C7A63' }}>{t.location} · {t.occasion}</div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function TestimonialsSection({ isMobile, isTablet }) {
-  const [idx, setIdx] = useState(0)
-  const [paused, setPaused] = useState(false)
-
-  useEffect(() => {
-    if (!isMobile || paused) return
-    const t = setInterval(() => setIdx(i => (i + 1) % TESTIMONIALS.length), 3500)
-    return () => clearInterval(t)
-  }, [isMobile, paused])
-
-  return (
-    <section style={{ padding: isMobile ? '56px 0' : isTablet ? '64px 32px' : '80px 48px' }}>
-      <div style={{ textAlign: 'center', marginBottom: isMobile ? 36 : 52, padding: isMobile ? '0 20px' : 0 }}>
-        <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Real Stories</div>
-        <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 26 : 36, fontWeight: 700 }}>Loved by Gift-Givers</h2>
-      </div>
-
-      {!isMobile ? (
-        <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr 1fr' : 'repeat(3,1fr)', gap: 24 }}>
-          {TESTIMONIALS.map((t, i) => <TestimonialCard key={i} t={t} />)}
-        </div>
-      ) : (
-        <div>
-          <div style={{ overflow: 'hidden', padding: '4px 20px 8px' }}>
-            <div style={{ display: 'flex', transition: 'transform 0.5s cubic-bezier(.4,0,.2,1)', transform: `translateX(-${idx * 100}%)` }}>
-              {TESTIMONIALS.map((t, i) => (
-                <div key={i} style={{ flexShrink: 0, width: '100%' }}
-                  onMouseEnter={() => setPaused(true)}
-                  onMouseLeave={() => setPaused(false)}>
-                  <TestimonialCard t={t} />
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 16 }}>
-            {TESTIMONIALS.map((_, i) => (
-              <button key={i} onClick={() => { setIdx(i); setPaused(true); setTimeout(() => setPaused(false), 4000) }}
-                style={{ width: i === idx ? 22 : 7, height: 7, borderRadius: 99, border: 'none', background: i === idx ? TC : '#D9CBBF', cursor: 'pointer', padding: 0, transition: 'all 0.35s ease' }} />
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
-  )
-}
-
 const OCCASIONS = [
-  { id:'mothers',      title:"Mother's Day",  sub:'Thoughtful gifts made with love', icon:'💐', color:'#F0D5DC', featured:true, season:'May' },
-  { id:'valentines',   title:"Valentine's Day",sub:'Speak love through craft',        icon:'💝', color:'#E8C5C5' },
+  { id:'mothers',      title:"Mother's Day",  sub:'Thoughtful gifts made with love', icon:'💐', iconImg:'/occasions/mothers-day.svg', color:'#F0D5DC', featured:true, season:'May' },
+  { id:'valentines',   title:"Valentine's Day",sub:'Speak love through craft',        icon:'💝', iconImg:'/occasions/valentines-day.svg', color:'#E8C5C5' },
   { id:'birthday',     title:'Birthday Gifts', sub:'Make birthdays unforgettable',    icon:'🎂', color:'#E8D5C4' },
   { id:'anniversary',  title:'Anniversary',    sub:'Celebrate years of love',         icon:'💍', color:'#E0D5C5' },
   { id:'wedding',      title:'Wedding',        sub:'For the start of forever',        icon:'💒', color:'#F2EAE0' },
@@ -249,14 +179,24 @@ export default function HomePage() {
               <p style={{ fontSize: isMobile ? 14 : 16, color: '#6B4F3A', lineHeight: 1.65, marginBottom: 22, maxWidth: 440 }}>
                 {featuredOcc.sub}. Hand-picked and hand-wrapped, ready to make someone feel truly cherished.
               </p>
-              <button onClick={e => { e.stopPropagation(); dispatch(setActiveOccasion(featuredOcc)) }}
-                style={{ padding: isMobile ? '12px 24px' : '13px 28px', borderRadius: 99, border: 'none', background: '#2C1A0E', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', boxShadow: '0 6px 20px rgba(44,26,14,0.18)' }}>
-                Shop the Edit →
-              </button>
+              {!isMobile && (
+                <button onClick={e => { e.stopPropagation(); dispatch(setActiveOccasion(featuredOcc)) }}
+                  style={{ padding: '13px 28px', borderRadius: 99, border: 'none', background: '#2C1A0E', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', boxShadow: '0 6px 20px rgba(44,26,14,0.18)' }}>
+                  Shop the Edit →
+                </button>
+              )}
             </div>
             <div style={{ fontSize: isMobile ? 100 : 160, lineHeight: 1, flexShrink: 0, animation: 'float 3.5s ease-in-out infinite', filter: 'drop-shadow(0 12px 28px rgba(44,26,14,0.12))' }}>
-              {featuredOcc.icon}
+              {featuredOcc.iconImg
+                ? <img src={featuredOcc.iconImg} alt={featuredOcc.title} style={{ width: isMobile ? 160 : 260, height: 'auto', display: 'block' }} />
+                : featuredOcc.icon}
             </div>
+            {isMobile && (
+              <button onClick={e => { e.stopPropagation(); dispatch(setActiveOccasion(featuredOcc)) }}
+                style={{ padding: '12px 24px', borderRadius: 99, border: 'none', background: '#2C1A0E', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', boxShadow: '0 6px 20px rgba(44,26,14,0.18)' }}>
+                Shop the Edit →
+              </button>
+            )}
             <div style={{ position: 'absolute', top: isMobile ? 16 : 24, right: isMobile ? 16 : 24, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(4px)', borderRadius: 99, padding: '5px 12px', fontSize: 11, fontWeight: 700, color: '#2C1A0E', letterSpacing: '0.06em' }}>
               Limited Edit
             </div>
@@ -270,7 +210,11 @@ export default function HomePage() {
               style={{ flexShrink: 0, width: isMobile ? 148 : 192, aspectRatio: '3/3.6', background: o.color, borderRadius: isMobile ? 16 : 20, border: 'none', cursor: 'pointer', position: 'relative', overflow: 'hidden', scrollSnapAlign: 'start', padding: 0, transition: 'transform 0.3s cubic-bezier(.2,.9,.3,1.4), box-shadow 0.3s', textAlign: 'left', boxShadow: '0 2px 8px rgba(44,26,14,0.06)' }}
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-5px) scale(1.02)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(44,26,14,0.16)' }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(44,26,14,0.06)' }}>
-              <div style={{ position: 'absolute', top: isMobile ? 12 : 16, right: isMobile ? 12 : 16, fontSize: isMobile ? 40 : 52, lineHeight: 1, filter: 'drop-shadow(0 4px 8px rgba(44,26,14,0.1))' }}>{o.icon}</div>
+              <div style={{ position: 'absolute', top: isMobile ? 12 : 16, right: isMobile ? 12 : 16, fontSize: isMobile ? 40 : 52, lineHeight: 1, filter: 'drop-shadow(0 4px 8px rgba(44,26,14,0.1))' }}>
+                {o.iconImg
+                  ? <img src={o.iconImg} alt={o.title} style={{ width: isMobile ? 64 : 84, height: 'auto', display: 'block' }} />
+                  : o.icon}
+              </div>
               <div style={{ position: 'absolute', bottom: isMobile ? 14 : 20, left: isMobile ? 14 : 18, right: isMobile ? 14 : 18 }}>
                 <div style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 14 : 16, fontWeight: 700, color: '#2C1A0E', lineHeight: 1.2, marginBottom: 3 }}>{o.title}</div>
                 <div style={{ fontSize: isMobile ? 10 : 11, color: '#6B4F3A', lineHeight: 1.4 }}>{o.sub}</div>
@@ -356,8 +300,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ──────────────────────────────────── */}
-      <TestimonialsSection isMobile={isMobile} isTablet={isTablet} />
 
       {/* ── NEWSLETTER ────────────────────────────────────── */}
       <section style={{ margin: isMobile ? '0 20px 56px' : `0 ${px} 80px`, borderRadius: isMobile ? 20 : 28, overflow: 'hidden' }}>

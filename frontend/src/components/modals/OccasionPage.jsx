@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { clearActiveOccasion } from '../../store/slices/uiSlice'
-import { selectWishlistIds, toggleWishlist, wishlistKey } from '../../store/slices/wishlistSlice'
+import { selectWishlistIds, wishlistKey } from '../../store/slices/wishlistSlice'
 import { addLocal } from '../../store/slices/cartSlice'
 import { productsApi } from '../../api/services'
 import { ProductFilterBar } from '../ui/ProductFilters'
+import ProductCard, { ProductSkeleton } from '../ui/ProductCard'
 
 const TC = '#C4704A'
 
@@ -45,7 +46,8 @@ const OC_PRODUCTS = [
   { id:123, name:'Letterpress Card Set',         category:'Books & Stationery',  price:22,                  rating:4.8, rc:144, emoji:'💌', bg:'#E0CCB8', tag:'',           hc:true,  occ:['wedding','anniversary','birthday','thankyou','friendship'] },
   { id:124, name:'Aromatherapy Diffuser',        category:'Wellness',            price:48,                  rating:4.7, rc:176, emoji:'🌿', bg:'#D0DCC8', tag:'',           hc:false, occ:['mothers','housewarming','birthday','corporate','her'] },
   // `demo: true` — these only exist in this local fallback catalog, not in the backend.
-].map(p => ({ ...p, demo: true }))
+  // `reviewCount` mirrors `rc` so the shared ProductCard renders the review count.
+].map(p => ({ ...p, reviewCount: p.rc, demo: true }))
 
 // ── PER-OCCASION HERO CONFIG ─────────────────────────────────────
 const OCC_CFG = {
@@ -73,73 +75,6 @@ function OcStars({ rating, size = 12 }) {
   return (
     <div style={{ display:'flex', gap:1, alignItems:'center' }}>
       {[1,2,3,4,5].map(i => <span key={i} style={{ fontSize:size, color: i <= full ? TC : '#D9CBBF', lineHeight:1 }}>★</span>)}
-    </div>
-  )
-}
-
-// ── SKELETON ──────────────────────────────────────────────────────
-function OcSkeleton({ isMobile }) {
-  const s = { background:'linear-gradient(90deg,#EDE4D8 25%,#E8DDD4 50%,#EDE4D8 75%)', backgroundSize:'400% 100%', animation:'ocShimmer 1.6s ease-in-out infinite', borderRadius:10 }
-  return (
-    <div style={{ background:'white', borderRadius:20, overflow:'hidden', border:'1px solid #EDE4D8' }}>
-      <div style={{ ...s, height: isMobile ? 160 : 200 }} />
-      <div style={{ padding: isMobile ? 14 : 18 }}>
-        <div style={{ ...s, height:9, width:'55%', marginBottom:8 }} />
-        <div style={{ ...s, height:13, marginBottom:6 }} />
-        <div style={{ ...s, height:13, width:'75%', marginBottom:14 }} />
-        <div style={{ ...s, height:18, width:'35%' }} />
-      </div>
-    </div>
-  )
-}
-
-// ── OcCard — defined OUTSIDE the main component to avoid re-mount issues
-function OcCard({ p, onPreview, wishlist, onWishlist, tc, isMobile, onAddToCart }) {
-  const inWl = wishlist.has(wishlistKey(p))
-  const disc = p.originalPrice ? Math.round((1 - p.price / p.originalPrice) * 100) : 0
-  const [added, setAdded] = useState(false)
-
-  const handleAdd = e => {
-    e.stopPropagation()
-    onAddToCart(p)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 1400)
-  }
-
-  return (
-    <div onClick={() => onPreview(p)}
-      style={{ background:'white', borderRadius:20, overflow:'hidden', border:'1px solid #EDE4D8', cursor:'pointer', transition:'transform 0.3s cubic-bezier(.2,.9,.3,1.2), box-shadow 0.3s', position:'relative', display:'flex', flexDirection:'column' }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = '0 20px 50px rgba(44,26,14,0.13)' }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none' }}>
-      <div style={{ height: isMobile ? 155 : 195, background:p.bg||'#EDE4D8', display:'flex', alignItems:'center', justifyContent:'center', fontSize: isMobile ? 52 : 68, position:'relative', overflow:'hidden', flexShrink:0 }}>
-        {disc > 0 && <div style={{ position:'absolute', top:10, left:10, background:'#7A9A6B', color:'white', fontSize:9, fontWeight:700, padding:'3px 8px', borderRadius:99 }}>-{disc}%</div>}
-        {p.tag && <div style={{ position:'absolute', top:10, left: disc > 0 ? 52 : 10, background: p.tag === 'New' ? '#7A9A6B' : tc, color:'white', fontSize:9, fontWeight:700, padding:'3px 8px', borderRadius:99 }}>{p.tag}</div>}
-        {p.hc && <div style={{ position:'absolute', bottom:8, left:8, background:'rgba(255,255,255,0.88)', backdropFilter:'blur(4px)', fontSize:9, fontWeight:600, color:'#6B4F3A', padding:'3px 8px', borderRadius:99 }}>🤲 Handcrafted</div>}
-        <button onClick={e => { e.stopPropagation(); onWishlist(p) }}
-          style={{ position:'absolute', top:8, right:8, background:'rgba(255,255,255,0.92)', border:'none', borderRadius:'50%', width:30, height:30, cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', justifyContent:'center', transition:'transform 0.2s' }}
-          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.2)'}
-          onMouseLeave={e => e.currentTarget.style.transform = 'none'}>
-          {inWl ? '❤️' : '🤍'}
-        </button>
-        <span>{p.emoji}</span>
-      </div>
-      <div style={{ padding: isMobile ? '12px 14px 14px' : '16px 18px 18px', flex:1, display:'flex', flexDirection:'column' }}>
-        <div style={{ fontSize:9, color:'#9C7A63', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:4 }}>{p.category}</div>
-        <div style={{ fontFamily:"'Playfair Display',serif", fontSize: isMobile ? 13 : 15, fontWeight:600, color:'#2C1A0E', lineHeight:1.3, marginBottom:7, flex:1 }}>{p.name}</div>
-        <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:10 }}>
-          <OcStars rating={p.rating} />
-          <span style={{ fontSize:10, color:'#9C7A63' }}>({p.rc})</span>
-        </div>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
-          <div>
-            <span style={{ fontWeight:700, fontSize: isMobile ? 14 : 16, color:tc }}>₹{p.price}</span>
-            {p.originalPrice && <span style={{ fontSize:10, color:'#B8A090', textDecoration:'line-through', marginLeft:4 }}>₹{p.originalPrice}</span>}
-          </div>
-          <button onClick={handleAdd} style={{ padding: isMobile ? '6px 11px' : '7px 14px', borderRadius:99, border:'none', background: added ? '#7A9A6B' : tc, color:'white', fontSize:10, fontWeight:700, cursor:'pointer', transition:'background 0.3s', flexShrink:0 }}>
-            {added ? '✓ Added' : '+ Add'}
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
@@ -278,15 +213,15 @@ export default function OccasionPage({ occasion }) {
   const handmade = products.filter(p => p.hc).slice(0, 4)
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))]
 
-  const onWishlist = useCallback(p => dispatch(toggleWishlist(wishlistKey(p))), [dispatch])
   const onAddToCart = useCallback(p => dispatch(addLocal(p)), [dispatch])
 
-  // grid and skeletonGrid as inline functions (same pattern as design)
+  // grid and skeletonGrid reuse the shared ProductCard so occasion cards match
+  // the Featured Collection design exactly. Clicking a card opens the quick view.
   const grid = (items, cols) => (
     <div style={{ display:'grid', gridTemplateColumns:`repeat(${cols},1fr)`, gap: isMobile ? 12 : 20 }}>
       {items.map((p, i) => (
         <div key={p.id} style={{ animation:`ocUp 0.5s ease ${Math.min(i,5)*0.07}s backwards` }}>
-          <OcCard p={p} onPreview={setQuickView} wishlist={wishlist} onWishlist={onWishlist} tc={TC} isMobile={isMobile} onAddToCart={onAddToCart} />
+          <ProductCard product={p} onClick={() => setQuickView(p)} />
         </div>
       ))}
     </div>
@@ -294,8 +229,24 @@ export default function OccasionPage({ occasion }) {
 
   const skeletonGrid = (n, cols) => (
     <div style={{ display:'grid', gridTemplateColumns:`repeat(${cols},1fr)`, gap: isMobile ? 12 : 20 }}>
-      {Array.from({length:n}).map((_,i) => <OcSkeleton key={i} isMobile={isMobile} />)}
+      {Array.from({length:n}).map((_,i) => <ProductSkeleton key={i} />)}
     </div>
+  )
+
+  // Hero CTA + trust badges. Rendered inside the text column on desktop and
+  // below the SVG image on mobile (so the buttons sit under the illustration).
+  const ctaBlock = (
+    <>
+      <div style={{ display:'flex', gap:12, flexWrap:'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
+        <button style={{ padding: isMobile ? '12px 22px' : '14px 30px', borderRadius:99, border:'none', background:TC, color:'white', fontWeight:700, fontSize:14, cursor:'pointer', boxShadow:'0 6px 24px rgba(196,112,74,0.3)' }}>{cfg.cta}</button>
+        <button onClick={() => dispatch(clearActiveOccasion())} style={{ padding: isMobile ? '12px 18px' : '14px 24px', borderRadius:99, border:'1.5px solid #D9CBBF', background:'rgba(255,255,255,0.75)', color:'#2C1A0E', fontWeight:600, fontSize:14, cursor:'pointer' }}>All Occasions</button>
+      </div>
+      <div style={{ display:'flex', gap:20, marginTop:24, flexWrap:'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
+        {[['🤲','Handcrafted'],['💌','Gift Wrapped'],['🌿','Eco Packing']].map(([e,l]) => (
+          <div key={l} style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, color:'#6B4F3A', fontWeight:500 }}><span>{e}</span><span>{l}</span></div>
+        ))}
+      </div>
+    </>
   )
 
   return (
@@ -332,23 +283,24 @@ export default function OccasionPage({ occasion }) {
               {cfg.h}
             </h1>
             <p style={{ fontSize: isMobile ? 15 : 17, color:'#6B4F3A', lineHeight:1.68, marginBottom:28, maxWidth:460 }}>{cfg.s}</p>
-            <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
-              <button style={{ padding: isMobile ? '12px 22px' : '14px 30px', borderRadius:99, border:'none', background:TC, color:'white', fontWeight:700, fontSize:14, cursor:'pointer', boxShadow:'0 6px 24px rgba(196,112,74,0.3)' }}>{cfg.cta}</button>
-              <button onClick={() => dispatch(clearActiveOccasion())} style={{ padding: isMobile ? '12px 18px' : '14px 24px', borderRadius:99, border:'1.5px solid #D9CBBF', background:'rgba(255,255,255,0.75)', color:'#2C1A0E', fontWeight:600, fontSize:14, cursor:'pointer' }}>All Occasions</button>
-            </div>
-            <div style={{ display:'flex', gap:20, marginTop:24, flexWrap:'wrap' }}>
-              {[['🤲','Handcrafted'],['💌','Gift Wrapped'],['🌿','Eco Packing']].map(([e,l]) => (
-                <div key={l} style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, color:'#6B4F3A', fontWeight:500 }}><span>{e}</span><span>{l}</span></div>
-              ))}
-            </div>
+            {/* On mobile the CTA + trust badges render below the SVG (see ctaBlock after the image). */}
+            {!isMobile && ctaBlock}
           </div>
-          {!isMobile && (
-            <div style={{ flexShrink:0, position:'relative', width:260, textAlign:'center' }}>
-              <span style={{ fontSize:160, display:'block', animation:'ocFloat 3.6s ease-in-out infinite', filter:'drop-shadow(0 18px 36px rgba(44,26,14,0.12))' }}>{occasion.icon}</span>
-              <span style={{ position:'absolute', top:-8, right:-10, fontSize:54, animation:'ocFloat 4.4s ease-in-out 0.5s infinite' }}>{cfg.e2}</span>
-              <span style={{ position:'absolute', bottom:8, left:-10, fontSize:40, animation:'ocFloat 3.9s ease-in-out 1s infinite' }}>{cfg.e3}</span>
+          {(occasion.iconImg || !isMobile) && (
+            <div style={{ flexShrink:0, position:'relative', width: isMobile ? 'auto' : 260, textAlign:'center' }}>
+              {occasion.iconImg ? (
+                <img src={occasion.iconImg} alt={occasion.title} style={{ width: isMobile ? 200 : 300, maxWidth:'100%', height:'auto', display:'block', margin:'0 auto', animation:'ocFloat 3.6s ease-in-out infinite', filter:'drop-shadow(0 18px 36px rgba(44,26,14,0.12))' }} />
+              ) : (
+                <>
+                  <span style={{ fontSize:160, display:'block', animation:'ocFloat 3.6s ease-in-out infinite', filter:'drop-shadow(0 18px 36px rgba(44,26,14,0.12))' }}>{occasion.icon}</span>
+                  <span style={{ position:'absolute', top:-8, right:-10, fontSize:54, animation:'ocFloat 4.4s ease-in-out 0.5s infinite' }}>{cfg.e2}</span>
+                  <span style={{ position:'absolute', bottom:8, left:-10, fontSize:40, animation:'ocFloat 3.9s ease-in-out 1s infinite' }}>{cfg.e3}</span>
+                </>
+              )}
             </div>
           )}
+          {/* Mobile: CTA + trust badges sit below the SVG image */}
+          {isMobile && <div style={{ width:'100%' }}>{ctaBlock}</div>}
         </div>
       </div>
 
