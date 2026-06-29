@@ -15,7 +15,7 @@ const BASE_ANGLES = [0, 120, 240]
 
 const CARDS = [
   {
-    id: 0, src: '/uploads/undraw_fatherhood_eldm.svg',
+    id: 0, src: '/hero/undraw_fatherhood_eldm.svg',
     label: 'For the Family', tagline: 'Moments they will treasure forever',
     badge: 'Bestseller', accent: '#e8a87c', shadow: 'rgba(232,168,124,0.45)',
     eyebrow: 'Perfect for Every Family', headline1: 'Give a Gift',
@@ -26,7 +26,7 @@ const CARDS = [
     match: p => p.recipient === 'anyone' || p.recipient === 'kids',
   },
   {
-    id: 1, src: '/uploads/undraw_cool-girl-avatar_fifz.svg',
+    id: 1, src: '/hero/undraw_cool-girl-avatar_fifz.svg',
     label: 'Gifts for Her', tagline: 'Thoughtfully curated, beautifully wrapped',
     badge: 'New Arrivals', accent: '#d97b8a', shadow: 'rgba(217,123,138,0.45)',
     eyebrow: 'Made for Her', headline1: 'Give a Gift',
@@ -36,7 +36,7 @@ const CARDS = [
     match: p => p.recipient === 'her',
   },
   {
-    id: 2, src: '/uploads/undraw_jewelry_39lx.svg',
+    id: 2, src: '/hero/undraw_jewelry_39lx.svg',
     label: 'Fine Accessories', tagline: 'Timeless pieces for every occasion',
     badge: 'Premium', accent: '#c4a352', shadow: 'rgba(196,163,82,0.45)',
     eyebrow: 'Timeless Elegance', headline1: 'Give a Gift',
