@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { selectIsLoggedIn, selectUser } from '../store/slices/authSlice'
 import { selectCartCount } from '../store/slices/cartSlice'
 import { selectWishlistIds } from '../store/slices/wishlistSlice'
-import { openLogin, openSearch, openBoxBuilder, openOccasions, openUserAccount, openCart, openWishlist, selectUI } from '../store/slices/uiSlice'
+import { openLogin, openSearch, openBoxBuilder, openUserAccount, openCart, openWishlist, selectUI } from '../store/slices/uiSlice'
 import { useWindowWidth } from '../hooks/useWindowWidth'
 
 const TC = '#C4704A'
@@ -48,14 +48,14 @@ export default function Nav({ onScrollTo }) {
 
   const links = [
     { label: 'Shop',         href: '/shop',        action: () => onScrollTo?.('featured-collection') },
-    { label: 'Occasions',    href: '/occasions',   action: () => dispatch(openOccasions()) },
+    { label: 'Occasions',    href: '/#occasions',  action: () => onScrollTo?.('occasions') },
     { label: 'Best Sellers', href: '/shop',        action: () => onScrollTo?.('bestsellers') },
     { label: 'Gift Boxes',   href: '/gift-boxes',  action: () => dispatch(openBoxBuilder()) },
   ]
 
   const mobileLinks = [
     { label: 'Shop All Gifts',   href: '/shop',       icon: '🛍️', action: () => { setMobileOpen(false); onScrollTo?.('featured-collection') } },
-    { label: 'Occasions',        href: '/occasions',  icon: '✦',   action: () => { setMobileOpen(false); dispatch(openOccasions()) } },
+    { label: 'Occasions',        href: '/#occasions', icon: '✦',   action: () => { setMobileOpen(false); onScrollTo?.('occasions') } },
     { label: 'Best Sellers',     href: '/shop',       icon: '⭐',  action: () => { setMobileOpen(false); onScrollTo?.('bestsellers') } },
     { label: 'Build a Gift Box', href: '/gift-boxes', icon: '🎁',  action: () => { setMobileOpen(false); dispatch(openBoxBuilder()) } },
   ]

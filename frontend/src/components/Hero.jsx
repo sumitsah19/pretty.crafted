@@ -309,7 +309,7 @@ export default function Hero() {
             width: mobile ? '100%' : undefined,
           }}>
             <PrimaryBtn accent={card.accent} shadow={card.shadow} mobile={mobile}
-              onClick={() => dispatch(openShop())}>
+              onClick={() => { setOverlayIdx(displayIdx); setOverlayOpen(true) }}>
               {card.cta} {!mobile && <span style={{ display: 'inline-block' }}>→</span>}
             </PrimaryBtn>
             <SecondaryBtn mobile={mobile} onClick={() => dispatch(openBoxBuilder())}>

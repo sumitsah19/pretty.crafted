@@ -30,7 +30,6 @@ const CheckoutModal = lazy(() => import('./components/modals/CheckoutModal'))
 const GiftBoxModal = lazy(() => import('./components/modals/GiftBoxModal'))
 const SearchModal = lazy(() => import('./components/modals/SearchModal'))
 const WishlistDrawer = lazy(() => import('./components/modals/WishlistDrawer'))
-const OccasionsModal = lazy(() => import('./components/modals/OccasionsModal'))
 const OccasionPage = lazy(() => import('./components/modals/OccasionPage'))
 const ProductDetailModal = lazy(() => import('./components/modals/ProductDetailModal'))
 const UserAccountModal = lazy(() => import('./components/modals/UserAccountModal'))
@@ -271,7 +270,6 @@ export default function App() {
           [ui.showBoxBuilder,         <GiftBoxModal />],
           [ui.showSearch,             <SearchModal />],
           [wishlistOpen,              <WishlistDrawer />],
-          [ui.showOccasions,          <OccasionsModal />],
           [ui.activeProduct,          <ProductDetailModal key={ui.activeProduct?.id} product={ui.activeProduct} />],
           [ui.showUserAccount,        <UserAccountModal />],
           [ui.showHamperShop,         <HamperShopModal />],

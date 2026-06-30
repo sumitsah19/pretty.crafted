@@ -1,11 +1,10 @@
 import { useRef, useState, useEffect, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { selectProducts, selectProductsLoading, selectHampers } from '../store/slices/productsSlice'
-import { selectUI, openBoxBuilder, openOccasions, openUserAccount, openLogin, openHamperShop, openShop, setActiveProduct, setActiveOccasion } from '../store/slices/uiSlice'
+import { selectUI, openBoxBuilder, openUserAccount, openLogin, openHamperShop, openShop, setActiveProduct, setActiveOccasion } from '../store/slices/uiSlice'
 import { selectIsLoggedIn } from '../store/slices/authSlice'
 import { useWindowWidth } from '../hooks/useWindowWidth'
 import Hero from '../components/Hero'
-import GiftBoxCTASection from '../components/GiftBoxCTASection'
 import ProductCard, { ProductSkeleton } from '../components/ui/ProductCard'
 import { useProductFilters, ProductFilterBar } from '../components/ui/ProductFilters'
 
@@ -132,10 +131,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── BUILD YOUR OWN BOX ────────────────────────────── */}
-      <div style={{ margin: isMobile ? '0 16px 56px' : `0 ${px} 80px` }}>
-        <GiftBoxCTASection isHero={false} />
-      </div>
+      {/* ── GIFT BOX CTA BANNER ───────────────────────────── */}
+      <section style={{ margin: isMobile ? '0 20px 56px' : `0 ${px} 80px`, borderRadius: isMobile ? 20 : 28, overflow: 'hidden' }}>
+        <div style={{ background: `linear-gradient(135deg, ${TC} 0%, #A85A38 100%)`, padding: isMobile ? '40px 24px' : isTablet ? '48px 48px' : '64px 72px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? 24 : 48 }}>
+          <div style={{ flex: 1, color: 'white' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', opacity: 0.75, marginBottom: 10 }}>New Feature ✦</div>
+            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 'clamp(22px,6vw,32px)' : 'clamp(28px,4vw,42px)', fontWeight: 700, lineHeight: 1.2, marginBottom: 14 }}>Build a Gift Box <br /><em>They'll Never Forget</em></h2>
+            <p style={{ opacity: 0.85, fontSize: isMobile ? 14 : 16, lineHeight: 1.65, marginBottom: 24, maxWidth: 420 }}>Mix and match handcrafted items, add a personal note, choose a ribbon — we'll wrap it all beautifully.</p>
+            <button onClick={() => dispatch(openBoxBuilder())} style={{ padding: '14px 30px', borderRadius: 99, background: 'white', color: TC, fontWeight: 700, fontSize: isMobile ? 14 : 15, border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(0,0,0,0.15)', minHeight: 48 }}>Start Building →</button>
+          </div>
+          {!isMobile && <div style={{ fontSize: 100, flexShrink: 0, filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.25))' }}>🎁</div>}
+        </div>
+      </section>
 
       {/* ── BESTSELLERS CAROUSEL ──────────────────────────── */}
       <section id="bestsellers" style={{ padding: isMobile ? `0 20px 56px` : `0 ${px} 80px` }}>
@@ -159,7 +166,7 @@ export default function HomePage() {
       </section>
 
       {/* ── OCCASIONS ─────────────────────────────────────── */}
-      <section style={{ padding: isMobile ? '48px 20px 56px' : isTablet ? '60px 32px 72px' : '72px 48px 96px', background: '#FAF7F2' }}>
+      <section id="occasions" style={{ padding: isMobile ? '48px 20px 56px' : isTablet ? '60px 32px 72px' : '72px 48px 96px', background: '#FAF7F2' }}>
         <div style={{ marginBottom: isMobile ? 28 : 36 }}>
           <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Browse by Moment</div>
           <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 26 : 36, fontWeight: 700, color: '#2C1A0E', lineHeight: 1.1 }}>Gifts for Every Occasion</h2>
@@ -221,15 +228,6 @@ export default function HomePage() {
               </div>
             </button>
           ))}
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: isMobile ? 32 : 40 }}>
-          <button onClick={() => dispatch(openOccasions())}
-            style={{ padding: isMobile ? '13px 32px' : '14px 38px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontWeight: 700, fontSize: 14, cursor: 'pointer', width: isMobile ? '100%' : 'auto', transition: 'all 0.3s', boxShadow: '0 2px 12px rgba(44,26,14,0.06)' }}
-            onMouseEnter={e => { e.currentTarget.style.background = TC; e.currentTarget.style.color = 'white'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(196,112,74,0.28)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = TC; e.currentTarget.style.boxShadow = '0 2px 12px rgba(44,26,14,0.06)' }}>
-            Browse All {OCCASIONS.length} Occasions →
-          </button>
         </div>
       </section>
 
@@ -341,8 +339,8 @@ export default function HomePage() {
               actions: [() => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => dispatch(openBoxBuilder())] },
             { title: 'Gifting',
               links:   ['Gift Box Builder', 'Occasions', 'For Her', 'For Him', 'For Kids'],
-              hrefs:   ['/gift-boxes', '/occasions', '/shop', '/shop', '/shop'],
-              actions: [() => dispatch(openBoxBuilder()), () => dispatch(openOccasions()), () => { setActiveRecipient('her'); scrollTo('featured-collection') }, () => { setActiveRecipient('him'); scrollTo('featured-collection') }, () => { setActiveRecipient('kids'); scrollTo('featured-collection') }] },
+              hrefs:   ['/gift-boxes', '/#occasions', '/shop', '/shop', '/shop'],
+              actions: [() => dispatch(openBoxBuilder()), () => scrollTo('occasions'), () => { setActiveRecipient('her'); scrollTo('featured-collection') }, () => { setActiveRecipient('him'); scrollTo('featured-collection') }, () => { setActiveRecipient('kids'); scrollTo('featured-collection') }] },
             { title: 'Company',
               links:   ['About Us', 'Artisans', 'Sustainability', 'Press'],
               hrefs:   ['/', '/', '/', '/'],
