@@ -17,6 +17,6 @@ public class OccasionController {
 
     @GetMapping
     public List<OccasionDto> list() {
-        return service.listAll();
+        return service.listVisible();
     }
 }

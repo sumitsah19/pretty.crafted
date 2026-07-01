@@ -144,11 +144,13 @@ export const occasionsApi = {
 
 // ── OCCASIONS (admin write — occasion catalog CMS) ────────────────
 export const occasionAdminApi = {
-  list:   ()         => api.get('/admin/occasions'),
-  create: (data)     => api.post('/admin/occasions', data),
-  update: (id, data) => api.put(`/admin/occasions/${id}`, data),
-  toggle: (id)       => api.patch(`/admin/occasions/${id}/toggle`),
-  remove: (id)       => api.delete(`/admin/occasions/${id}`),
+  list:       ()         => api.get('/admin/occasions'),
+  create:     (data)     => api.post('/admin/occasions', data),
+  update:     (id, data) => api.put(`/admin/occasions/${id}`, data),
+  toggle:     (id)       => api.patch(`/admin/occasions/${id}/toggle`),
+  feature:    (id)       => api.patch(`/admin/occasions/${id}/feature`),
+  visibility: (id)       => api.patch(`/admin/occasions/${id}/visibility`),
+  remove:     (id)       => api.delete(`/admin/occasions/${id}`),
 }
 
 // ── HERO CARDS (public read — storefront hero CoverFlow) ─────────

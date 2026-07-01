@@ -14,12 +14,19 @@ import lombok.Setter;
 
 /**
  * An admin-managed occasion in the storefront's "Gifts for Every Occasion" catalog.
- * Every occasion (active or not) renders in the browse row; {@code active} only
- * controls eligibility for the single large featured banner slot, and among
- * active occasions the highest {@code priority} wins that slot — see HomePage's
- * {@code featuredOcc} selection. {@code slug} should match a key in
- * OccasionPage.jsx's {@code OCC_CFG} map when one exists, so clicking through
- * from the banner still gets themed hero copy.
+ * Three independent flags control where it appears:
+ * <ul>
+ *   <li>{@code visible} — Hide/Show. Hidden occasions never appear on the storefront
+ *       (browse row or featured banner) but remain manageable in the admin panel.</li>
+ *   <li>{@code active} — eligibility for the featured banner slot.</li>
+ *   <li>{@code featured} — the single occasion actually shown in the banner slot.
+ *       At most one occasion has {@code featured=true} at a time; the service
+ *       enforces this by unsetting it on any other occasion when one is marked
+ *       featured. The banner only honours it while the occasion is also
+ *       {@code active} — see {@link com.prettycrafted.giftbox.service.OccasionService}.</li>
+ * </ul>
+ * {@code slug} should match a key in OccasionPage.jsx's {@code OCC_CFG} map when one
+ * exists, so clicking through from the banner still gets themed hero copy.
  */
 @Entity
 @Table(name = "occasions")
@@ -69,10 +76,15 @@ public class Occasion {
     @Builder.Default
     private Boolean active = false;
 
-    /** Tiebreaker among active occasions — higher wins the featured banner slot. */
-    @Column(columnDefinition = "INT NOT NULL DEFAULT 0")
+    /** The single occasion shown in the featured banner slot. At most one row is true. */
+    @Column(columnDefinition = "BOOLEAN NOT NULL DEFAULT FALSE")
     @Builder.Default
-    private Integer priority = 0;
+    private Boolean featured = false;
+
+    /** Hide/Show. Hidden occasions are excluded from every public listing. */
+    @Column(columnDefinition = "BOOLEAN NOT NULL DEFAULT TRUE")
+    @Builder.Default
+    private Boolean visible = true;
 
     /** Lower numbers render first in the browse-by-moment row. */
     @Column(name = "display_order", columnDefinition = "INT NOT NULL DEFAULT 0")

@@ -13,7 +13,8 @@ public record OccasionDto(
     String season,
     String ctaLabel,
     Boolean active,
-    Integer priority,
+    Boolean featured,
+    Boolean visible,
     Integer displayOrder
 ) {
     public static OccasionDto from(Occasion o) {
@@ -28,7 +29,8 @@ public record OccasionDto(
             o.getSeason(),
             o.getCtaLabel(),
             o.getActive(),
-            o.getPriority(),
+            o.getFeatured(),
+            o.getVisible(),
             o.getDisplayOrder()
         );
     }

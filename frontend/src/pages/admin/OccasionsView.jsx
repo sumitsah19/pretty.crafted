@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { uploadApi, occasionAdminApi } from '../../api/services'
 import { TC, DARK, MID, LIGHT, BEIGE, CREAM, BarChart, SectionHeader } from './shared'
 
-const BLANK = { slug: '', title: '', description: '', icon: '', iconImageUrl: '', color: '#EDE4D8', season: '', ctaLabel: '', priority: '', displayOrder: '', active: false }
+const BLANK = { slug: '', title: '', description: '', icon: '', iconImageUrl: '', color: '#EDE4D8', season: '', ctaLabel: '', displayOrder: '', active: false, visible: true }
 
 // ─── MOCK DATA ─────────────────────────────────────────────────────
 // The revenue/engagement analytics below remain mock — no analytics backend
@@ -54,9 +54,9 @@ export default function OccasionsView({ onToast = () => {} }) {
       color: o.color,
       season: o.season || '',
       ctaLabel: o.ctaLabel || '',
-      priority: o.priority ?? '',
       displayOrder: o.displayOrder ?? '',
       active: o.active,
+      visible: o.visible,
     })
     setShowForm(true)
   }
@@ -88,9 +88,9 @@ export default function OccasionsView({ onToast = () => {} }) {
         color: form.color,
         season: form.season.trim() || null,
         ctaLabel: form.ctaLabel.trim() || null,
-        priority: form.priority === '' ? 0 : Number(form.priority),
         displayOrder: form.displayOrder === '' ? 0 : Number(form.displayOrder),
         active: form.active,
+        visible: form.visible,
       }
       if (editItem) {
         const { data } = await occasionAdminApi.update(editItem.id, payload)
@@ -116,6 +116,27 @@ export default function OccasionsView({ onToast = () => {} }) {
     } catch { onToast('Update failed') } finally { setBusyId(null) }
   }
 
+  const toggleFeatured = async (o) => {
+    setBusyId(o.id)
+    try {
+      const { data } = await occasionAdminApi.feature(o.id)
+      // Marking one occasion featured un-features whichever one held the slot
+      // before — refresh the whole list so that occasion's card updates too.
+      const { data: all } = await occasionAdminApi.list()
+      setOccasions(all || [])
+      onToast(data.featured ? `${data.title} is now the featured banner` : `${data.title} is no longer the featured banner`)
+    } catch { onToast('Update failed') } finally { setBusyId(null) }
+  }
+
+  const toggleVisible = async (o) => {
+    setBusyId(o.id)
+    try {
+      const { data } = await occasionAdminApi.visibility(o.id)
+      setOccasions(os => os.map(x => x.id === data.id ? data : x))
+      onToast(data.visible ? `${data.title} is visible on the storefront` : `${data.title} is now hidden`)
+    } catch { onToast('Update failed') } finally { setBusyId(null) }
+  }
+
   const remove = async (o) => {
     if (!window.confirm(`Delete "${o.title}"? It will disappear from the storefront occasions row (and the featured banner, if it's currently shown).`)) return
     setBusyId(o.id)
@@ -126,7 +147,10 @@ export default function OccasionsView({ onToast = () => {} }) {
     } catch { onToast('Delete failed') } finally { setBusyId(null) }
   }
 
-  const featured = occasions.filter(o => o.active).sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0]
+  // The occasion actually shown as the storefront's banner — featured AND active.
+  // A `featured` occasion whose `active` got turned off still shows a "won't
+  // display" hint on its card, but doesn't count as the effective banner here.
+  const bannerOcc = occasions.find(o => o.featured && o.active)
 
   const monthly = [
     { label: 'Jan', value: 28 }, { label: 'Feb', value: 86  }, { label: 'Mar', value: 54  },
@@ -137,11 +161,11 @@ export default function OccasionsView({ onToast = () => {} }) {
 
   return (
     <div>
-      <SectionHeader title="Manage Occasions" sub={loading ? 'Loading…' : `${occasions.length} occasions · featured banner: ${featured?.title || 'none active'}`} action="+ Add Occasion" onAction={openAdd} />
+      <SectionHeader title="Manage Occasions" sub={loading ? 'Loading…' : `${occasions.length} occasions · featured banner: ${bannerOcc?.title || 'none active'}`} action="+ Add Occasion" onAction={openAdd} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14, marginBottom: 36 }}>
         {occasions.map(o => (
-          <div key={o.id} style={{ background: 'white', borderRadius: 18, padding: 16, border: `1.5px solid ${o.id === featured?.id ? TC : BEIGE}`, boxShadow: '0 2px 8px rgba(44,26,14,0.04)', opacity: busyId === o.id ? 0.6 : 1 }}>
+          <div key={o.id} style={{ background: 'white', borderRadius: 18, padding: 16, border: `1.5px solid ${o.id === bannerOcc?.id ? TC : BEIGE}`, boxShadow: '0 2px 8px rgba(44,26,14,0.04)', opacity: busyId === o.id ? 0.6 : !o.visible ? 0.55 : 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <div style={{ width: 48, height: 48, borderRadius: 14, background: o.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0, overflow: 'hidden' }}>
                 {o.iconImageUrl ? <img src={o.iconImageUrl} alt={o.title} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : o.icon}
@@ -150,17 +174,25 @@ export default function OccasionsView({ onToast = () => {} }) {
                 <div style={{ fontWeight: 700, color: DARK, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.title}</div>
                 <div style={{ fontSize: 10, color: LIGHT, fontFamily: 'monospace' }}>/{o.slug}</div>
               </div>
-              {o.id === featured?.id && <span style={{ fontSize: 9, fontWeight: 700, color: 'white', background: TC, padding: '3px 8px', borderRadius: 99, flexShrink: 0 }}>FEATURED</span>}
+              {o.id === bannerOcc?.id && <span style={{ fontSize: 9, fontWeight: 700, color: 'white', background: TC, padding: '3px 8px', borderRadius: 99, flexShrink: 0 }}>FEATURED</span>}
             </div>
             <div style={{ fontSize: 12, color: MID, lineHeight: 1.5, marginBottom: 10 }}>{o.description}</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-              <span style={{ fontSize: 10, color: LIGHT, background: CREAM, padding: '3px 8px', borderRadius: 99 }}>Priority {o.priority}</span>
               <span style={{ fontSize: 10, color: LIGHT, background: CREAM, padding: '3px 8px', borderRadius: 99 }}>Order #{o.displayOrder}</span>
+              {!o.visible && <span style={{ fontSize: 10, fontWeight: 700, color: MID, background: BEIGE, padding: '3px 8px', borderRadius: 99 }}>Hidden</span>}
               {!o.active && <span style={{ fontSize: 10, fontWeight: 700, color: MID, background: BEIGE, padding: '3px 8px', borderRadius: 99 }}>Not eligible</span>}
+              {o.featured && !o.active && <span style={{ fontSize: 10, fontWeight: 700, color: '#A02A2A', background: '#FFF5F5', padding: '3px 8px', borderRadius: 99 }}>Featured, but inactive — won't show</span>}
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
               <button onClick={() => openEdit(o)} style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
               <button onClick={() => toggle(o)} style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{o.active ? 'Deactivate' : 'Activate'}</button>
+              <button onClick={() => toggleVisible(o)} style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{o.visible ? 'Hide' : 'Show'}</button>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => toggleFeatured(o)} disabled={!o.active && !o.featured} title={!o.active && !o.featured ? 'Activate this occasion first' : ''}
+                style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${o.featured ? TC : BEIGE}`, background: o.featured ? TC : 'white', color: o.featured ? 'white' : (!o.active ? LIGHT : MID), fontSize: 11, fontWeight: 700, cursor: (!o.active && !o.featured) ? 'default' : 'pointer' }}>
+                {o.featured ? 'Remove Featured' : 'Set as Featured'}
+              </button>
               <button onClick={() => remove(o)} style={{ padding: '7px 11px', borderRadius: 99, border: '1.5px solid #FED7D7', background: '#FFF5F5', color: '#A02A2A', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Del</button>
             </div>
           </div>
@@ -272,22 +304,20 @@ export default function OccasionsView({ onToast = () => {} }) {
               <input value={form.ctaLabel} onChange={e => setForm(f => ({ ...f, ctaLabel: e.target.value }))} placeholder="Shop Father's Day" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
             </div>
 
-            <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Priority</label>
-                <input type="number" value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} placeholder="0" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
-                <div style={{ fontSize: 10, color: LIGHT, marginTop: 5 }}>Among active occasions, highest wins the featured banner.</div>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Row Order</label>
-                <input type="number" value={form.displayOrder} onChange={e => setForm(f => ({ ...f, displayOrder: e.target.value }))} placeholder="0" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
-                <div style={{ fontSize: 10, color: LIGHT, marginTop: 5 }}>Position in the "Gifts for Every Occasion" row.</div>
-              </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Row Order</label>
+              <input type="number" value={form.displayOrder} onChange={e => setForm(f => ({ ...f, displayOrder: e.target.value }))} placeholder="0" style={inp} onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+              <div style={{ fontSize: 10, color: LIGHT, marginTop: 5 }}>Position in the "Gifts for Every Occasion" row.</div>
             </div>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer' }}>
               <input type="checkbox" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))} style={{ width: 16, height: 16, accentColor: TC, cursor: 'pointer' }} />
               <span style={{ fontSize: 13, color: DARK, fontWeight: 600 }}>Eligible for the featured banner</span>
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer' }}>
+              <input type="checkbox" checked={form.visible} onChange={e => setForm(f => ({ ...f, visible: e.target.checked }))} style={{ width: 16, height: 16, accentColor: TC, cursor: 'pointer' }} />
+              <span style={{ fontSize: 13, color: DARK, fontWeight: 600 }}>Visible on storefront</span>
             </label>
 
             <button onClick={handleSave} disabled={saving || uploading || !form.slug.trim() || !form.title.trim() || !form.description.trim() || !form.color}

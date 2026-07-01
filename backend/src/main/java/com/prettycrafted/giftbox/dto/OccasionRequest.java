@@ -16,6 +16,6 @@ public record OccasionRequest(
     @Size(max = 40) String season,
     @Size(max = 60) String ctaLabel,
     Boolean active,
-    Integer priority,
+    Boolean visible,
     Integer displayOrder
 ) {}

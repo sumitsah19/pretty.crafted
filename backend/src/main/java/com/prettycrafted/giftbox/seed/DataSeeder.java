@@ -61,6 +61,7 @@ public class DataSeeder implements CommandLineRunner {
         seedFaqs();
         seedPolicies();
         seedOccasions();
+        backfillFeaturedOccasion();
     }
 
     private void seedAdmin() {
@@ -632,59 +633,59 @@ public class DataSeeder implements CommandLineRunner {
      * Seeds the "Gifts for Every Occasion" catalog, preserving the exact values the
      * storefront used when this array was hardcoded in HomePage.jsx, so first boot
      * looks identical to before. Idempotent — admins manage this via
-     * /api/admin/occasions (Admin → Occasions). Only "mothers" starts {@code active},
-     * matching today's featured banner; toggling another occasion active (with a
-     * higher priority) swaps the banner without any code change.
+     * /api/admin/occasions (Admin → Occasions). Only "mothers" starts {@code active}
+     * and {@code featured}, matching today's banner; marking a different occasion
+     * featured swaps the banner without any code change.
      */
     private void seedOccasions() {
         if (occasionRepo.count() > 0) return;
         log.info("Seeding occasions...");
 
         seedOccasion("mothers", "Mother's Day", "Thoughtful gifts made with love", "💐",
-            "/occasions/mothers-day.svg", "#F0D5DC", "May", "Shop Mother's Day", true, 100, 0);
+            "/occasions/mothers-day.svg", "#F0D5DC", "May", "Shop Mother's Day", true, true, 0);
         seedOccasion("valentines", "Valentine's Day", "Speak love through craft", "💝",
-            "/occasions/valentines-day.svg", "#E8C5C5", null, "Shop Love Gifts", false, 0, 1);
+            "/occasions/valentines-day.svg", "#E8C5C5", null, "Shop Love Gifts", false, false, 1);
         seedOccasion("birthday", "Birthday Gifts", "Make birthdays unforgettable", "🎂",
-            null, "#E8D5C4", null, "Shop Birthday Gifts", false, 0, 2);
+            null, "#E8D5C4", null, "Shop Birthday Gifts", false, false, 2);
         seedOccasion("anniversary", "Anniversary", "Celebrate years of love", "💍",
-            null, "#E0D5C5", null, "Shop Anniversary Gifts", false, 0, 3);
+            null, "#E0D5C5", null, "Shop Anniversary Gifts", false, false, 3);
         seedOccasion("wedding", "Wedding", "For the start of forever", "💒",
-            null, "#F2EAE0", null, "Shop Wedding Gifts", false, 0, 4);
+            null, "#F2EAE0", null, "Shop Wedding Gifts", false, false, 4);
         seedOccasion("baby", "Baby Shower", "Soft welcomes for tiny humans", "🍼",
-            null, "#D8E4DC", null, "Shop Baby Gifts", false, 0, 5);
+            null, "#D8E4DC", null, "Shop Baby Gifts", false, false, 5);
         seedOccasion("graduation", "Graduation", "Mark the milestone", "🎓",
-            null, "#D4C5B5", null, "Shop Graduation Gifts", false, 0, 6);
+            null, "#D4C5B5", null, "Shop Graduation Gifts", false, false, 6);
         seedOccasion("friendship", "Friendship", "For your favorite person", "🌻",
-            null, "#EDD8B0", null, "Shop Friendship Gifts", false, 0, 7);
+            null, "#EDD8B0", null, "Shop Friendship Gifts", false, false, 7);
         seedOccasion("christmas", "Christmas", "Wrapped in warmth & wonder", "🎄",
-            null, "#C8DBC4", null, "Shop Christmas Gifts", false, 0, 8);
+            null, "#C8DBC4", null, "Shop Christmas Gifts", false, false, 8);
         seedOccasion("newyear", "New Year", "Fresh starts, beautiful gifts", "✨",
-            null, "#E4D8B0", null, "Shop New Year Gifts", false, 0, 9);
+            null, "#E4D8B0", null, "Shop New Year Gifts", false, false, 9);
         seedOccasion("housewarming", "Housewarming", "Welcome home, with love", "🏡",
-            null, "#E0CFB8", null, "Shop Housewarming", false, 0, 10);
+            null, "#E0CFB8", null, "Shop Housewarming", false, false, 10);
         seedOccasion("thankyou", "Thank You", "Gratitude, beautifully said", "🌷",
-            null, "#E8D0C8", null, null, false, 0, 11);
+            null, "#E8D0C8", null, null, false, false, 11);
         seedOccasion("him", "For Him", "Crafted for the modern man", "🥃",
-            null, "#C4D0C0", null, "Shop Gifts for Him", false, 0, 12);
+            null, "#C4D0C0", null, "Shop Gifts for Him", false, false, 12);
         seedOccasion("her", "For Her", "Refined, romantic, real", "🌹",
-            null, "#F0D5DC", null, "Shop Gifts for Her", false, 0, 13);
+            null, "#F0D5DC", null, "Shop Gifts for Her", false, false, 13);
         seedOccasion("kids", "For Kids", "Joy, in every detail", "🧸",
-            null, "#D4C0D0", null, "Shop Kids Gifts", false, 0, 14);
+            null, "#D4C0D0", null, "Shop Kids Gifts", false, false, 14);
         seedOccasion("corporate", "Corporate Gifts", "Premium, thoughtful, on-brand", "🎁",
-            null, "#D9CFC2", null, "Shop Corporate Gifts", false, 0, 15);
+            null, "#D9CFC2", null, "Shop Corporate Gifts", false, false, 15);
         seedOccasion("fathers", "Father's Day", "Honor him in style", "🎩",
-            null, "#C8B89A", "June", "Shop Father's Day", false, 0, 16);
+            null, "#C8B89A", "June", "Shop Father's Day", false, false, 16);
         seedOccasion("rakshabandhan", "Raksha Bandhan", "Celebrate the sibling bond", "🪢",
-            null, "#E8D0B0", "August", "Shop Raksha Bandhan Gifts", false, 0, 17);
+            null, "#E8D0B0", "August", "Shop Raksha Bandhan Gifts", false, false, 17);
         seedOccasion("diwali", "Diwali", "Light up their celebrations", "🪔",
-            null, "#F0D9A8", "October", "Shop Diwali Gifts", false, 0, 18);
+            null, "#F0D9A8", "October", "Shop Diwali Gifts", false, false, 18);
 
         log.info("Seed complete: {} occasions", occasionRepo.count());
     }
 
     private void seedOccasion(String slug, String title, String description, String icon,
             String iconImageUrl, String color, String season, String ctaLabel,
-            boolean active, int priority, int displayOrder) {
+            boolean active, boolean featured, int displayOrder) {
         occasionRepo.save(Occasion.builder()
             .slug(slug)
             .title(title)
@@ -695,8 +696,29 @@ public class DataSeeder implements CommandLineRunner {
             .season(season)
             .ctaLabel(ctaLabel)
             .active(active)
-            .priority(priority)
+            .featured(featured)
+            .visible(true)
             .displayOrder(displayOrder)
             .build());
+    }
+
+    /**
+     * One-time self-heal for databases seeded before the {@code featured} column
+     * existed: Hibernate's DDL update adds it with a FALSE default on every row, so
+     * an already-seeded database would otherwise end up with no featured occasion
+     * at all. If nothing is featured yet, feature "mothers" (today's banner) so the
+     * homepage doesn't fall back to an arbitrary occasion after this upgrade.
+     */
+    private void backfillFeaturedOccasion() {
+        if (occasionRepo.findByFeaturedTrue().isPresent()) return;
+        occasionRepo.findAll().stream()
+            .filter(o -> "mothers".equals(o.getSlug()))
+            .findFirst()
+            .ifPresent(mothers -> {
+                mothers.setFeatured(true);
+                mothers.setActive(true);
+                occasionRepo.save(mothers);
+                log.info("Backfilled featured occasion: mothers");
+            });
     }
 }

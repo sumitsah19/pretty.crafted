@@ -46,6 +46,16 @@ public class AdminOccasionController {
         return service.toggle(id);
     }
 
+    @PatchMapping("/{id}/feature")
+    public OccasionDto toggleFeatured(@PathVariable Long id) {
+        return service.toggleFeatured(id);
+    }
+
+    @PatchMapping("/{id}/visibility")
+    public OccasionDto toggleVisibility(@PathVariable Long id) {
+        return service.toggleVisibility(id);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {

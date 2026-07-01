@@ -10,11 +10,12 @@ import { useProductFilters } from '../components/ui/ProductFilters'
 
 const TC = '#C4704A'
 
-// Occasion catalogue is admin-managed (Admin → Occasions, /api/public/occasions).
-// The hero banner is driven by `active` + `priority`: mark an occasion `active` to
-// make it eligible for the featured banner, and use `priority` (higher wins) to
-// decide which active occasion is shown. Only the single highest-priority active
-// occasion ever appears in the banner — see featuredOcc below.
+// Occasion catalogue is admin-managed (Admin → Occasions, /api/public/occasions),
+// which only ever returns visible occasions. The hero banner is driven by
+// `active` + `featured`: an occasion must be marked active ("eligible for the
+// featured banner") before it can be marked the single `featured` one — the
+// admin API enforces that at most one occasion is featured at a time. Only the
+// featured-and-active occasion ever appears in the banner — see featuredOcc below.
 function normalizeOccasion(o) {
   return {
     id: o.slug,
@@ -26,7 +27,7 @@ function normalizeOccasion(o) {
     season: o.season,
     ctaLabel: o.ctaLabel,
     active: o.active,
-    priority: o.priority,
+    featured: o.featured,
   }
 }
 
@@ -148,12 +149,10 @@ export default function HomePage() {
   }
 
   // Featured occasion
-  // Featured banner = the single highest-priority active occasion. Marking another
-  // occasion active with a higher priority (e.g. Father's Day, Diwali) automatically
-  // swaps the banner here; everything else flows into the occasions scroll row.
-  const featuredOcc = occasions
-    .filter(o => o.active)
-    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0] || occasions[0]
+  // Featured banner = the occasion marked both `featured` and `active`. Marking a
+  // different occasion Featured in Admin → Occasions (e.g. Father's Day, Diwali)
+  // automatically swaps the banner here; everything else flows into the scroll row.
+  const featuredOcc = occasions.find(o => o.featured && o.active) || occasions[0]
   const restOcc = occasions.filter(o => o.id !== featuredOcc?.id)
 
   return (

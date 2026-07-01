@@ -18,9 +18,15 @@ public class OccasionService {
 
     private final OccasionRepository repo;
 
-    /** Every occasion, in browse-row order — used by both the public storefront and admin. */
+    /** Admin: every occasion, including hidden ones. */
     public List<OccasionDto> listAll() {
         return repo.findAllByOrderByDisplayOrderAscIdAsc()
+                .stream().map(OccasionDto::from).toList();
+    }
+
+    /** Storefront: only visible occasions — feeds the browse row and featured banner. */
+    public List<OccasionDto> listVisible() {
+        return repo.findByVisibleTrueOrderByDisplayOrderAscIdAsc()
                 .stream().map(OccasionDto::from).toList();
     }
 
@@ -39,7 +45,7 @@ public class OccasionService {
                 .season(req.season())
                 .ctaLabel(req.ctaLabel())
                 .active(req.active() != null && req.active())
-                .priority(req.priority() != null ? req.priority() : 0)
+                .visible(req.visible() == null || req.visible())
                 .displayOrder(req.displayOrder() != null ? req.displayOrder() : 0)
                 .build();
         return OccasionDto.from(repo.save(occasion));
@@ -61,16 +67,45 @@ public class OccasionService {
         occasion.setSeason(req.season());
         occasion.setCtaLabel(req.ctaLabel());
         if (req.active() != null) occasion.setActive(req.active());
-        if (req.priority() != null) occasion.setPriority(req.priority());
+        if (req.visible() != null) occasion.setVisible(req.visible());
         if (req.displayOrder() != null) occasion.setDisplayOrder(req.displayOrder());
         return OccasionDto.from(occasion);
     }
 
+    /** Flips featured-banner eligibility. Does not affect {@code featured}. */
     @Transactional
     public OccasionDto toggle(Long id) {
         Occasion occasion = repo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Occasion not found: " + id));
         occasion.setActive(!occasion.getActive());
+        return OccasionDto.from(occasion);
+    }
+
+    /** Hide/Show. Does not affect {@code active} or {@code featured}. */
+    @Transactional
+    public OccasionDto toggleVisibility(Long id) {
+        Occasion occasion = repo.findById(id)
+                .orElseThrow(() -> new NotFoundException("Occasion not found: " + id));
+        occasion.setVisible(!occasion.getVisible());
+        return OccasionDto.from(occasion);
+    }
+
+    /**
+     * Toggles whether this occasion is THE featured banner. At most one occasion
+     * can be featured at a time — marking one featured automatically un-features
+     * whichever occasion held that spot before.
+     */
+    @Transactional
+    public OccasionDto toggleFeatured(Long id) {
+        Occasion occasion = repo.findById(id)
+                .orElseThrow(() -> new NotFoundException("Occasion not found: " + id));
+        boolean makeFeatured = !occasion.getFeatured();
+        if (makeFeatured) {
+            repo.findByFeaturedTrue().ifPresent(current -> {
+                if (!current.getId().equals(id)) current.setFeatured(false);
+            });
+        }
+        occasion.setFeatured(makeFeatured);
         return OccasionDto.from(occasion);
     }
 
