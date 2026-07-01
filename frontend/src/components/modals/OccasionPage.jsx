@@ -66,6 +66,9 @@ const OCC_CFG = {
   her:          { g:'linear-gradient(130deg,#F0D5DC 0%,#FAF7F2 65%)', e2:'🌹', e3:'✨', h:'Refined, Romantic, Real',      s:'Everything she deserves — handpicked, handcrafted.', cta:'Shop Gifts for Her' },
   kids:         { g:'linear-gradient(130deg,#D4C0D0 0%,#FAF7F2 65%)', e2:'🧸', e3:'🌈', h:'Joy in Every Detail',          s:'Safe, beautiful, and made to spark wonder.', cta:'Shop Kids Gifts' },
   corporate:    { g:'linear-gradient(130deg,#D9CFC2 0%,#FAF7F2 65%)', e2:'🎁', e3:'⭐', h:'Premium, Thoughtful, On-Brand', s:'Gifts your team and clients will actually treasure.', cta:'Shop Corporate Gifts' },
+  diwali:       { g:'linear-gradient(130deg,#F0D9A8 0%,#FAF7F2 65%)', e2:'🪔', e3:'✨', h:'Light Up Their Celebrations',   s:'Handcrafted warmth for the festival of lights.', cta:'Shop Diwali Gifts' },
+  rakshabandhan:{ g:'linear-gradient(130deg,#E8D0B0 0%,#FAF7F2 65%)', e2:'🪢', e3:'🎗️', h:'Celebrate the Sibling Bond',    s:'Thoughtful gifts that honour a bond like no other.', cta:'Shop Raksha Bandhan Gifts' },
+  newyear:      { g:'linear-gradient(130deg,#E4D8B0 0%,#FAF7F2 65%)', e2:'✨', e3:'🎊', h:'Fresh Starts, Beautifully Wrapped', s:'Ring in the new year with gifts made to feel like a beginning.', cta:'Shop New Year Gifts' },
   default:      { g:'linear-gradient(130deg,#EDE4D8 0%,#FAF7F2 65%)', e2:'🎁', e3:'✨', h:'Gifts Made with Heart',        s:'Discover handcrafted treasures curated for this moment.', cta:'Shop This Collection' },
 }
 

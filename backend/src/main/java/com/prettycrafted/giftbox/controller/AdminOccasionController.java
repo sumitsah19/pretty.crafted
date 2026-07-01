@@ -1,8 +1,8 @@
 package com.prettycrafted.giftbox.controller;
 
-import com.prettycrafted.giftbox.dto.HeroCardDto;
-import com.prettycrafted.giftbox.dto.HeroCardRequest;
-import com.prettycrafted.giftbox.service.HeroCardService;
+import com.prettycrafted.giftbox.dto.OccasionDto;
+import com.prettycrafted.giftbox.dto.OccasionRequest;
+import com.prettycrafted.giftbox.service.OccasionService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -18,31 +18,31 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Admin: curate the hero CoverFlow cards (ROLE_ADMIN via Chain 2 /api/admin/**). */
+/** Admin: manage the occasion catalog and featured-banner eligibility (ROLE_ADMIN via Chain 2). */
 @RestController
-@RequestMapping("/api/admin/hero-cards")
+@RequestMapping("/api/admin/occasions")
 @RequiredArgsConstructor
-public class AdminHeroCardController {
-    private final HeroCardService service;
+public class AdminOccasionController {
+    private final OccasionService service;
 
     @GetMapping
-    public List<HeroCardDto> list() {
+    public List<OccasionDto> list() {
         return service.listAll();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public HeroCardDto create(@Valid @RequestBody HeroCardRequest req) {
+    public OccasionDto create(@Valid @RequestBody OccasionRequest req) {
         return service.create(req);
     }
 
     @PutMapping("/{id}")
-    public HeroCardDto update(@PathVariable Long id, @Valid @RequestBody HeroCardRequest req) {
+    public OccasionDto update(@PathVariable Long id, @Valid @RequestBody OccasionRequest req) {
         return service.update(id, req);
     }
 
     @PatchMapping("/{id}/toggle")
-    public HeroCardDto toggle(@PathVariable Long id) {
+    public OccasionDto toggle(@PathVariable Long id) {
         return service.toggle(id);
     }
 

@@ -10,14 +10,12 @@ import { promotionsApi } from './api/services'
 import ErrorBoundary from './components/ErrorBoundary'
 
 import Nav from './components/Nav'
-import HeroCardsView from './pages/admin/HeroCardsView'
 import BuildBoxesView from './pages/admin/BuildBoxesView'
 import SEO from './components/SEO'
 import HomePage from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
 import AdminLoginPage from './pages/AdminLoginPage'
-import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
-import TermsPage from './pages/TermsPage'
+import PolicyPage from './pages/PolicyPage'
 import OrderDetailPage from './pages/OrderDetailPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminProtectedRoute from './components/AdminProtectedRoute'
@@ -154,6 +152,42 @@ export default function App() {
       url: '/terms',
       noIndex: false,
     },
+    '/return-refund-policy': {
+      title: 'Return & Refund Policy',
+      description: 'Learn how returns, exchanges, and refunds work at Prettycrafted — eligibility windows, process, and timelines.',
+      url: '/return-refund-policy',
+      noIndex: false,
+    },
+    '/shipping-delivery-policy': {
+      title: 'Shipping & Delivery Policy',
+      description: 'Delivery areas, timelines, and charges for Prettycrafted orders shipped across India.',
+      url: '/shipping-delivery-policy',
+      noIndex: false,
+    },
+    '/cancellation-policy': {
+      title: 'Cancellation Policy',
+      description: 'When and how you can cancel a Prettycrafted order, applicable charges, and refund timelines.',
+      url: '/cancellation-policy',
+      noIndex: false,
+    },
+    '/cookie-policy': {
+      title: 'Cookie Policy & Settings',
+      description: 'What cookies Prettycrafted uses and how to manage your Essential, Functional, Analytics, and Marketing cookie preferences.',
+      url: '/cookie-policy',
+      noIndex: false,
+    },
+    '/payment-terms': {
+      title: 'Payment Terms',
+      description: 'Accepted payment methods, currency, security, and refund handling for Prettycrafted orders.',
+      url: '/payment-terms',
+      noIndex: false,
+    },
+    '/contact-support': {
+      title: 'Contact & Customer Support',
+      description: 'How to reach Prettycrafted customer support, our support hours, and grievance redressal contact.',
+      url: '/contact-support',
+      noIndex: false,
+    },
     '/account': {
       title: 'My Account',
       description: 'Manage your Prettycrafted account, view your order history, and update your profile details.',
@@ -249,11 +283,17 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/privacy" element={<PrivacyPolicyPage />} />
-          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PolicyPage slug="privacy-policy" />} />
+          <Route path="/terms" element={<PolicyPage slug="terms-of-service" />} />
+          <Route path="/return-refund-policy" element={<PolicyPage slug="return-refund-policy" />} />
+          <Route path="/shipping-delivery-policy" element={<PolicyPage slug="shipping-delivery-policy" />} />
+          <Route path="/cancellation-policy" element={<PolicyPage slug="cancellation-policy" />} />
+          <Route path="/cookie-policy" element={<PolicyPage slug="cookie-policy" />} />
+          <Route path="/payment-terms" element={<PolicyPage slug="payment-terms" />} />
+          <Route path="/contact-support" element={<PolicyPage slug="contact-support" />} />
+          <Route path="/policies/:slug" element={<PolicyPage />} />
           {isLocalhost && (
             <>
-              <Route path="/__dev/admin/hero" element={<HeroCardsView />} />
               <Route path="/__dev/admin/buildboxes" element={<BuildBoxesView />} />
             </>
           )}

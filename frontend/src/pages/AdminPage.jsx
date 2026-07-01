@@ -6,18 +6,24 @@ import OrdersView from './admin/OrdersView'
 import OccasionsView from './admin/OccasionsView'
 import MarketingView from './admin/MarketingView'
 import CustomersView from './admin/CustomersView'
-import HeroCardsView from './admin/HeroCardsView'
 import BuildBoxesView from './admin/BuildBoxesView'
 import CategoriesView from './admin/CategoriesView'
+import FaqView from './admin/FaqView'
+import ReturnsView from './admin/ReturnsView'
+import ContactView from './admin/ContactView'
+import PoliciesView from './admin/PoliciesView'
 
 const NAV_ITEMS = [
   { id: 'dashboard',  icon: '◈', label: 'Dashboard'  },
   { id: 'products',   icon: '⊞', label: 'Products'   },
   { id: 'orders',     icon: '⊟', label: 'Orders'     },
+  { id: 'returns',    icon: '↩', label: 'Returns'    },
   { id: 'customers',  icon: '◎', label: 'Customers'  },
   { id: 'categories', icon: '⊕', label: 'Categories' },
-  { id: 'hero',       icon: '✺', label: 'Hero Cards' },
   { id: 'buildboxes', icon: '🎁', label: 'Build Boxes' },
+  { id: 'faqs',       icon: '✷', label: 'FAQs'       },
+  { id: 'contact',    icon: '☏', label: 'Contact'    },
+  { id: 'policies',   icon: '📜', label: 'Policies'   },
   { id: 'occasions',  icon: '✦', label: 'Occasions'  },
   { id: 'marketing',  icon: '◇', label: 'Marketing'  },
 ]
@@ -94,11 +100,14 @@ export default function AdminPage() {
     dashboard:  <DashboardView />,
     products:   <ProductsView  onToast={showToast} />,
     orders:     <OrdersView    onToast={showToast} />,
+    returns:    <ReturnsView   onToast={showToast} />,
     customers:  <CustomersView />,
     categories: <CategoriesView onToast={showToast} />,
-    hero:       <HeroCardsView onToast={showToast} />,
     buildboxes: <BuildBoxesView onToast={showToast} />,
-    occasions:  <OccasionsView />,
+    faqs:       <FaqView onToast={showToast} />,
+    contact:    <ContactView onToast={showToast} />,
+    policies:   <PoliciesView onToast={showToast} />,
+    occasions:  <OccasionsView onToast={showToast} />,
     marketing:  <MarketingView onToast={showToast} />,
   }
 

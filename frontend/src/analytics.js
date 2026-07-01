@@ -1,4 +1,5 @@
 import posthog from 'posthog-js'
+import { getCookieConsent } from './utils/cookieConsent'
 
 const KEY = import.meta.env.VITE_POSTHOG_KEY
 const HOST = import.meta.env.VITE_POSTHOG_HOST || 'https://app.posthog.com'
@@ -12,8 +13,18 @@ export function initAnalytics() {
     persistence: 'localStorage',
     loaded: (ph) => {
       if (import.meta.env.DEV) ph.opt_out_capturing()
+      // Respect the Cookie Settings preference — stay opted out until the
+      // visitor explicitly grants Analytics consent (see /cookie-policy).
+      else if (!getCookieConsent()?.analytics) ph.opt_out_capturing()
     },
   })
+}
+
+/** Called by the Cookie Settings panel when the visitor saves their preferences. */
+export function setAnalyticsConsent(granted) {
+  if (!KEY) return
+  if (granted) posthog.opt_in_capturing()
+  else posthog.opt_out_capturing()
 }
 
 export function identify(userId, traits = {}) {

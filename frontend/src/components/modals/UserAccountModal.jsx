@@ -7,7 +7,10 @@ import { selectWishlistIds, toggleWishlist, wishlistKey } from '../../store/slic
 import { selectProducts } from '../../store/slices/productsSlice'
 import { addLocal } from '../../store/slices/cartSlice'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
-import { ordersApi, authApi, addressApi } from '../../api/services'
+import { ordersApi, authApi, addressApi, faqApi, promotionsApi, returnsApi, contactApi } from '../../api/services'
+
+// Fallback support email if the contact config hasn't loaded / isn't set yet.
+const SUPPORT_EMAIL = 'support@prettycrafted.com'
 
 const TC = '#C4704A'
 
@@ -121,25 +124,78 @@ function AccordionRow({ icon, label, children, noBorder }) {
   )
 }
 
-// ── PROMO BANNERS ─────────────────────────────────────────────────
-function PromoBanner({ onClick }) {
+// ── SUPPORT CARD (contact us) ─────────────────────────────────────
+// Same visual design as the old "Exclusive Member Deals" promo banner —
+// tapping it opens a bottom sheet with WhatsApp / Email support channels
+// sourced from the admin-managed contact config (/api/public/contact).
+function SupportCard({ onToast }) {
+  const [open, setOpen] = useState(false)
+  const [contact, setContact] = useState(null)
+
+  useEffect(() => {
+    contactApi.get()
+      .then(({ data }) => setContact(data))
+      .catch(() => setContact(null))
+  }, [])
+
+  const channels = []
+  if (contact?.emailEnabled !== false && (contact?.supportEmail || !contact)) {
+    const email = contact?.supportEmail || SUPPORT_EMAIL
+    channels.push({ key:'email', icon:'✉️', label:'Email Support', href:`mailto:${email}?subject=${encodeURIComponent('Prettycrafted Support Request')}`, toast:'Opening your email app…' })
+  }
+  if (contact?.whatsappEnabled && contact?.whatsappNumber) {
+    channels.push({ key:'whatsapp', icon:'💬', label:'WhatsApp Support', href:`https://wa.me/${contact.whatsappNumber}?text=${encodeURIComponent('Hi! I need help with my order.')}`, external:true, toast:'Opening WhatsApp…' })
+  }
+
   return (
-    <button onClick={onClick} style={{ width:'100%', borderRadius:16, overflow:'hidden', border:'none', cursor:'pointer', display:'block', background:'none', padding:0 }}>
-      <div style={{ background:'linear-gradient(110deg,#B5451B 0%,#E8703A 45%,#F4A25B 100%)', padding:'18px 20px', display:'flex', alignItems:'center', gap:16, position:'relative', overflow:'hidden' }}>
-        <div style={{ position:'absolute', top:-30, right:-30, width:120, height:120, borderRadius:'50%', background:'rgba(255,255,255,0.08)' }} />
-        <div style={{ position:'absolute', bottom:-20, right:60, width:80, height:80, borderRadius:'50%', background:'rgba(255,255,255,0.06)' }} />
-        <div style={{ background:'rgba(255,255,255,0.18)', borderRadius:12, padding:'10px 12px', flexShrink:0, backdropFilter:'blur(8px)', border:'1px solid rgba(255,255,255,0.25)' }}>
-          <div style={{ fontSize:11, fontWeight:800, color:'white', textAlign:'center', letterSpacing:'0.04em', lineHeight:1.3 }}>MEMBER<br/>DEALS</div>
+    <>
+      <button onClick={() => setOpen(true)} style={{ width:'100%', borderRadius:16, overflow:'hidden', border:'none', cursor:'pointer', display:'block', background:'none', padding:0 }}>
+        <div style={{ background:'linear-gradient(110deg,#B5451B 0%,#E8703A 45%,#F4A25B 100%)', padding:'18px 20px', display:'flex', alignItems:'center', gap:16, position:'relative', overflow:'hidden' }}>
+          <div style={{ position:'absolute', top:-30, right:-30, width:120, height:120, borderRadius:'50%', background:'rgba(255,255,255,0.08)' }} />
+          <div style={{ position:'absolute', bottom:-20, right:60, width:80, height:80, borderRadius:'50%', background:'rgba(255,255,255,0.06)' }} />
+          <div style={{ background:'rgba(255,255,255,0.18)', borderRadius:12, padding:'10px 12px', flexShrink:0, backdropFilter:'blur(8px)', border:'1px solid rgba(255,255,255,0.25)' }}>
+            <div style={{ fontSize:11, fontWeight:800, color:'white', textAlign:'center', letterSpacing:'0.04em', lineHeight:1.3 }}>NEED<br/>HELP?</div>
+          </div>
+          <div style={{ flex:1, textAlign:'left' }}>
+            <div style={{ fontSize:18, fontWeight:800, color:'white', letterSpacing:'0.01em', lineHeight:1.2, textShadow:'0 1px 4px rgba(0,0,0,0.15)' }}>Need Help? Contact Us</div>
+            <div style={{ fontSize:12, color:'rgba(255,255,255,0.88)', marginTop:4, fontWeight:500 }}>Get support for orders, returns,</div>
+            <div style={{ fontSize:12, color:'rgba(255,255,255,0.88)', fontWeight:500 }}>payments, or any questions.</div>
+          </div>
         </div>
-        <div style={{ flex:1, textAlign:'left' }}>
-          <div style={{ fontSize:18, fontWeight:800, color:'white', letterSpacing:'0.01em', lineHeight:1.2, textShadow:'0 1px 4px rgba(0,0,0,0.15)' }}>EXCLUSIVE MEMBER DEALS</div>
-          <div style={{ fontSize:12, color:'rgba(255,255,255,0.88)', marginTop:4, fontWeight:500 }}>Free gift wrap on all orders</div>
-          <div style={{ fontSize:12, color:'rgba(255,255,255,0.88)', fontWeight:500 }}>Extra 10% for Gift Club members</div>
+      </button>
+
+      {open && (
+        <div onClick={() => setOpen(false)}
+          style={{ position:'fixed', inset:0, zIndex:1250, background:'rgba(44,26,14,0.55)', backdropFilter:'blur(4px)', display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width:'100%', maxWidth:420, background:'white', borderRadius:'20px 20px 0 0', padding:'10px 20px 28px', animation:'uaSlideUp 0.25s cubic-bezier(.2,.9,.3,1)' }}>
+            <div style={{ width:36, height:4, borderRadius:99, background:'#EDE4D8', margin:'8px auto 16px' }} />
+            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:700, color:'#2C1A0E', marginBottom:4 }}>Need Help?</div>
+            <div style={{ fontSize:13, color:'#9C7A63', marginBottom:18 }}>Choose how you'd like to reach us</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {channels.map(ch => (
+                <a key={ch.key} href={ch.href}
+                  {...(ch.external ? { target:'_blank', rel:'noreferrer' } : {})}
+                  onClick={() => { onToast?.(ch.toast); setOpen(false) }}
+                  style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 16px', borderRadius:14, border:'1.5px solid #EDE4D8', textDecoration:'none', background:'#FDF8F4' }}>
+                  <span style={{ fontSize:20 }}>{ch.icon}</span>
+                  <span style={{ fontSize:14, fontWeight:700, color:'#2C1A0E' }}>{ch.label}</span>
+                  <span style={{ marginLeft:'auto' }}><IconChevR /></span>
+                </a>
+              ))}
+            </div>
+            <button onClick={() => setOpen(false)}
+              style={{ width:'100%', marginTop:16, padding:'13px', borderRadius:99, border:'1.5px solid #EDE4D8', background:'white', color:'#6B4F3A', fontWeight:700, fontSize:13, cursor:'pointer' }}>
+              Cancel
+            </button>
+          </div>
         </div>
-      </div>
-    </button>
+      )}
+    </>
   )
 }
+
+// ── PROMO BANNERS ─────────────────────────────────────────────────
 
 function DailyBanner({ onClick }) {
   return (
@@ -157,68 +213,389 @@ function DailyBanner({ onClick }) {
 }
 
 // ── HELP CENTER PAGE ──────────────────────────────────────────────
-function HelpCenterPage({ onToast }) {
+// Categories deep-link to the relevant account view; FAQs are loaded live from
+// the admin-managed CMS (/api/public/faqs) and rendered as an interactive accordion.
+function HelpCenterPage({ onToast, onNavigate }) {
   const categories = [
-    { label:'Account',                bg:'#FDECEA', color:'#C0444A', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
-    { label:'Returns &\nExchanges',   bg:'#F5EEE6', color:'#6B4F3A', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg> },
-    { label:'Credits &\nMembership',  bg:'#F5EDDB', color:'#9A6F2A', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/></svg> },
-    { label:'Offers',                 bg:'#FEF5E4', color:'#B07B2A', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="15" x2="15.01" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg> },
-    { label:'Payments',               bg:'#E4F5F0', color:'#2A7A6A', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> },
-    { label:'Cancellations &\nCharges', bg:'#FDECEA', color:'#C0444A', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg> },
+    { label:'Account',                bg:'#FDECEA', color:'#C0444A', to:'profile', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+    { label:'Returns &\nExchanges',   bg:'#F5EEE6', color:'#6B4F3A', to:'returns', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg> },
+    { label:'Offers',                 bg:'#FEF5E4', color:'#B07B2A', to:'offers', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="15" x2="15.01" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg> },
+    { label:'Payments',               bg:'#E4F5F0', color:'#2A7A6A', to:'orders', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> },
+    { label:'Cancellations &\nCharges', bg:'#FDECEA', color:'#C0444A', to:'orders', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg> },
   ]
-  const faqs = [
-    'How do I track my Pretty.Crafted order?',
-    'Can I change or cancel my order after placing it?',
-    'How do I return or exchange a gift item?',
-    'When will I receive my refund?',
-    'How do I apply a coupon or promo code?',
-    'What payment methods are accepted?',
-  ]
+
+  const [faqs, setFaqs] = useState(null)   // null = loading
+  const [openId, setOpenId] = useState(null)
+  const [contact, setContact] = useState(null)
+
+  useEffect(() => {
+    faqApi.list()
+      .then(({ data }) => setFaqs(data || []))
+      .catch(() => setFaqs([]))
+    contactApi.get()
+      .then(({ data }) => setContact(data))
+      .catch(() => setContact(null))
+  }, [])
+
+  // Build the list of enabled support channels from the CMS config (email fallback).
+  const channels = []
+  if (contact?.emailEnabled !== false && (contact?.supportEmail || !contact)) {
+    const email = contact?.supportEmail || SUPPORT_EMAIL
+    channels.push({ key: 'email', label: 'Email', href: `mailto:${email}?subject=${encodeURIComponent('Help Center support request')}`, toast: 'Opening your email app…' })
+  }
+  if (contact?.whatsappEnabled && contact?.whatsappNumber) {
+    channels.push({ key: 'whatsapp', label: 'WhatsApp', href: `https://wa.me/${contact.whatsappNumber}?text=${encodeURIComponent('Hi, I need help with my order')}`, external: true, toast: 'Opening WhatsApp…' })
+  }
+  if (contact?.phoneEnabled && contact?.phoneNumber) {
+    channels.push({ key: 'phone', label: 'Call', href: `tel:${contact.phoneNumber.replace(/[^\d+]/g, '')}`, toast: 'Calling support…' })
+  }
+
+  const go = (to) => { if (to) onNavigate?.(to) }
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+      {/* Category cards — 2-up; the trailing odd card spans the row so there are no gaps */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:8 }}>
-        {categories.map((cat, i) => (
-          <button key={i} onClick={() => onToast(`${cat.label.replace('\n',' ')} help loading…`)}
-            style={{ display:'flex', alignItems:'center', gap:14, padding:'18px 16px', borderRadius:14, border:'1.5px solid #EDE4D8', background:'white', cursor:'pointer', textAlign:'left', transition:'box-shadow 0.15s', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}
-            onMouseEnter={e => e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.09)'}
-            onMouseLeave={e => e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'}>
-            <div style={{ width:46, height:46, borderRadius:'50%', background:cat.bg, display:'flex', alignItems:'center', justifyContent:'center', color:cat.color, flexShrink:0 }}>{cat.icon}</div>
-            <div style={{ fontSize:13, fontWeight:700, color:'#2C1A0E', lineHeight:1.35, whiteSpace:'pre-line' }}>{cat.label}</div>
-          </button>
-        ))}
+        {categories.map((cat, i) => {
+          const spanFull = categories.length % 2 === 1 && i === categories.length - 1
+          return (
+            <button key={i} onClick={() => go(cat.to)}
+              style={{ gridColumn: spanFull ? '1 / -1' : 'auto', display:'flex', alignItems:'center', gap:14, padding:'18px 16px', borderRadius:14, border:'1.5px solid #EDE4D8', background:'white', cursor:'pointer', textAlign:'left', transition:'box-shadow 0.15s', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}
+              onMouseEnter={e => e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.09)'}
+              onMouseLeave={e => e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'}>
+              <div style={{ width:46, height:46, borderRadius:'50%', background:cat.bg, display:'flex', alignItems:'center', justifyContent:'center', color:cat.color, flexShrink:0 }}>{cat.icon}</div>
+              <div style={{ fontSize:13, fontWeight:700, color:'#2C1A0E', lineHeight:1.35, whiteSpace:'pre-line' }}>{cat.label}</div>
+            </button>
+          )
+        })}
       </div>
+
+      {/* FAQ accordion — live from the CMS */}
       <div style={{ height:8, background:'#F0EBE4', margin:'6px -16px 0' }} />
-      <div style={{ background:'white', margin:'0 -16px', padding:'0 16px' }}>
-        {faqs.map((q, i) => (
-          <button key={i} onClick={() => onToast('FAQ: ' + q)}
-            style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'17px 0', border:'none', background:'transparent', cursor:'pointer', textAlign:'left', borderBottom: i < faqs.length - 1 ? '1px solid #EDE4D8' : 'none', gap:12, transition:'background 0.15s' }}
-            onMouseEnter={e => e.currentTarget.style.background='#FDFAF7'}
-            onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-            <span style={{ fontSize:14, color:'#2C1A0E', lineHeight:1.4, fontWeight:400 }}>{q}</span>
-            <IconChevR />
-          </button>
-        ))}
+      <div style={{ background:'white', margin:'0 -16px', padding:'4px 16px' }}>
+        {faqs === null ? (
+          <div style={{ padding:'28px 0', textAlign:'center', color:'#9C7A63', fontSize:13 }}>
+            <div style={{ width:26, height:26, border:'3px solid #EDE4D8', borderTopColor:TC, borderRadius:'50%', margin:'0 auto 10px', animation:'uaSpin 0.8s linear infinite' }} />
+            Loading FAQs…
+          </div>
+        ) : faqs.length === 0 ? (
+          <div style={{ padding:'24px 0', color:'#9C7A63', fontSize:13 }}>No FAQs available right now.</div>
+        ) : faqs.map((f, i) => {
+          const open = openId === f.id
+          return (
+            <div key={f.id} style={{ borderBottom: i < faqs.length - 1 ? '1px solid #EDE4D8' : 'none' }}>
+              <button onClick={() => setOpenId(open ? null : f.id)}
+                style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'17px 0', border:'none', background:'transparent', cursor:'pointer', textAlign:'left', gap:12 }}>
+                <span style={{ fontSize:14, color:'#2C1A0E', lineHeight:1.4, fontWeight: open ? 700 : 400 }}>{f.question}</span>
+                <span style={{ flexShrink:0, color:'#9C7A63', transform: open ? 'rotate(90deg)' : 'none', transition:'transform 0.2s' }}><IconChevR /></span>
+              </button>
+              {open && (
+                <div style={{ padding:'0 0 17px', fontSize:13.5, color:'#6B4F3A', lineHeight:1.65, whiteSpace:'pre-line', animation:'uaUp 0.2s ease' }}>
+                  {f.answer}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
+
+      {/* Recent Queries — wired to the support-ticket service in a later phase */}
       <div style={{ height:8, background:'#F0EBE4', margin:'0 -16px' }} />
       <div style={{ padding:'20px 0 8px' }}>
         <div style={{ fontSize:16, fontWeight:700, color:'#2C1A0E', marginBottom:10 }}>Recent Queries</div>
-        <div style={{ fontSize:13, color:'#9C7A63', lineHeight:1.6, marginBottom:20 }}>No recent queries raised in the last 30 days.</div>
-        <button onClick={() => onToast('No older queries found')}
-          style={{ width:'100%', padding:'15px', borderRadius:10, border:'1.5px solid #CCBFB5', background:'white', color:'#2C1A0E', fontSize:13, fontWeight:700, cursor:'pointer', letterSpacing:'0.06em', transition:'background 0.15s' }}
-          onMouseEnter={e => e.currentTarget.style.background='#FAF7F2'}
-          onMouseLeave={e => e.currentTarget.style.background='white'}>
-          SHOW OLDER QUERIES
+        <div style={{ fontSize:13, color:'#9C7A63', lineHeight:1.6 }}>You haven’t raised any support requests yet.</div>
+      </div>
+
+      {/* Contact — opens whichever support channels the admin has enabled */}
+      <div style={{ marginTop:8, padding:'16px', borderRadius:14, border:'1.5px solid #EDE4D8', background:'#FDF8F4' }}>
+        <div style={{ marginBottom:12 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:'#2C1A0E', marginBottom:2 }}>Still need help?</div>
+          <div style={{ fontSize:12, color:'#9C7A63' }}>
+            {contact?.hours ? `We’re available ${contact.hours}` : 'Reach our support team'}
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+          {channels.map(ch => (
+            <a key={ch.key} href={ch.href}
+              {...(ch.external ? { target:'_blank', rel:'noreferrer' } : {})}
+              onClick={() => onToast(ch.toast)}
+              style={{ flex:'1 1 auto', textAlign:'center', minWidth:96, padding:'10px 16px', borderRadius:99, border:'none', background: ch.key === 'whatsapp' ? '#25D366' : TC, color:'white', fontSize:12, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', textDecoration:'none' }}>
+              {ch.label}
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── OFFERS PAGE ───────────────────────────────────────────────────
+// Live active coupons / promotions from /api/public/promotions, with eligibility.
+function OffersPage({ onToast }) {
+  const [offers, setOffers] = useState(null)
+
+  useEffect(() => {
+    promotionsApi.list()
+      .then(({ data }) => setOffers(data || []))
+      .catch(() => setOffers([]))
+  }, [])
+
+  const copy = (code) => {
+    try { navigator.clipboard?.writeText(code) } catch { /* ignore */ }
+    onToast(`Copied ${code}`)
+  }
+
+  if (offers === null) return (
+    <div style={{ textAlign:'center', padding:'48px', color:'#9C7A63' }}>
+      <div style={{ width:32, height:32, border:'3px solid #EDE4D8', borderTopColor:TC, borderRadius:'50%', margin:'0 auto 12px', animation:'uaSpin 0.8s linear infinite' }} />
+      Loading offers…
+    </div>
+  )
+
+  if (offers.length === 0) return (
+    <div style={{ textAlign:'center', padding:'60px 20px' }}>
+      <div style={{ fontSize:44, marginBottom:14 }}>🏷️</div>
+      <div style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:600, marginBottom:6 }}>No active offers</div>
+      <div style={{ fontSize:13, color:'#9C7A63' }}>Check back soon for new coupons and promotions</div>
+    </div>
+  )
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      {offers.map(o => {
+        const left = o.maxUses != null ? Math.max(0, o.maxUses - (o.uses || 0)) : null
+        return (
+          <div key={o.id} style={{ background:'white', borderRadius:16, padding:'16px 18px', border:'1px solid #EDE4D8', boxShadow:'0 1px 4px rgba(44,26,14,0.04)', display:'flex', alignItems:'center', gap:14 }}>
+            <div style={{ width:50, height:50, borderRadius:12, background:'#FDF1EA', color:TC, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontWeight:800, fontSize:15 }}>
+              {o.discountPercent != null ? `${o.discountPercent}%` : '%'}
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontWeight:700, color:'#2C1A0E', fontSize:14, marginBottom:3 }}>{o.disc || `${o.discountPercent}% off`}</div>
+              <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                <span style={{ fontSize:11.5, fontWeight:700, color:TC, letterSpacing:'0.08em', background:'#FAF7F2', border:'1px dashed #D9CBBF', borderRadius:7, padding:'3px 9px' }}>{o.code}</span>
+                {o.expires && <span style={{ fontSize:11, color:'#9C7A63' }}>Expires {o.expires}</span>}
+                {left != null && <span style={{ fontSize:11, color:'#9C7A63' }}>{left} left</span>}
+              </div>
+            </div>
+            <button onClick={() => copy(o.code)} style={{ padding:'8px 14px', borderRadius:99, border:'none', background:TC, color:'white', fontSize:12, fontWeight:700, cursor:'pointer', flexShrink:0 }}>Copy</button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── RETURNS & EXCHANGES PAGE ──────────────────────────────────────
+// Lists delivered orders/items eligible for a return or exchange, runs the
+// submit workflow (type → reason → optional photos), and tracks request status.
+const RETURN_REASONS = ['Damaged or defective', 'Wrong item received', 'Not as described', 'Size or fit issue', 'Changed my mind', 'Other']
+const RET_STATUS = {
+  PENDING:   { bg:'#FEF3E2', color:'#B07B2A', label:'Pending' },
+  APPROVED:  { bg:'#EAF3E6', color:'#3F7A2E', label:'Approved' },
+  REJECTED:  { bg:'#FDECEA', color:'#C0444A', label:'Rejected' },
+  COMPLETED: { bg:'#E4F0EC', color:'#2A7A6A', label:'Completed' },
+}
+
+function RetBadge({ status }) {
+  const s = RET_STATUS[status] || RET_STATUS.PENDING
+  return <span style={{ fontSize:10, fontWeight:700, color:s.color, background:s.bg, padding:'3px 10px', borderRadius:99, textTransform:'uppercase', letterSpacing:'0.05em' }}>{s.label}</span>
+}
+
+function ReturnsPage({ onToast }) {
+  const [loading, setLoading] = useState(true)
+  const [orders, setOrders] = useState([])
+  const [requests, setRequests] = useState([])
+  const [refresh, setRefresh] = useState(0)
+
+  // Submit-form state (set when an item is selected)
+  const [selected, setSelected] = useState(null) // { order, item }
+  const [type, setType] = useState('RETURN')
+  const [reason, setReason] = useState('')
+  const [details, setDetails] = useState('')
+  const [images, setImages] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    Promise.all([
+      ordersApi.list({ size: 50, sort: 'createdAt,desc' }).then(({ data }) => data?.content || []).catch(() => []),
+      returnsApi.listMine().then(({ data }) => data || []).catch(() => []),
+    ]).then(([os, rs]) => {
+      if (!alive) return
+      setOrders(os.filter(o => o.status === 'DELIVERED'))
+      setRequests(rs)
+    }).finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [refresh])
+
+  const openItemIds = new Set(requests.filter(r => r.status === 'PENDING' || r.status === 'APPROVED').map(r => r.orderItemId))
+
+  const startRequest = (order, item) => {
+    setSelected({ order, item }); setType('RETURN'); setReason(''); setDetails(''); setImages([])
+  }
+
+  const onUpload = async (e) => {
+    const files = Array.from(e.target.files || [])
+    e.target.value = ''
+    if (!files.length) return
+    setUploading(true)
+    try {
+      for (const f of files) {
+        if (images.length >= 6) break
+        const { data } = await returnsApi.upload(f)
+        setImages(prev => prev.length < 6 ? [...prev, data.url] : prev)
+      }
+    } catch { onToast('Image upload failed') }
+    finally { setUploading(false) }
+  }
+
+  const submit = async () => {
+    if (!reason) return
+    setSubmitting(true)
+    try {
+      await returnsApi.create({ orderId: selected.order.id, orderItemId: selected.item.id, type, reason, details: details.trim() || null, images })
+      onToast('Request submitted')
+      setSelected(null)
+      setLoading(true)
+      setRefresh(n => n + 1)
+    } catch (e) {
+      onToast(e.response?.data?.message || 'Could not submit request')
+    } finally { setSubmitting(false) }
+  }
+
+  if (loading) return (
+    <div style={{ textAlign:'center', padding:'48px', color:'#9C7A63' }}>
+      <div style={{ width:32, height:32, border:'3px solid #EDE4D8', borderTopColor:TC, borderRadius:'50%', margin:'0 auto 12px', animation:'uaSpin 0.8s linear infinite' }} />
+      Loading…
+    </div>
+  )
+
+  // ── Submit form ──
+  if (selected) {
+    const { item } = selected
+    const pill = (active) => ({ flex:1, padding:'11px 0', borderRadius:12, border:`1.5px solid ${active ? TC : '#EDE4D8'}`, background: active ? TC : 'white', color: active ? 'white' : '#6B4F3A', fontSize:13, fontWeight:700, cursor:'pointer' })
+    return (
+      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <button onClick={() => setSelected(null)} style={{ alignSelf:'flex-start', background:'none', border:'none', color:TC, fontSize:13, fontWeight:700, cursor:'pointer', padding:0 }}>← Back</button>
+
+        <div style={{ background:'white', borderRadius:14, padding:'14px 16px', border:'1px solid #EDE4D8' }}>
+          <div style={{ fontSize:11, color:'#9C7A63', fontWeight:600, marginBottom:3 }}>Order #{selected.order.id}</div>
+          <div style={{ fontFamily:"'Playfair Display',serif", fontSize:15, fontWeight:600, color:'#2C1A0E' }}>{item.itemName}</div>
+        </div>
+
+        <div>
+          <div style={{ fontSize:12, fontWeight:700, color:'#2C1A0E', marginBottom:8 }}>What would you like to do?</div>
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={() => setType('RETURN')} style={pill(type === 'RETURN')}>Return</button>
+            <button onClick={() => setType('EXCHANGE')} style={pill(type === 'EXCHANGE')}>Exchange</button>
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize:12, fontWeight:700, color:'#2C1A0E', marginBottom:8 }}>Reason</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {RETURN_REASONS.map(r => (
+              <button key={r} onClick={() => setReason(r)}
+                style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px', borderRadius:12, border:`1.5px solid ${reason === r ? TC : '#EDE4D8'}`, background: reason === r ? '#FDF1EA' : 'white', cursor:'pointer', textAlign:'left' }}>
+                <span style={{ width:16, height:16, borderRadius:'50%', border:`2px solid ${reason === r ? TC : '#CCBFB5'}`, background: reason === r ? TC : 'white', flexShrink:0, boxShadow: reason === r ? 'inset 0 0 0 2px white' : 'none' }} />
+                <span style={{ fontSize:13, color:'#2C1A0E', fontWeight: reason === r ? 700 : 500 }}>{r}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize:12, fontWeight:700, color:'#2C1A0E', marginBottom:8 }}>Details <span style={{ color:'#9C7A63', fontWeight:500 }}>(optional)</span></div>
+          <textarea value={details} onChange={e => setDetails(e.target.value)} rows={3} placeholder="Tell us a little more…"
+            style={{ width:'100%', padding:'11px 13px', borderRadius:12, border:'1.5px solid #EDE4D8', fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:'none', color:'#2C1A0E', resize:'vertical', lineHeight:1.5, boxSizing:'border-box' }} />
+        </div>
+
+        <div>
+          <div style={{ fontSize:12, fontWeight:700, color:'#2C1A0E', marginBottom:8 }}>Photos <span style={{ color:'#9C7A63', fontWeight:500 }}>(optional, up to 6)</span></div>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            {images.map((src, i) => (
+              <div key={i} style={{ position:'relative' }}>
+                <img src={src} alt={`evidence ${i + 1}`} style={{ width:60, height:60, objectFit:'cover', borderRadius:10, border:'1px solid #EDE4D8' }} />
+                <button onClick={() => setImages(imgs => imgs.filter((_, j) => j !== i))} style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', border:'none', background:'#2C1A0E', color:'white', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+              </div>
+            ))}
+            {images.length < 6 && (
+              <label style={{ width:60, height:60, borderRadius:10, border:'1.5px dashed #CCBFB5', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#9C7A63', fontSize:22, background:'#FDFAF7' }}>
+                {uploading ? '…' : '+'}
+                <input type="file" accept="image/*" multiple onChange={onUpload} style={{ display:'none' }} disabled={uploading} />
+              </label>
+            )}
+          </div>
+        </div>
+
+        <button onClick={submit} disabled={!reason || submitting || uploading}
+          style={{ width:'100%', padding:14, borderRadius:99, border:'none', background:(!reason || submitting || uploading) ? '#EDE4D8' : TC, color:(!reason || submitting || uploading) ? '#9C7A63' : 'white', fontWeight:700, fontSize:14, cursor:(!reason || submitting || uploading) ? 'default' : 'pointer' }}>
+          {submitting ? 'Submitting…' : `Submit ${type === 'EXCHANGE' ? 'Exchange' : 'Return'} Request`}
         </button>
       </div>
-      <div style={{ marginTop:8, padding:'16px', borderRadius:14, border:'1.5px solid #EDE4D8', background:'#FDF8F4', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+    )
+  }
+
+  // ── List view: existing requests + eligible items ──
+  const fmtDate = (s) => s ? new Date(s).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—'
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:22 }}>
+      {requests.length > 0 && (
         <div>
-          <div style={{ fontSize:13, fontWeight:700, color:'#2C1A0E', marginBottom:2 }}>Still need help?</div>
-          <div style={{ fontSize:12, color:'#9C7A63' }}>Chat or email our team</div>
+          <div style={{ fontSize:15, fontWeight:700, color:'#2C1A0E', marginBottom:10 }}>Your Requests</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {requests.map(r => (
+              <div key={r.id} style={{ background:'white', borderRadius:14, padding:'14px 16px', border:'1px solid #EDE4D8' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, marginBottom:5 }}>
+                  <span style={{ fontSize:10, fontWeight:700, color:'#6B4F3A', background:'#F5EEE6', padding:'2px 9px', borderRadius:99, textTransform:'uppercase', letterSpacing:'0.05em' }}>{r.type}</span>
+                  <RetBadge status={r.status} />
+                </div>
+                <div style={{ fontSize:13.5, fontWeight:600, color:'#2C1A0E', marginBottom:2 }}>{r.itemName}</div>
+                <div style={{ fontSize:12, color:'#9C7A63' }}>Order #{r.orderId} · {r.reason} · {fmtDate(r.createdAt)}</div>
+                {r.adminNote && <div style={{ fontSize:12, color:'#6B4F3A', background:'#FBF7F2', borderRadius:10, padding:'8px 11px', marginTop:8 }}><strong>Update:</strong> {r.adminNote}</div>}
+              </div>
+            ))}
+          </div>
         </div>
-        <button onClick={() => onToast('Starting chat support…')}
-          style={{ padding:'9px 18px', borderRadius:99, border:'none', background:TC, color:'white', fontSize:12, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>
-          Contact Us
-        </button>
+      )}
+
+      <div>
+        <div style={{ fontSize:15, fontWeight:700, color:'#2C1A0E', marginBottom:4 }}>Eligible Items</div>
+        <div style={{ fontSize:12.5, color:'#9C7A63', marginBottom:12 }}>Returns &amp; exchanges are available on delivered orders.</div>
+        {orders.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'40px 20px', background:'white', borderRadius:14, border:'1px solid #EDE4D8' }}>
+            <div style={{ fontSize:40, marginBottom:10 }}>📦</div>
+            <div style={{ fontSize:14, fontWeight:600, color:'#2C1A0E', marginBottom:4 }}>No delivered orders yet</div>
+            <div style={{ fontSize:12.5, color:'#9C7A63' }}>Items become eligible once your order is delivered</div>
+          </div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {orders.map(order => (
+              <div key={order.id} style={{ background:'white', borderRadius:14, padding:'14px 16px', border:'1px solid #EDE4D8' }}>
+                <div style={{ fontSize:11, color:'#9C7A63', fontWeight:600, marginBottom:10 }}>Order #{order.id} · {fmtDate(order.createdAt)}</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  {(order.items || []).map(item => {
+                    const requested = openItemIds.has(item.id)
+                    return (
+                      <div key={item.id} style={{ display:'flex', alignItems:'center', gap:12 }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:'#2C1A0E', lineHeight:1.3 }}>{item.itemName}</div>
+                          {item.quantity > 1 && <div style={{ fontSize:11, color:'#9C7A63' }}>Qty {item.quantity}</div>}
+                        </div>
+                        {requested ? (
+                          <span style={{ fontSize:11, fontWeight:700, color:'#9C7A63', whiteSpace:'nowrap' }}>Requested</span>
+                        ) : (
+                          <button onClick={() => startRequest(order, item)} style={{ padding:'7px 14px', borderRadius:99, border:`1.5px solid ${TC}`, background:'white', color:TC, fontSize:12, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>Return / Exchange</button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -559,7 +936,18 @@ function ProfileEditPage({ user, onToast }) {
 }
 
 // ── MOBILE PROFILE HOME ───────────────────────────────────────────
-function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdmin }) {
+const LEGAL_LINKS = [
+  { label: 'Terms of Service',            to: '/terms' },
+  { label: 'Privacy Policy',              to: '/privacy' },
+  { label: 'Return & Refund Policy',      to: '/return-refund-policy' },
+  { label: 'Shipping & Delivery Policy',  to: '/shipping-delivery-policy' },
+  { label: 'Cancellation Policy',         to: '/cancellation-policy' },
+  { label: 'Cookie Policy & Settings',    to: '/cookie-policy' },
+  { label: 'Payment Terms',               to: '/payment-terms' },
+  { label: 'Contact & Customer Support',  to: '/contact-support' },
+]
+
+function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdmin, onLegalNav }) {
   const name = user?.name || 'Guest'
   const email = user?.email || ''
   const initial = name.charAt(0).toUpperCase()
@@ -633,9 +1021,9 @@ function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdm
           <ProfileRow icon={<IconCard />}  label="Get 10% off your next gift" sub="Exclusive member offer" onClick={() => onToast('Offer applied!')} noBorder />
         </div>
 
-        {/* VIP BANNER */}
+        {/* SUPPORT CARD */}
         <div style={{ margin:'14px 14px 0' }}>
-          <PromoBanner onClick={() => onToast('Exclusive deals unlocked!')} />
+          <SupportCard onToast={onToast} />
         </div>
 
         {/* REWARDS & COUPONS */}
@@ -686,8 +1074,8 @@ function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdm
           <ProfileRow icon={<IconSettings />} label="Settings"                 sub="Notifications, privacy"      onClick={() => onToast('Settings coming soon')} />
           <AccordionRow icon={<IconLegal />}  label="Legal & Policies" noBorder>
             <div style={{ paddingLeft:32, display:'flex', flexDirection:'column', gap:10 }}>
-              {['Terms of Service', 'Privacy Policy', 'Return Policy', 'Cookie Settings'].map(t => (
-                <button key={t} onClick={() => onToast(t)} style={{ background:'none', border:'none', color:TC, fontWeight:500, fontSize:13, cursor:'pointer', padding:0, textAlign:'left' }}>{t} →</button>
+              {LEGAL_LINKS.map(l => (
+                <button key={l.to} onClick={() => onLegalNav(l.to)} style={{ background:'none', border:'none', color:TC, fontWeight:500, fontSize:13, cursor:'pointer', padding:0, textAlign:'left' }}>{l.label} →</button>
               ))}
             </div>
           </AccordionRow>
@@ -753,6 +1141,8 @@ export default function UserAccountModal() {
     wishlist:  'Wishlist',
     addresses: 'Addresses',
     help:      'Help Center',
+    offers:    'Offers',
+    returns:   'Returns & Exchanges',
     profile:   'Edit Profile',
   }
 
@@ -760,7 +1150,9 @@ export default function UserAccountModal() {
     orders:    <OrdersPage    onToast={setToast} />,
     wishlist:  <WishlistPage  onToast={setToast} />,
     addresses: <AddressesPage onToast={setToast} />,
-    help:      <HelpCenterPage onToast={setToast} />,
+    help:      <HelpCenterPage onToast={setToast} onNavigate={setView} />,
+    offers:    <OffersPage    onToast={setToast} />,
+    returns:   <ReturnsPage   onToast={setToast} />,
     profile:   <ProfileEditPage user={user} onToast={setToast} />,
   }
 
@@ -774,6 +1166,7 @@ export default function UserAccountModal() {
           onToast={setToast}
           onLogout={handleLogout}
           onAdmin={isAdmin ? () => { dispatch(closeUserAccount()); navigate('/admin') } : null}
+          onLegalNav={(path) => { dispatch(closeUserAccount()); navigate(path) }}
         />
       ) : (
         <>

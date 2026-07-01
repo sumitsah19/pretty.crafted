@@ -1,50 +1,123 @@
-import { useRef, useState, useEffect, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { selectProducts, selectProductsLoading, selectHampers } from '../store/slices/productsSlice'
-import { selectUI, openBoxBuilder, openUserAccount, openLogin, openHamperShop, openShop, setActiveProduct, setActiveOccasion } from '../store/slices/uiSlice'
-import { selectIsLoggedIn } from '../store/slices/authSlice'
+import { openBoxBuilder, openHamperShop, openShop, setActiveProduct, setActiveOccasion } from '../store/slices/uiSlice'
 import { useWindowWidth } from '../hooks/useWindowWidth'
+import { occasionsApi } from '../api/services'
 import Hero from '../components/Hero'
 import ProductCard, { ProductSkeleton } from '../components/ui/ProductCard'
-import { useProductFilters, ProductFilterBar } from '../components/ui/ProductFilters'
+import { useProductFilters } from '../components/ui/ProductFilters'
 
 const TC = '#C4704A'
 
-const OCCASIONS = [
-  { id:'mothers',      title:"Mother's Day",  sub:'Thoughtful gifts made with love', icon:'💐', iconImg:'/occasions/mothers-day.svg', color:'#F0D5DC', featured:true, season:'May' },
-  { id:'valentines',   title:"Valentine's Day",sub:'Speak love through craft',        icon:'💝', iconImg:'/occasions/valentines-day.svg', color:'#E8C5C5' },
-  { id:'birthday',     title:'Birthday Gifts', sub:'Make birthdays unforgettable',    icon:'🎂', color:'#E8D5C4' },
-  { id:'anniversary',  title:'Anniversary',    sub:'Celebrate years of love',         icon:'💍', color:'#E0D5C5' },
-  { id:'wedding',      title:'Wedding',        sub:'For the start of forever',        icon:'💒', color:'#F2EAE0' },
-  { id:'baby',         title:'Baby Shower',    sub:'Soft welcomes for tiny humans',   icon:'🍼', color:'#D8E4DC' },
-  { id:'graduation',   title:'Graduation',     sub:'Mark the milestone',              icon:'🎓', color:'#D4C5B5' },
-  { id:'friendship',   title:'Friendship',     sub:'For your favorite person',        icon:'🌻', color:'#EDD8B0' },
-  { id:'christmas',    title:'Christmas',      sub:'Wrapped in warmth & wonder',      icon:'🎄', color:'#C8DBC4' },
-  { id:'newyear',      title:'New Year',       sub:'Fresh starts, beautiful gifts',   icon:'✨', color:'#E4D8B0' },
-  { id:'housewarming', title:'Housewarming',   sub:'Welcome home, with love',         icon:'🏡', color:'#E0CFB8' },
-  { id:'thankyou',     title:'Thank You',      sub:'Gratitude, beautifully said',     icon:'🌷', color:'#E8D0C8' },
-  { id:'him',          title:'For Him',        sub:'Crafted for the modern man',      icon:'🥃', color:'#C4D0C0' },
-  { id:'her',          title:'For Her',        sub:'Refined, romantic, real',         icon:'🌹', color:'#F0D5DC' },
-  { id:'kids',         title:'For Kids',       sub:'Joy, in every detail',            icon:'🧸', color:'#D4C0D0' },
-  { id:'corporate',   title:'Corporate Gifts', sub:'Premium, thoughtful, on-brand',  icon:'🎁', color:'#D9CFC2' },
-  { id:'fathers',      title:"Father's Day",   sub:'Honor him in style',              icon:'🎩', color:'#C8B89A' },
-]
+// Occasion catalogue is admin-managed (Admin → Occasions, /api/public/occasions).
+// The hero banner is driven by `active` + `priority`: mark an occasion `active` to
+// make it eligible for the featured banner, and use `priority` (higher wins) to
+// decide which active occasion is shown. Only the single highest-priority active
+// occasion ever appears in the banner — see featuredOcc below.
+function normalizeOccasion(o) {
+  return {
+    id: o.slug,
+    title: o.title,
+    sub: o.description,
+    icon: o.icon,
+    iconImg: o.iconImageUrl,
+    color: o.color,
+    season: o.season,
+    ctaLabel: o.ctaLabel,
+    active: o.active,
+    priority: o.priority,
+  }
+}
+
+// Discovery card that sits as the final item inside a horizontal product row.
+// Mirrors ProductCard's footprint (square + name) so it reads as a natural last tile.
+function ViewAllCard({ width, label = 'View All Products', onClick }) {
+  const [hover, setHover] = useState(false)
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{ flexShrink: 0, width, scrollSnapAlign: 'start', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
+    >
+      <div style={{
+        position: 'relative', aspectRatio: '1/1', borderRadius: 14,
+        background: hover ? `linear-gradient(135deg, ${TC} 0%, #A85A38 100%)` : '#FAF7F2',
+        border: hover ? '1px solid transparent' : '1.5px dashed #D9CBBF',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14,
+        marginBottom: 12, transition: 'all 0.3s',
+        boxShadow: hover ? '0 10px 28px rgba(196,112,74,0.28)' : '0 1px 4px rgba(44,26,14,0.06)',
+        transform: hover ? 'translateY(-3px)' : 'none',
+      }}>
+        <div style={{
+          width: 54, height: 54, borderRadius: '50%',
+          background: hover ? 'white' : TC, color: hover ? TC : 'white',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 22, fontWeight: 700, transition: 'all 0.3s',
+          boxShadow: '0 4px 14px rgba(196,112,74,0.3)',
+        }}>→</div>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: hover ? 'white' : TC, transition: 'color 0.3s' }}>Browse All</div>
+      </div>
+      <h4 style={{ margin: '0 0 6px', textAlign: 'center', fontSize: 15, fontWeight: 600, color: '#2C1A0E', fontFamily: "'Playfair Display',serif" }}>
+        {label}
+      </h4>
+    </div>
+  )
+}
+
+// Single horizontal scrollable row of product cards, capped with an in-row "View All" card.
+// Used by every homepage product section so they share one row layout on all screen sizes.
+function ProductRow({ items, cardW, gap, loading, skeletonCount = 4, viewLabel, onView, scrollRef, dispatch }) {
+  return (
+    <div
+      ref={scrollRef}
+      className="no-scrollbar"
+      style={{ display: 'flex', gap, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 8, WebkitOverflowScrolling: 'touch' }}
+    >
+      {loading
+        ? Array.from({ length: skeletonCount }).map((_, i) => (
+            <div key={i} style={{ scrollSnapAlign: 'start', flexShrink: 0, width: cardW }}><ProductSkeleton /></div>
+          ))
+        : (
+          <>
+            {items.map(p => (
+              <div key={p.id} style={{ scrollSnapAlign: 'start', flexShrink: 0, width: cardW }}>
+                <ProductCard product={p} onClick={() => dispatch(setActiveProduct(p))} />
+              </div>
+            ))}
+            {onView && <ViewAllCard width={cardW} label={viewLabel} onClick={onView} />}
+          </>
+        )}
+    </div>
+  )
+}
 
 export default function HomePage() {
   const dispatch = useDispatch()
   const products = useSelector(selectProducts)
   const loading = useSelector(selectProductsLoading)
-  const ui = useSelector(selectUI)
-  const isLoggedIn = useSelector(selectIsLoggedIn)
   const hampers = useSelector(selectHampers)
   const ww = useWindowWidth()
   const isMobile = ww < 640
   const isTablet = ww >= 640 && ww < 1024
   const px = isMobile ? '20px' : isTablet ? '32px' : '48px'
-  const carouselRef = useRef(null)
+  // Shared sizing for the homepage's single-row product carousels
+  const rowCardW = isMobile ? 170 : 220
+  const rowGap = isMobile ? 12 : 20
+  const ROW_CAP = 10
   const [activeRecipient, setActiveRecipient] = useState('all')
   const [emailVal, setEmailVal] = useState('')
   const [subscribed, setSubscribed] = useState(false)
+  const [occasions, setOccasions] = useState([])
+  const [occLoading, setOccLoading] = useState(true)
+
+  useEffect(() => {
+    occasionsApi.list()
+      .then(({ data }) => setOccasions((data || []).map(normalizeOccasion)))
+      .catch(() => setOccasions([]))
+      .finally(() => setOccLoading(false))
+  }, [])
 
   // Featured Collection: recipient (from "Shop by Recipient") narrows the base,
   // then the shared count + sort + category-chip bar refines it.
@@ -52,13 +125,7 @@ export default function HomePage() {
     () => products.filter(p => activeRecipient === 'all' || p.recipient === activeRecipient),
     [products, activeRecipient]
   )
-  const {
-    filters: featFilters, activeFilter: featFilter, setActiveFilter: setFeatFilter,
-    sort: featSort, setSort: setFeatSort, sorted: featSorted,
-  } = useProductFilters(recipientProducts)
-
-  // Featured Collection shows a preview; "View all" opens the full shop page
-  const featuredCap = 12
+  const { sorted: featSorted } = useProductFilters(recipientProducts)
 
   const bestsellers = useMemo(
     () => products.filter(p => p.tag === 'Bestseller'),
@@ -72,7 +139,7 @@ export default function HomePage() {
       const j = Math.floor((i + 1) * 0.37)  // deterministic-ish, no random re-renders
       ;[copy[i], copy[j]] = [copy[j], copy[i]]
     }
-    return copy.slice(0, 4)
+    return copy.slice(0, 10)
   }, [products])
 
   const scrollTo = id => {
@@ -80,13 +147,14 @@ export default function HomePage() {
     if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' })
   }
 
-  const scrollCarousel = dir => {
-    carouselRef.current?.scrollBy({ left: dir * (isMobile ? 180 : 280), behavior: 'smooth' })
-  }
-
   // Featured occasion
-  const featuredOcc = OCCASIONS.find(o => o.featured) || OCCASIONS[1]
-  const restOcc = OCCASIONS.filter(o => !o.featured)
+  // Featured banner = the single highest-priority active occasion. Marking another
+  // occasion active with a higher priority (e.g. Father's Day, Diwali) automatically
+  // swaps the banner here; everything else flows into the occasions scroll row.
+  const featuredOcc = occasions
+    .filter(o => o.active)
+    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0] || occasions[0]
+  const restOcc = occasions.filter(o => o.id !== featuredOcc?.id)
 
   return (
     <>
@@ -104,31 +172,16 @@ export default function HomePage() {
           <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 32, fontWeight: 700 }}>Featured Collection</h2>
           <div style={{ fontSize: 13, color: '#6B4F3A', fontWeight: 600, marginTop: 8 }}>{featSorted.length} Products</div>
         </div>
-        <div style={{ marginBottom: 14 }}>
-          <ProductFilterBar
-            count={featSorted.length}
-            filters={featFilters}
-            activeFilter={featFilter}
-            onFilter={setFeatFilter}
-            sort={featSort}
-            onSort={setFeatSort}
-            chipsWrap={!isMobile}
-            showCount={false}
-            inlineSort
-          />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(3,1fr)' : 'repeat(auto-fill, minmax(200px,1fr))', gap: isMobile ? 12 : 20 }}>
-          {loading ? Array.from({ length: isMobile ? 4 : 6 }).map((_, i) => <ProductSkeleton key={i} />) :
-            featSorted.slice(0, featuredCap).map(p => <ProductCard key={p.id} product={p} onClick={() => dispatch(setActiveProduct(p))} />)}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: isMobile ? 32 : 40 }}>
-          <button onClick={() => dispatch(openShop())}
-            style={{ padding: isMobile ? '13px 32px' : '14px 38px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all 0.3s', boxShadow: '0 2px 12px rgba(44,26,14,0.06)' }}
-            onMouseEnter={e => { e.currentTarget.style.background = TC; e.currentTarget.style.color = 'white'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(196,112,74,0.28)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = TC; e.currentTarget.style.boxShadow = '0 2px 12px rgba(44,26,14,0.06)' }}>
-            View All Products →
-          </button>
-        </div>
+        <ProductRow
+          items={featSorted.slice(0, ROW_CAP)}
+          cardW={rowCardW}
+          gap={rowGap}
+          loading={loading}
+          skeletonCount={isMobile ? 4 : 6}
+          viewLabel="View All Products"
+          onView={() => dispatch(openShop())}
+          dispatch={dispatch}
+        />
       </section>
 
       {/* ── GIFT BOX CTA BANNER ───────────────────────────── */}
@@ -146,33 +199,33 @@ export default function HomePage() {
 
       {/* ── BESTSELLERS CAROUSEL ──────────────────────────── */}
       <section id="bestsellers" style={{ padding: isMobile ? `0 20px 56px` : `0 ${px} 80px` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <div>
-            <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Most Loved</div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 32, fontWeight: 700 }}>Best Sellers</h2>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => scrollCarousel(-1)} style={{ width: 40, height: 40, borderRadius: '50%', border: '1.5px solid #EDE4D8', background: 'white', cursor: 'pointer', fontSize: 16 }}>←</button>
-            <button onClick={() => scrollCarousel(1)} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', background: TC, color: 'white', cursor: 'pointer', fontSize: 16 }}>→</button>
-          </div>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Most Loved</div>
+          <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 32, fontWeight: 700 }}>Best Sellers</h2>
         </div>
-        <div ref={carouselRef} className="no-scrollbar" style={{ display: 'flex', gap: isMobile ? 12 : 20, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 8 }}>
-          {bestsellers.map(p => (
-            <div key={p.id} style={{ scrollSnapAlign: 'start', flexShrink: 0, width: isMobile ? 170 : 220 }}>
-              <ProductCard product={p} onClick={() => dispatch(setActiveProduct(p))} />
-            </div>
-          ))}
-        </div>
+        <ProductRow
+          items={bestsellers.slice(0, ROW_CAP)}
+          cardW={rowCardW}
+          gap={rowGap}
+          viewLabel="View All Best Sellers"
+          onView={() => dispatch(openShop())}
+          dispatch={dispatch}
+        />
       </section>
 
       {/* ── OCCASIONS ─────────────────────────────────────── */}
       <section id="occasions" style={{ padding: isMobile ? '48px 20px 56px' : isTablet ? '60px 32px 72px' : '72px 48px 96px', background: '#FAF7F2' }}>
-        <div style={{ marginBottom: isMobile ? 28 : 36 }}>
+        <div style={{ textAlign: 'center', marginBottom: isMobile ? 28 : 36 }}>
           <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>Browse by Moment</div>
           <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 26 : 36, fontWeight: 700, color: '#2C1A0E', lineHeight: 1.1 }}>Gifts for Every Occasion</h2>
         </div>
 
-        {/* Featured occasion card */}
+        {/* Featured occasion card — content is admin-managed (Admin → Occasions);
+            show a shimmer placeholder in this exact slot until it loads so there's
+            never a layout jump. */}
+        {occLoading || !featuredOcc ? (
+          <div style={{ marginBottom: isMobile ? 28 : 32, height: isMobile ? 260 : 340, borderRadius: isMobile ? 20 : 28, background: 'linear-gradient(90deg,#EDE4D8 25%,#E5DBD0 50%,#EDE4D8 75%)', backgroundSize: '400% 100%', animation: 'skShimmer 1.5s ease-in-out infinite' }} />
+        ) : (
         <div style={{ marginBottom: isMobile ? 28 : 32 }}>
           <div onClick={() => dispatch(setActiveOccasion(featuredOcc))}
             style={{ background: `linear-gradient(130deg, ${featuredOcc.color} 0%, #FAF7F2 70%)`, borderRadius: isMobile ? 20 : 28, padding: isMobile ? '28px 24px' : '44px 56px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: isMobile ? 20 : 48, cursor: 'pointer', position: 'relative', overflow: 'hidden', transition: 'box-shadow 0.3s' }}
@@ -189,7 +242,7 @@ export default function HomePage() {
               {!isMobile && (
                 <button onClick={e => { e.stopPropagation(); dispatch(setActiveOccasion(featuredOcc)) }}
                   style={{ padding: '13px 28px', borderRadius: 99, border: 'none', background: '#2C1A0E', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', boxShadow: '0 6px 20px rgba(44,26,14,0.18)' }}>
-                  Shop the Edit →
+                  {featuredOcc.ctaLabel || 'Shop the Edit'} →
                 </button>
               )}
             </div>
@@ -201,7 +254,7 @@ export default function HomePage() {
             {isMobile && (
               <button onClick={e => { e.stopPropagation(); dispatch(setActiveOccasion(featuredOcc)) }}
                 style={{ padding: '12px 24px', borderRadius: 99, border: 'none', background: '#2C1A0E', color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', boxShadow: '0 6px 20px rgba(44,26,14,0.18)' }}>
-                Shop the Edit →
+                {featuredOcc.ctaLabel || 'Shop the Edit'} →
               </button>
             )}
             <div style={{ position: 'absolute', top: isMobile ? 16 : 24, right: isMobile ? 16 : 24, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(4px)', borderRadius: 99, padding: '5px 12px', fontSize: 11, fontWeight: 700, color: '#2C1A0E', letterSpacing: '0.06em' }}>
@@ -209,10 +262,15 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Occasions scroll: portrait-ratio cards, icon top-right, text bottom-left */}
         <div style={{ display: 'flex', gap: isMobile ? 12 : 16, overflowX: 'auto', paddingBottom: 8, scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }} className="no-scrollbar">
-          {restOcc.map(o => (
+          {occLoading
+            ? Array.from({ length: isMobile ? 3 : 5 }).map((_, i) => (
+                <div key={i} style={{ flexShrink: 0, width: isMobile ? 148 : 192, aspectRatio: '3/3.6', borderRadius: isMobile ? 16 : 20, background: 'linear-gradient(90deg,#EDE4D8 25%,#E5DBD0 50%,#EDE4D8 75%)', backgroundSize: '400% 100%', animation: 'skShimmer 1.5s ease-in-out infinite' }} />
+              ))
+            : restOcc.map(o => (
             <button key={o.id} onClick={() => dispatch(setActiveOccasion(o))}
               style={{ flexShrink: 0, width: isMobile ? 148 : 192, aspectRatio: '3/3.6', background: o.color, borderRadius: isMobile ? 16 : 20, border: 'none', cursor: 'pointer', position: 'relative', overflow: 'hidden', scrollSnapAlign: 'start', padding: 0, transition: 'transform 0.3s cubic-bezier(.2,.9,.3,1.4), box-shadow 0.3s', textAlign: 'left', boxShadow: '0 2px 8px rgba(44,26,14,0.06)' }}
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-5px) scale(1.02)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(44,26,14,0.16)' }}
@@ -233,46 +291,36 @@ export default function HomePage() {
 
       {/* ── HAMPER FOR YOU ────────────────────────────────── */}
       <section id="hamper-for-you" style={{ padding: isMobile ? '0 20px 56px' : `0 ${px} 80px` }}>
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Curated Collections</div>
           <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 32, fontWeight: 700 }}>Hamper For You</h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? '1fr 1fr' : 'repeat(4,1fr)', gap: isMobile ? 12 : 20 }}>
-          {hampers.slice(0, 4).map((h, i) => (
-            <div key={h.id} style={{ animation: `fadeUp 0.5s ease ${i * 0.08}s backwards` }}>
-              <ProductCard product={h} onClick={() => dispatch(setActiveProduct(h))} />
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: isMobile ? 32 : 40 }}>
-          <button onClick={() => dispatch(openHamperShop())}
-            style={{ padding: isMobile ? '13px 32px' : '14px 38px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all 0.3s', boxShadow: '0 2px 12px rgba(44,26,14,0.06)' }}
-            onMouseEnter={e => { e.currentTarget.style.background = TC; e.currentTarget.style.color = 'white'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(196,112,74,0.28)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.color = TC; e.currentTarget.style.boxShadow = '0 2px 12px rgba(44,26,14,0.06)' }}>
-            Show All Hampers →
-          </button>
-        </div>
+        <ProductRow
+          items={hampers.slice(0, ROW_CAP)}
+          cardW={rowCardW}
+          gap={rowGap}
+          viewLabel="Show All Hampers"
+          onView={() => dispatch(openHamperShop())}
+          dispatch={dispatch}
+        />
       </section>
 
       {/* ── RECOMMENDED FOR YOU ───────────────────────────── */}
       <section style={{ padding: isMobile ? '0 20px 56px' : `0 ${px} 80px` }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div>
-            <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Picked for you</div>
-            <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 32, fontWeight: 700 }}>Recommended For You</h2>
-          </div>
-          <button onClick={() => isLoggedIn ? dispatch(openUserAccount()) : dispatch(openLogin())} style={{ padding: '8px 18px', borderRadius: 99, border: `1.5px solid ${TC}`, background: 'white', color: TC, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>My Wishlist →</button>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Picked for you</div>
+          <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 32, fontWeight: 700 }}>Recommended For You</h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(3,1fr)' : 'repeat(4,1fr)', gap: isMobile ? 12 : 20 }}>
-          {loading ? Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />) :
-            recommended.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                onClick={() => dispatch(setActiveProduct(p))}
-              />
-            ))}
-        </div>
+        <ProductRow
+          items={recommended}
+          cardW={rowCardW}
+          gap={rowGap}
+          loading={loading}
+          skeletonCount={isMobile ? 4 : 6}
+          viewLabel="View All Products"
+          onView={() => dispatch(openShop())}
+          dispatch={dispatch}
+        />
       </section>
 
       {/* ── HOW IT WORKS ──────────────────────────────────── */}
@@ -325,7 +373,7 @@ export default function HomePage() {
 
       {/* ── FOOTER ────────────────────────────────────────── */}
       <footer style={{ background: `linear-gradient(135deg, ${TC} 0%, #A85A38 100%)`, color: 'rgba(255,255,255,0.85)', padding: isMobile ? '40px 20px 32px' : '60px 48px 40px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1fr 1fr 1fr', gap: isMobile ? 28 : 40, marginBottom: isMobile ? 32 : 48 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1fr 1fr 1fr 1fr', gap: isMobile ? 28 : 40, marginBottom: isMobile ? 32 : 48 }}>
           <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: 'white', marginBottom: 10 }}>
               Prettycrafted
@@ -345,12 +393,16 @@ export default function HomePage() {
               links:   ['About Us', 'Artisans', 'Sustainability', 'Press'],
               hrefs:   ['/', '/', '/', '/'],
               actions: [] },
+            { title: 'Legal',
+              plain:   true,
+              links:   ['Terms of Service', 'Privacy Policy', 'Return & Refund Policy', 'Shipping & Delivery Policy', 'Cancellation Policy', 'Cookie Policy & Settings', 'Payment Terms', 'Contact & Customer Support'],
+              hrefs:   ['/terms', '/privacy', '/return-refund-policy', '/shipping-delivery-policy', '/cancellation-policy', '/cookie-policy', '/payment-terms', '/contact-support'] },
           ].map(col => (
             <div key={col.title}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'white', marginBottom: 14 }}>{col.title}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {col.links.map((l, li) => (
-                  <a key={l} href={col.hrefs[li]} onClick={e => { e.preventDefault(); col.actions[li]?.() }}
+                  <a key={l} href={col.hrefs[li]} {...(col.plain ? {} : { onClick: e => { e.preventDefault(); col.actions[li]?.() } })}
                     style={{ color: 'rgba(255,255,255,0.78)', textDecoration: 'none', fontSize: 13, transition: 'color 0.2s' }}
                     onMouseEnter={e => e.target.style.color = 'white'}
                     onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.78)'}>{l}</a>
@@ -362,19 +414,12 @@ export default function HomePage() {
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: 20, display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: 12 }}>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>© 2026 Prettycrafted. Made with ♥</div>
           <div style={{ display: 'flex', gap: 16 }}>
-            {[{ label: 'Privacy', href: '/privacy' }, { label: 'Terms', href: '/terms' }, { label: 'Shipping', href: '#' }].map(l => (
+            {[{ label: 'Privacy', href: '/privacy' }, { label: 'Terms', href: '/terms' }, { label: 'Shipping', href: '/shipping-delivery-policy' }].map(l => (
               <a key={l.label} href={l.href} style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', textDecoration: 'none' }}>{l.label}</a>
             ))}
           </div>
         </div>
       </footer>
-
-      {/* ── FLOATING BUILD GIFT BOX CTA (mobile only) ── exactly matches design */}
-      {isMobile && !ui.showBoxBuilder && (
-        <div style={{ position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 150, pointerEvents: 'auto' }}>
-          <button onClick={() => dispatch(openBoxBuilder())} style={{ padding: '14px 28px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', boxShadow: '0 6px 24px rgba(196,112,74,0.5)', whiteSpace: 'nowrap', minHeight: 50 }}>🎁 Build Gift Box</button>
-        </div>
-      )}
 
     </>
   )

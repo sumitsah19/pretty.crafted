@@ -79,18 +79,81 @@ export const promotionsApi = {
   list: () => api.get('/public/promotions'),
 }
 
+// ── FAQs (public read — Help Center accordion) ───────────────────
+export const faqApi = {
+  list: () => api.get('/public/faqs'),
+}
+
+// ── FAQs (admin write — Help Center CMS) ─────────────────────────
+export const faqAdminApi = {
+  list:   ()         => api.get('/admin/faqs'),
+  create: (data)     => api.post('/admin/faqs', data),
+  update: (id, data) => api.put(`/admin/faqs/${id}`, data),
+  toggle: (id)       => api.patch(`/admin/faqs/${id}/toggle`),
+  remove: (id)       => api.delete(`/admin/faqs/${id}`),
+}
+
+// ── RETURNS & EXCHANGES (authenticated — customer) ───────────────
+// create body: { orderId, orderItemId, type: 'RETURN'|'EXCHANGE', reason, details?, images?[] }
+export const returnsApi = {
+  listMine: ()       => api.get('/returns'),
+  create:   (data)   => api.post('/returns', data),
+  upload:   (file)   => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post('/returns/uploads', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  },
+}
+
+// ── RETURNS & EXCHANGES (admin) ──────────────────────────────────
+export const returnsAdminApi = {
+  list:         (status)     => api.get('/admin/returns', { params: status ? { status } : {} }),
+  updateStatus: (id, data)   => api.patch(`/admin/returns/${id}/status`, data),
+}
+
+// ── CONTACT CHANNELS (public read — Help Center "Contact Us") ────
+export const contactApi = {
+  get: () => api.get('/public/contact'),
+}
+
+// ── CONTACT CHANNELS (admin write) ───────────────────────────────
+export const contactAdminApi = {
+  get:    ()     => api.get('/admin/contact'),
+  update: (data) => api.put('/admin/contact', data),
+}
+
+// ── POLICIES (public read — footer / Legal & Policies / policy pages) ────
+export const policyApi = {
+  list: ()     => api.get('/public/policies'),
+  get:  (slug) => api.get(`/public/policies/${slug}`),
+}
+
+// ── POLICIES (admin write — Legal & Policies CMS) ─────────────────
+export const policyAdminApi = {
+  list:   ()         => api.get('/admin/policies'),
+  create: (data)     => api.post('/admin/policies', data),
+  update: (id, data) => api.put(`/admin/policies/${id}`, data),
+  toggle: (id)       => api.patch(`/admin/policies/${id}/toggle`),
+  remove: (id)       => api.delete(`/admin/policies/${id}`),
+}
+
+// ── OCCASIONS (public read — "Gifts for Every Occasion" + featured banner) ──
+export const occasionsApi = {
+  list: () => api.get('/public/occasions'),
+}
+
+// ── OCCASIONS (admin write — occasion catalog CMS) ────────────────
+export const occasionAdminApi = {
+  list:   ()         => api.get('/admin/occasions'),
+  create: (data)     => api.post('/admin/occasions', data),
+  update: (id, data) => api.put(`/admin/occasions/${id}`, data),
+  toggle: (id)       => api.patch(`/admin/occasions/${id}/toggle`),
+  remove: (id)       => api.delete(`/admin/occasions/${id}`),
+}
+
 // ── HERO CARDS (public read — storefront hero CoverFlow) ─────────
 export const heroCardsApi = {
   list: () => api.get('/public/hero-cards'),
-}
-
-// ── HERO CARDS (admin write) ─────────────────────────────────────
-export const heroCardAdminApi = {
-  list:   ()         => api.get('/admin/hero-cards'),
-  create: (data)     => api.post('/admin/hero-cards', data),
-  update: (id, data) => api.put(`/admin/hero-cards/${id}`, data),
-  toggle: (id)       => api.patch(`/admin/hero-cards/${id}/toggle`),
-  remove: (id)       => api.delete(`/admin/hero-cards/${id}`),
 }
 
 // ── BUILD BOXES (public read — "Build Your Own Box" CoverFlow) ───
