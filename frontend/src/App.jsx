@@ -1,27 +1,29 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, useLocation, useParams } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import { fetchMe, logout } from './store/slices/authSlice'
-import { fetchProducts, fetchHampers } from './store/slices/productsSlice'
-import { selectUI, selectCartOpen, selectWishlistOpen, openUserAccount } from './store/slices/uiSlice'
+import { fetchMe, logoutThunk } from './store/slices/authSlice'
+import { fetchProducts, fetchHampers, selectProducts } from './store/slices/productsSlice'
+import { selectUI, selectCartOpen, selectWishlistOpen, openUserAccount, setActiveProduct } from './store/slices/uiSlice'
 import { useWindowWidth } from './hooks/useWindowWidth'
 import { useOnlineStatus } from './hooks/useOnlineStatus'
 import { promotionsApi } from './api/services'
 import ErrorBoundary from './components/ErrorBoundary'
 
 import Nav from './components/Nav'
-import BuildBoxesView from './pages/admin/BuildBoxesView'
 import SEO from './components/SEO'
 import HomePage from './pages/HomePage'
-import AdminPage from './pages/AdminPage'
-import AdminLoginPage from './pages/AdminLoginPage'
 import PolicyPage from './pages/PolicyPage'
 import OrderDetailPage from './pages/OrderDetailPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminProtectedRoute from './components/AdminProtectedRoute'
 
-// Lazy-load every modal/drawer so they are excluded from the initial bundle.
-// Each is only downloaded the first time it is opened.
+// Lazy-load the entire admin panel — ~2,400+ lines across 12 sub-views that
+// ~99% of visitors (customers) never need — plus every modal/drawer, so none
+// of it is in the initial bundle. Each is only downloaded the first time it's
+// actually reached.
+const AdminPage = lazy(() => import('./pages/AdminPage'))
+const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'))
+const BuildBoxesView = lazy(() => import('./pages/admin/BuildBoxesView'))
 const LoginModal = lazy(() => import('./components/modals/LoginModal'))
 const CartDrawer = lazy(() => import('./components/modals/CartDrawer'))
 const CheckoutModal = lazy(() => import('./components/modals/CheckoutModal'))
@@ -38,7 +40,7 @@ const TC = '#C4704A'
 
 // Storefront announcement banner — evergreen brand lines, prepended with active coupons
 const BANNER_BASE = [
-  '✦ Free delivery on every order',
+  '✦ Free delivery on orders above ₹999',
   '🎁 Handcrafted with love, delivered across India',
   '✦ New arrivals every week',
 ]
@@ -48,6 +50,20 @@ const BANNER_BASE = [
 function AccountRoute({ view }) {
   const dispatch = useDispatch()
   useEffect(() => { dispatch(openUserAccount(view)) }, [dispatch, view])
+  return <HomePage />
+}
+
+// Deep-link target for /products/:id — gives each product a real, crawlable,
+// shareable URL (ProductDetailModal's canonical tag points here) instead of
+// only ever being reachable as a modal opened from a grid.
+function ProductRoute() {
+  const dispatch = useDispatch()
+  const { id } = useParams()
+  const products = useSelector(selectProducts)
+  useEffect(() => {
+    const product = products.find(p => String(p.id) === id)
+    if (product) dispatch(setActiveProduct(product))
+  }, [dispatch, id, products])
   return <HomePage />
 }
 
@@ -66,7 +82,8 @@ export default function App() {
 
   useEffect(() => {
     dispatch(fetchMe())
-    dispatch(fetchProducts({ size: 100 }))
+    // No size param — the thunk pages through the whole catalog itself.
+    dispatch(fetchProducts())
     dispatch(fetchHampers())
   }, [dispatch])
 
@@ -80,7 +97,10 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const handleForceLogout = () => dispatch(logout())
+    // Same cleanup as the manual "Log Out" button (backend cookie clear +
+    // analytics reset) — a forced logout from a 401 must not leave a stale
+    // pc_token cookie server-side or keep tracking under the old identity.
+    const handleForceLogout = () => dispatch(logoutThunk())
     window.addEventListener('pc:logout', handleForceLogout)
     return () => window.removeEventListener('pc:logout', handleForceLogout)
   }, [dispatch])
@@ -203,6 +223,13 @@ export default function App() {
   }
   const currentSEO = routeSEO[pathname]
     || (pathname.startsWith('/occasions/') ? routeSEO['/occasions'] : null)
+    // Falls back to the shop's generic SEO until ProductDetailModal's own <SEO>
+    // (with the real per-product title/description/canonical) takes over once
+    // the product loads.
+    || (pathname.startsWith('/products/') ? routeSEO['/shop'] : null)
+    // A specific order page is auth-gated private data — noIndex like /orders,
+    // rather than falling through to the indexable homepage SEO.
+    || (pathname.startsWith('/orders/') ? { title: 'My Order', description: routeSEO['/orders'].description, url: pathname, noIndex: true } : null)
     || routeSEO['/']
 
   // Admin has its own full-page layout — skip storefront shell entirely
@@ -210,14 +237,16 @@ export default function App() {
     return (
       <ErrorBoundary>
         <SEO title="Admin Dashboard" url="/admin" noIndex />
-        <Routes>
-          <Route path="/admin/login" element={<AdminLoginPage />} />
-          <Route path="/admin" element={
-            <AdminProtectedRoute>
-              <AdminPage />
-            </AdminProtectedRoute>
-          } />
-        </Routes>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route path="/admin" element={
+              <AdminProtectedRoute>
+                <AdminPage />
+              </AdminProtectedRoute>
+            } />
+          </Routes>
+        </Suspense>
       </ErrorBoundary>
     )
   }
@@ -239,8 +268,11 @@ export default function App() {
           </div>
         )}
 
-        {/* Announcement banner — scrolling marquee (active coupons + brand lines) */}
+        {/* Announcement banner — scrolling marquee (active coupons + brand lines).
+            The moving track is decorative (aria-hidden); screen readers get the
+            same messages once, as static text. */}
         <div style={{ background: TC, color: 'white', padding: isMobile ? '9px 0' : '10px 0', fontSize: isMobile ? 12 : 13, fontWeight: 500, overflow: 'hidden' }}>
+          <span className="sr-only">{bannerMessages.join('. ')}</span>
           <div className="marquee-track" aria-hidden="true">
             {Array.from({ length: 2 }).map((_, rep) => (
               bannerMessages.map((msg, i) => (
@@ -252,6 +284,7 @@ export default function App() {
 
         <Nav onScrollTo={scrollTo} />
 
+        <Suspense fallback={null}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           {/* SEO landing pages — same storefront content, distinct metadata per route */}
@@ -259,6 +292,7 @@ export default function App() {
           <Route path="/gift-boxes" element={<HomePage />} />
           <Route path="/occasions" element={<HomePage />} />
           <Route path="/occasions/:id" element={<HomePage />} />
+          <Route path="/products/:id" element={<ProductRoute />} />
           <Route
             path="/account"
             element={
@@ -298,6 +332,7 @@ export default function App() {
             </>
           )}
         </Routes>
+        </Suspense>
 
         {/* Modals — each in its own Suspense+ErrorBoundary so one crash
             or load failure never takes down the whole storefront */}

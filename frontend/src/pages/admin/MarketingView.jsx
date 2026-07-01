@@ -54,6 +54,10 @@ export default function MarketingView({ onToast }) {
   const createCoupon = async () => {
     const code = form.code.trim().toUpperCase()
     if (!code || !form.value) { onToast('Enter a code and discount %'); return }
+    // Mirror the backend's @Min(1) @Max(100) so an out-of-range value gives a
+    // friendly hint instead of a raw server-error toast after a failed round-trip.
+    const pct = Number(form.value)
+    if (!Number.isInteger(pct) || pct < 1 || pct > 100) { onToast('Discount % must be between 1 and 100'); return }
     setSaving(true)
     try {
       const { data } = await couponAdminApi.create({ code, discountPercent: Number(form.value), expires: form.expires })
@@ -97,7 +101,7 @@ export default function MarketingView({ onToast }) {
             </div>
             <div>
               <label style={{ fontSize: 10, fontWeight: 700, color: MID, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Discount %</label>
-              <input value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value.replace(/\D/g, '') }))} placeholder="10" style={inp} />
+              <input value={form.value} inputMode="numeric" onChange={e => { const digits = e.target.value.replace(/\D/g, ''); const clamped = digits === '' ? '' : String(Math.min(100, Number(digits))); setForm(f => ({ ...f, value: clamped })) }} placeholder="10" style={inp} />
             </div>
             <div>
               <label style={{ fontSize: 10, fontWeight: 700, color: MID, display: 'block', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Expires</label>

@@ -5,6 +5,7 @@ import com.prettycrafted.giftbox.domain.User;
 import io.sentry.Sentry;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -37,8 +38,8 @@ public class EmailService {
     @Value("${app.mail.from:support@prettycrafted.com}")
     private String fromAddress;
 
-    @Value("${app.frontend.url:http://localhost:5173}")
-    private String frontendUrl;
+    @Value("${app.api.url:http://localhost:8080}")
+    private String apiUrl;
 
     @Value("${app.jwt.secret}")
     private String jwtSecret;
@@ -52,6 +53,22 @@ public class EmailService {
 
     @Async
     public void sendOrderConfirmation(Order order) {
+        sendOrderEmail(order, order.getStatus().name(),
+                "Your PrettyCrafted order #" + order.getId(), "order-confirm-" + order.getId());
+    }
+
+    @Async
+    public void sendPaymentConfirmation(Order order) {
+        sendOrderEmail(order, "PAID",
+                "Payment confirmed for order #" + order.getId(), "payment-confirm-" + order.getId());
+    }
+
+    /**
+     * Shared body of the two confirmation emails (identical apart from subject,
+     * displayed status and message id): renders the order template, attaches the
+     * invoice PDF when it renders, and falls back to HTML-only when it doesn't.
+     */
+    private void sendOrderEmail(Order order, String displayStatus, String subject, String messageId) {
         User user = order.getUser();
         if (!user.isEmailNotifications())
             return;
@@ -59,15 +76,13 @@ public class EmailService {
         Context ctx = new Context();
         ctx.setVariable("name", user.getName());
         ctx.setVariable("orderId", order.getId());
-        ctx.setVariable("status", order.getStatus().name());
+        ctx.setVariable("status", displayStatus);
         ctx.setVariable("items", order.getItems());
         ctx.setVariable("total", order.getTotalAmount());
         ctx.setVariable("shippingAddress", order.getShippingAddress());
         ctx.setVariable("unsubscribeUrl", buildUnsubscribeUrl(user));
 
         String html = templateEngine.process("order-confirmation", ctx);
-        // Try to render invoice PDF and attach it to the confirmation email. If PDF
-        // generation fails, fall back to sending the HTML email only.
         try {
             byte[] pdf = renderHtmlToPdf(html);
             if (pdf != null && pdf.length > 0) {
@@ -77,8 +92,7 @@ public class EmailService {
                 a.put("name", "invoice-" + order.getId() + ".pdf");
                 a.put("data", Base64.getEncoder().encodeToString(pdf));
                 attachments.add(a);
-                sendHtml(user.getEmail(), "Your PrettyCrafted order #" + order.getId(), html,
-                        "order-confirm-" + order.getId(), attachments);
+                sendHtml(user.getEmail(), subject, html, messageId, attachments);
                 return;
             }
         } catch (Exception e) {
@@ -87,47 +101,7 @@ public class EmailService {
         }
 
         // Fallback: send HTML-only
-        sendHtml(user.getEmail(), "Your PrettyCrafted order #" + order.getId(), html,
-                "order-confirm-" + order.getId());
-    }
-
-    @Async
-    public void sendPaymentConfirmation(Order order) {
-        User user = order.getUser();
-        if (!user.isEmailNotifications())
-            return;
-
-        Context ctx = new Context();
-        ctx.setVariable("name", user.getName());
-        ctx.setVariable("orderId", order.getId());
-        ctx.setVariable("status", "PAID");
-        ctx.setVariable("items", order.getItems());
-        ctx.setVariable("total", order.getTotalAmount());
-        ctx.setVariable("shippingAddress", order.getShippingAddress());
-        ctx.setVariable("unsubscribeUrl", buildUnsubscribeUrl(user));
-
-        String html = templateEngine.process("order-confirmation", ctx);
-        try {
-            byte[] pdf = renderHtmlToPdf(html);
-            if (pdf != null && pdf.length > 0) {
-                List<Map<String, Object>> attachments = new ArrayList<>();
-                Map<String, Object> a = new HashMap<>();
-                a.put("type", "application/pdf");
-                a.put("name", "invoice-" + order.getId() + ".pdf");
-                a.put("data", Base64.getEncoder().encodeToString(pdf));
-                attachments.add(a);
-                sendHtml(user.getEmail(), "Payment confirmed for order #" + order.getId(), html,
-                        "payment-confirm-" + order.getId(), attachments);
-                return;
-            }
-        } catch (Exception e) {
-            log.warn("Invoice PDF generation failed for payment confirmation for order {}: {}", order.getId(),
-                    e.getMessage());
-            Sentry.captureException(e);
-        }
-
-        sendHtml(user.getEmail(), "Payment confirmed for order #" + order.getId(), html,
-                "payment-confirm-" + order.getId());
+        sendHtml(user.getEmail(), subject, html, messageId);
     }
 
     // Render HTML to PDF bytes using OpenHTMLToPDF
@@ -177,12 +151,20 @@ public class EmailService {
      */
     public String buildUnsubscribeUrl(User user) {
         String sig = hmacSha256("unsub:" + user.getId(), jwtSecret);
-        return frontendUrl + "/api/auth/unsubscribe?id=" + user.getId() + "&sig=" + sig;
+        return apiUrl + "/api/auth/unsubscribe?id=" + user.getId() + "&sig=" + sig;
     }
 
     public boolean verifyUnsubscribeToken(Long userId, String sig) {
         String expected = hmacSha256("unsub:" + userId, jwtSecret);
-        return expected.equals(sig);
+        // Fail closed if the HMAC couldn't be computed (hmacSha256 returns "" on
+        // error) — otherwise an empty sig would "match". Constant-time comparison,
+        // consistent with the payment/webhook signature checks.
+        if (expected.isEmpty() || sig == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                sig.getBytes(StandardCharsets.UTF_8));
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

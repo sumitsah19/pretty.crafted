@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { googleLogin, otpLogin, clearError } from '../../store/slices/authSlice'
 import { closeLogin } from '../../store/slices/uiSlice'
+import { useModalFocus } from '../../hooks/useModalFocus'
 
 const TC = '#C4704A'
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
@@ -17,6 +18,7 @@ const RESEND_COOLDOWN = 30 // seconds before "Resend OTP" re-enables
 
 export default function LoginModal() {
   const dispatch = useDispatch()
+  const dialogRef = useModalFocus()
   const { error } = useSelector((s) => s.auth)
 
   const [done, setDone] = useState(false)
@@ -212,7 +214,7 @@ export default function LoginModal() {
   // requested mid-flow and must overlay the still-mounted modal underneath.
   return (
     <div className="modal-backdrop" style={{ zIndex: 1300 }} onClick={(e) => e.target === e.currentTarget && dispatch(closeLogin())}>
-      <div style={{ background: '#FAF7F2', borderRadius: 24, width: '100%', maxWidth: 420, boxShadow: '0 32px 80px rgba(44,26,14,0.22)', overflow: 'hidden' }} className="animate-fade-up">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Sign in" style={{ background: '#FAF7F2', borderRadius: 24, width: '100%', maxWidth: 420, boxShadow: '0 32px 80px rgba(44,26,14,0.22)', overflow: 'hidden' }} className="animate-fade-up">
 
         {/* Brand strip */}
         <div style={{ background: `linear-gradient(135deg, ${TC}, #A85A38)`, padding: '28px 32px 24px', textAlign: 'center', position: 'relative' }}>

@@ -31,6 +31,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -87,7 +91,8 @@ class OrderServiceTest {
         when(productRepo.findById(5L)).thenReturn(Optional.of(p)); // Razorpay availability check
         when(couponService.previewDiscount("FESTIVE10", new BigDecimal("200.00")))
             .thenReturn(new BigDecimal("20.00"));
-        when(paymentService.createOrder(new BigDecimal("180.00"))).thenReturn("rzp_order_id");
+        // 200 − 20 discount = 180, below the ₹999 free-delivery threshold → +₹79 fee.
+        when(paymentService.createOrder(new BigDecimal("259.00"))).thenReturn("rzp_order_id");
         when(paymentService.getKeyId()).thenReturn("key_test");
 
         // Lowercase code in the request — the service normalises it to upper case.
@@ -99,6 +104,50 @@ class OrderServiceTest {
         verify(couponService, never()).redeem(any(), any());
         verify(couponService, never()).consume(any());
         verify(productRepo, never()).decrementStock(anyLong(), anyInt()); // deferred to confirmation
+    }
+
+    @Test
+    void place_belowThresholdAddsDeliveryFee() {
+        Product p = Product.builder().id(5L).name("P5")
+            .price(new BigDecimal("500.00")).stock(10).build();
+        CartItem ci = CartItem.builder().product(p).quantity(1).build();
+        when(userRepo.findById(1L)).thenReturn(Optional.of(USER));
+        when(cartRepo.findByUserId(1L)).thenReturn(List.of(ci));
+        when(giftBoxRepo.findByUserIdAndStatus(1L, GiftBoxStatus.IN_CART)).thenReturn(List.of());
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(productRepo.decrementStock(5L, 1)).thenReturn(1);
+
+        // COD placement registers an afterCommit email callback — needs an active
+        // synchronization to bind to (same as applyPostPaymentActions below).
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            var res = service.place(1L, ORDER_REQ);
+            assertEquals(new BigDecimal("79.00"), res.order().deliveryFee());
+            assertEquals(new BigDecimal("579.00"), res.order().totalAmount());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void place_atThresholdShipsFree() {
+        Product p = Product.builder().id(5L).name("P5")
+            .price(new BigDecimal("999.00")).stock(10).build();
+        CartItem ci = CartItem.builder().product(p).quantity(1).build();
+        when(userRepo.findById(1L)).thenReturn(Optional.of(USER));
+        when(cartRepo.findByUserId(1L)).thenReturn(List.of(ci));
+        when(giftBoxRepo.findByUserIdAndStatus(1L, GiftBoxStatus.IN_CART)).thenReturn(List.of());
+        when(orderRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(productRepo.decrementStock(5L, 1)).thenReturn(1);
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            var res = service.place(1L, ORDER_REQ);
+            assertEquals(BigDecimal.ZERO, res.order().deliveryFee());
+            assertEquals(new BigDecimal("999.00"), res.order().totalAmount());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Test
@@ -328,6 +377,41 @@ class OrderServiceTest {
     }
 
     @Test
+    void adminUpdateStatus_cannotAdvanceUnpaidOnlineOrder() {
+        // An unpaid Razorpay order never had stock decremented — only a verified
+        // payment (or cancellation) may move it. Admin forcing PAID would oversell.
+        Order order = Order.builder()
+            .id(10L).user(USER)
+            .status(OrderStatus.PENDING)
+            .paymentStatus(PaymentStatus.PENDING)
+            .razorpayOrderId("rzp_order")
+            .build();
+        when(orderRepo.findById(10L)).thenReturn(Optional.of(order));
+
+        assertThrows(ConflictException.class,
+            () -> service.adminUpdateStatus(10L, new UpdateOrderStatusRequest(OrderStatus.PAID)));
+        assertEquals(OrderStatus.PENDING, order.getStatus());
+        assertEquals(PaymentStatus.PENDING, order.getPaymentStatus());
+    }
+
+    @Test
+    void adminUpdateStatus_codDeliveredRecordsPaymentSuccess() {
+        // COD cash is collected at delivery — marking DELIVERED is the moment the
+        // payment succeeds, so revenue queries (which count SUCCESS) include it.
+        Order order = Order.builder()
+            .id(10L).user(USER)
+            .status(OrderStatus.SHIPPED)
+            .paymentStatus(PaymentStatus.PENDING)
+            .build();
+        when(orderRepo.findById(10L)).thenReturn(Optional.of(order));
+
+        service.adminUpdateStatus(10L, new UpdateOrderStatusRequest(OrderStatus.DELIVERED));
+
+        assertEquals(OrderStatus.DELIVERED, order.getStatus());
+        assertEquals(PaymentStatus.SUCCESS, order.getPaymentStatus());
+    }
+
+    @Test
     void verifyPayment_throwsWhenRazorpayOrderDoesNotMatch() {
         Order order = Order.builder()
             .id(10L).user(USER)
@@ -340,5 +424,43 @@ class OrderServiceTest {
         var req = new VerifyPaymentRequest("different_order", "rzp_payment", "sig");
         assertThrows(BadRequestException.class, () -> service.verifyPaymentSignature(1L, 10L, req));
         verify(paymentService, never()).verifySignature(any(), any(), any());
+    }
+
+    // ─── Admin order search — must query the server, not just the loaded page ─
+
+    @Test
+    void adminListOrders_withQuery_searchesServerSideRegardlessOfStatus() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Order order = Order.builder().id(10L).user(USER).status(OrderStatus.PAID).paymentStatus(PaymentStatus.SUCCESS).build();
+        when(orderRepo.search(OrderStatus.PAID, "jane", pageable)).thenReturn(new PageImpl<>(List.of(order)));
+
+        Page<?> result = service.adminListOrders(OrderStatus.PAID, "jane", pageable);
+
+        assertEquals(1, result.getTotalElements());
+        verify(orderRepo).search(OrderStatus.PAID, "jane", pageable);
+        verify(orderRepo, never()).findByStatus(any(), any());
+        verify(orderRepo, never()).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void adminListOrders_blankQuery_fallsBackToStatusFilterOnly() {
+        Pageable pageable = PageRequest.of(0, 20);
+        when(orderRepo.findByStatus(OrderStatus.PENDING, pageable)).thenReturn(new PageImpl<>(List.of()));
+
+        service.adminListOrders(OrderStatus.PENDING, "  ", pageable);
+
+        verify(orderRepo).findByStatus(OrderStatus.PENDING, pageable);
+        verify(orderRepo, never()).search(any(), any(), any());
+    }
+
+    @Test
+    void adminListOrders_noQueryNoStatus_listsAll() {
+        Pageable pageable = PageRequest.of(0, 20);
+        when(orderRepo.findAll(pageable)).thenReturn(new PageImpl<>(List.of()));
+
+        service.adminListOrders(null, null, pageable);
+
+        verify(orderRepo).findAll(pageable);
+        verify(orderRepo, never()).search(any(), any(), any());
     }
 }

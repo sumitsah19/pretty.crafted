@@ -1,12 +1,14 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useParams } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { selectProducts, selectProductsLoading, selectHampers } from '../store/slices/productsSlice'
+import { fetchCategories, selectCategories } from '../store/slices/categoriesSlice'
 import { openBoxBuilder, openHamperShop, openShop, setActiveProduct, setActiveOccasion } from '../store/slices/uiSlice'
 import { useWindowWidth } from '../hooks/useWindowWidth'
-import { occasionsApi } from '../api/services'
+import { occasionsApi, newsletterApi } from '../api/services'
 import Hero from '../components/Hero'
 import ProductCard, { ProductSkeleton } from '../components/ui/ProductCard'
-import { useProductFilters } from '../components/ui/ProductFilters'
+import { useProductFilters } from '../hooks/useProductFilters'
 
 const TC = '#C4704A'
 
@@ -40,6 +42,10 @@ function ViewAllCard({ width, label = 'View All Products', onClick }) {
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      role="button"
+      tabIndex={0}
+      aria-label={label}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } }}
       style={{ flexShrink: 0, width, scrollSnapAlign: 'start', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
     >
       <div style={{
@@ -110,8 +116,32 @@ export default function HomePage() {
   const [activeRecipient, setActiveRecipient] = useState('all')
   const [emailVal, setEmailVal] = useState('')
   const [subscribed, setSubscribed] = useState(false)
+  const [subscribing, setSubscribing] = useState(false)
+  const [newsletterError, setNewsletterError] = useState('')
+
+  const submitNewsletter = async () => {
+    if (subscribed || subscribing) return
+    // Minimal sanity check: a non-empty local part, an @, and a dotted domain.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal.trim())) {
+      setNewsletterError('Please enter a valid email address.')
+      return
+    }
+    setNewsletterError('')
+    setSubscribing(true)
+    try {
+      await newsletterApi.subscribe(emailVal.trim())
+      setSubscribed(true)
+      setEmailVal('')
+    } catch (err) {
+      setNewsletterError(err.response?.data?.message || 'Could not subscribe right now — please try again.')
+    } finally {
+      setSubscribing(false)
+    }
+  }
   const [occasions, setOccasions] = useState([])
   const [occLoading, setOccLoading] = useState(true)
+  // Footer "Shop" column — real category names from the shared cache (fetched once).
+  const categories = useSelector(selectCategories)
 
   useEffect(() => {
     occasionsApi.list()
@@ -120,10 +150,24 @@ export default function HomePage() {
       .finally(() => setOccLoading(false))
   }, [])
 
+  useEffect(() => { dispatch(fetchCategories()) }, [dispatch])
+
+  // Deep-link support: visiting /occasions/:id directly (e.g. from a shared
+  // link or search result) must open that occasion's page, not just the plain
+  // homepage — activeOccasion previously had no connection to the URL at all.
+  const { id: occasionSlug } = useParams()
+  useEffect(() => {
+    if (!occasionSlug || occasions.length === 0) return
+    const match = occasions.find(o => o.id === occasionSlug)
+    if (match) dispatch(setActiveOccasion(match))
+  }, [occasionSlug, occasions, dispatch])
+
   // Featured Collection: recipient (from "Shop by Recipient") narrows the base,
-  // then the shared count + sort + category-chip bar refines it.
+  // then the shared count + sort + category-chip bar refines it. A product with
+  // no explicit recipients targets everyone (the old "all"), and one can target
+  // more than one recipient at once, so this is a membership check, not equality.
   const recipientProducts = useMemo(
-    () => products.filter(p => activeRecipient === 'all' || p.recipient === activeRecipient),
+    () => products.filter(p => activeRecipient === 'all' || !p.recipients?.length || p.recipients.includes(activeRecipient)),
     [products, activeRecipient]
   )
   const { sorted: featSorted } = useProductFilters(recipientProducts)
@@ -157,19 +201,22 @@ export default function HomePage() {
 
   return (
     <>
-      
-        
-      
       <Hero />
 
       {/* ── FEATURED COLLECTION ───────────────────────────── */}
       <section id="featured-collection" style={{ padding: isMobile ? `0 20px 56px` : `0 ${px} 80px` }}>
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 11, color: TC, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
-            {activeRecipient === 'all' ? 'All Products' : activeRecipient === 'her' ? 'For Her' : activeRecipient === 'him' ? 'For Him' : 'For Kids'}
+          {/* Shop by Recipient — was previously only reachable via 3 buried
+              footer links; this is the discoverable, in-page control. */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+            {[['all', 'All'], ['her', 'For Her'], ['him', 'For Him'], ['kids', 'For Kids']].map(([value, label]) => (
+              <button key={value} onClick={() => setActiveRecipient(value)}
+                style={{ padding: '7px 16px', borderRadius: 99, border: `1.5px solid ${activeRecipient === value ? TC : '#EDE4D8'}`, background: activeRecipient === value ? TC : 'white', color: activeRecipient === value ? 'white' : '#2C1A0E', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
+                {label}
+              </button>
+            ))}
           </div>
           <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 22 : 32, fontWeight: 700 }}>Featured Collection</h2>
-          <div style={{ fontSize: 13, color: '#6B4F3A', fontWeight: 600, marginTop: 8 }}>{featSorted.length} Products</div>
         </div>
         <ProductRow
           items={featSorted.slice(0, ROW_CAP)}
@@ -227,6 +274,10 @@ export default function HomePage() {
         ) : (
         <div style={{ marginBottom: isMobile ? 28 : 32 }}>
           <div onClick={() => dispatch(setActiveOccasion(featuredOcc))}
+            role="button"
+            tabIndex={0}
+            aria-label={featuredOcc.ctaLabel || `Shop ${featuredOcc.title}`}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dispatch(setActiveOccasion(featuredOcc)) } }}
             style={{ background: `linear-gradient(130deg, ${featuredOcc.color} 0%, #FAF7F2 70%)`, borderRadius: isMobile ? 20 : 28, padding: isMobile ? '28px 24px' : '44px 56px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: 'center', gap: isMobile ? 20 : 48, cursor: 'pointer', position: 'relative', overflow: 'hidden', transition: 'box-shadow 0.3s' }}
             onMouseEnter={e => e.currentTarget.style.boxShadow = '0 16px 48px rgba(44,26,14,0.12)'}
             onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
@@ -352,27 +403,32 @@ export default function HomePage() {
           <div style={{ flex: 1, color: 'white' }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.85)', marginBottom: 10 }}>✦ Stay in the loop</div>
             <h2 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 'clamp(22px,5vw,30px)' : 'clamp(26px,3vw,38px)', fontWeight: 700, lineHeight: 1.2, marginBottom: 10 }}>Gifts, Stories &<br />Handcrafted Finds</h2>
-            <p style={{ fontSize: isMobile ? 13 : 15, lineHeight: 1.65, color: 'rgba(255,255,255,0.65)', maxWidth: 360 }}>Join 12,000+ gift-givers who get early access to new collections, seasonal guides, and exclusive offers.</p>
+            <p style={{ fontSize: isMobile ? 13 : 15, lineHeight: 1.65, color: 'rgba(255,255,255,0.65)', maxWidth: 360 }}>Get early access to new collections, seasonal gift guides, and subscriber-only offers.</p>
           </div>
           <div style={{ flex: 1, width: '100%' }}>
             <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10 }}>
-              <input type="email" value={emailVal} onChange={e => setEmailVal(e.target.value)} placeholder="your@email.com"
+              <input type="email" value={emailVal} onChange={e => { setEmailVal(e.target.value); if (newsletterError) setNewsletterError('') }}
+                onKeyDown={e => { if (e.key === 'Enter') submitNewsletter() }} placeholder="your@email.com"
                 style={{ flex: 1, padding: '14px 18px', borderRadius: 99, border: 'none', fontSize: 14, fontFamily: "'DM Sans',sans-serif", outline: 'none', background: 'rgba(255,255,255,0.1)', color: 'white', backdropFilter: 'blur(4px)' }}
                 onFocus={e => e.target.style.background = 'rgba(255,255,255,0.15)'}
                 onBlur={e => e.target.style.background = 'rgba(255,255,255,0.1)'} />
-              <button onClick={() => { if (!emailVal.includes('@')) return; setSubscribed(true); setTimeout(() => setSubscribed(false), 2500) }}
-                style={{ padding: '14px 28px', borderRadius: 99, border: 'none', background: subscribed ? '#7A9A6B' : 'white', color: subscribed ? 'white' : TC, fontWeight: 700, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, boxShadow: '0 6px 20px rgba(44,26,14,0.18)', transition: 'background 0.3s, color 0.3s' }}>
-                {subscribed ? 'Subscribed ✓' : 'Subscribe →'}
+              <button onClick={submitNewsletter} disabled={subscribed || subscribing}
+                style={{ padding: '14px 28px', borderRadius: 99, border: 'none', background: subscribed ? '#7A9A6B' : 'white', color: subscribed ? 'white' : TC, fontWeight: 700, fontSize: 14, cursor: subscribed || subscribing ? 'default' : 'pointer', whiteSpace: 'nowrap', flexShrink: 0, boxShadow: '0 6px 20px rgba(44,26,14,0.18)', transition: 'background 0.3s, color 0.3s', opacity: subscribing ? 0.7 : 1 }}>
+                {subscribed ? 'Subscribed ✓' : subscribing ? 'Subscribing…' : 'Subscribe →'}
               </button>
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 10 }}>No spam, unsubscribe anytime. We respect your inbox.</div>
+            {newsletterError
+              ? <div style={{ fontSize: 12, color: 'white', fontWeight: 600, marginTop: 10 }}>{newsletterError}</div>
+              : subscribed
+                ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: 600, marginTop: 10 }}>You're on the list — see you in your inbox! 💌</div>
+                : <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 10 }}>No spam, unsubscribe anytime. We respect your inbox.</div>}
           </div>
         </div>
       </section>
 
       {/* ── FOOTER ────────────────────────────────────────── */}
       <footer style={{ background: `linear-gradient(135deg, ${TC} 0%, #A85A38 100%)`, color: 'rgba(255,255,255,0.85)', padding: isMobile ? '40px 20px 32px' : '60px 48px 40px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1fr 1fr 1fr 1fr', gap: isMobile ? 28 : 40, marginBottom: isMobile ? 32 : 48 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '2fr 1fr 1fr 1fr', gap: isMobile ? 28 : 40, marginBottom: isMobile ? 32 : 48 }}>
           <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: 'white', marginBottom: 10 }}>
               Prettycrafted
@@ -381,17 +437,13 @@ export default function HomePage() {
           </div>
           {[
             { title: 'Shop',
-              links:   ['Handmade Jewelry', 'Candles & Scents', 'Ceramics', 'Art Prints', 'Skincare', 'Gift Boxes'],
-              hrefs:   ['/shop', '/shop', '/shop', '/shop', '/shop', '/gift-boxes'],
-              actions: [() => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => scrollTo('featured-collection'), () => dispatch(openBoxBuilder())] },
+              links:   [...categories.slice(0, 5).map(c => c.name), 'Gift Boxes'],
+              hrefs:   [...categories.slice(0, 5).map(() => '/shop'), '/gift-boxes'],
+              actions: [...categories.slice(0, 5).map(() => () => scrollTo('featured-collection')), () => dispatch(openBoxBuilder())] },
             { title: 'Gifting',
               links:   ['Gift Box Builder', 'Occasions', 'For Her', 'For Him', 'For Kids'],
               hrefs:   ['/gift-boxes', '/#occasions', '/shop', '/shop', '/shop'],
               actions: [() => dispatch(openBoxBuilder()), () => scrollTo('occasions'), () => { setActiveRecipient('her'); scrollTo('featured-collection') }, () => { setActiveRecipient('him'); scrollTo('featured-collection') }, () => { setActiveRecipient('kids'); scrollTo('featured-collection') }] },
-            { title: 'Company',
-              links:   ['About Us', 'Artisans', 'Sustainability', 'Press'],
-              hrefs:   ['/', '/', '/', '/'],
-              actions: [] },
             { title: 'Legal',
               plain:   true,
               links:   ['Terms of Service', 'Privacy Policy', 'Return & Refund Policy', 'Shipping & Delivery Policy', 'Cancellation Policy', 'Cookie Policy & Settings', 'Payment Terms', 'Contact & Customer Support'],

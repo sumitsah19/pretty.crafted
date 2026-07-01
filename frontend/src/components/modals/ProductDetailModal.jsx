@@ -7,8 +7,10 @@ import { toggleWishlist, selectWishlistIds, wishlistKey } from '../../store/slic
 import { selectProducts } from '../../store/slices/productsSlice'
 import { selectIsLoggedIn } from '../../store/slices/authSlice'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
+import { useModalFocus } from '../../hooks/useModalFocus'
 import { analytics } from '../../analytics'
 import { reviewsApi } from '../../api/services'
+import { cloudinaryOptimized } from '../../utils/cloudinaryUrl'
 
 const TC = '#C4704A'
 
@@ -32,6 +34,7 @@ function StarRating({ rating, size = 14 }) {
 
 export default function ProductDetailModal({ product }) {
   const dispatch = useDispatch()
+  const dialogRef = useModalFocus()
   const allProducts = useSelector(selectProducts)
   const wishlistIds = useSelector(selectWishlistIds)
   const isLoggedIn = useSelector(selectIsLoggedIn)
@@ -74,13 +77,17 @@ export default function ProductDetailModal({ product }) {
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0
   const ratingDist = [5,4,3,2,1].map(n => ({ n, count: reviews.filter(r => r.rating === n).length }))
 
+  // A product can belong to more than one category now, so "same category" is
+  // an overlap check (shares at least one) rather than exact-match equality.
   const similar = useMemo(() => {
-    const sameCat = allProducts.filter(p => p.id !== product.id && p.category === product.category)
+    const sharesCategory = p => (p.categories || []).some(c => (product.categories || []).includes(c))
+    const sameCat = allProducts.filter(p => p.id !== product.id && sharesCategory(p))
     return sameCat.length > 0 ? sameCat.slice(0, 8) : allProducts.filter(p => p.id !== product.id).slice(0, 8)
   }, [product, allProducts])
 
   const alsoLike = useMemo(() => {
-    return allProducts.filter(p => p.id !== product.id && p.category !== product.category).slice(0, 8)
+    const sharesCategory = p => (p.categories || []).some(c => (product.categories || []).includes(c))
+    return allProducts.filter(p => p.id !== product.id && !sharesCategory(p)).slice(0, 8)
   }, [product, allProducts])
 
   useEffect(() => {
@@ -144,7 +151,12 @@ export default function ProductDetailModal({ product }) {
 
   const scrollCarousel = (ref, dir) => { ref.current?.scrollBy({ left: dir * (isMobile ? 200 : 300), behavior: 'smooth' }) }
 
-  const stockCount = 8 + ((Number(product.id) || 0) % 5)
+  // Real stock from the catalog — never fabricate availability. A product with
+  // no stock field (shouldn't happen, but demo/partial data) is treated as
+  // available and left for the server to reject at checkout.
+  const stock = Number(product.stock)
+  const outOfStock = Number.isFinite(stock) && stock <= 0
+  const lowStock = Number.isFinite(stock) && stock > 0 && stock <= 5
 
   const TABS = [
     { key: 'description', label: 'Description' },
@@ -156,17 +168,21 @@ export default function ProductDetailModal({ product }) {
 
   const MiniCard = ({ p }) => (
     <div onClick={() => dispatch(setActiveProduct(p))}
+      role="button" tabIndex={0} aria-label={`View ${p.name}`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dispatch(setActiveProduct(p)) } }}
       style={{ flexShrink: 0, width: isMobile ? 150 : 188, cursor: 'pointer', borderRadius: 16, overflow: 'hidden', background: 'white', border: '1px solid #EDE4D8', transition: 'transform 0.2s, box-shadow 0.2s', scrollSnapAlign: 'start' }}
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(44,26,14,0.1)' }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none' }}>
       <div style={{ height: isMobile ? 110 : 140, background: p.bg||'#EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-          {p.imageUrl && <img src={p.imageUrl} alt={p.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+          {p.imageUrl && <img src={cloudinaryOptimized(p.imageUrl, 200)} alt={p.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
         </div>
       <div style={{ padding: '10px 12px' }}>
         <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 13, fontWeight: 600, color: '#2C1A0E', marginBottom: 5, lineHeight: 1.3 }}>{p.name}</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontWeight: 700, color: TC, fontSize: 14 }}>₹{p.price}</span>
-          <button onClick={e => { e.stopPropagation(); dispatch(addLocal(p)) }} style={{ padding: '4px 10px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Add</button>
+          {Number(p.stock) <= 0
+            ? <span style={{ fontSize: 10, fontWeight: 700, color: '#9C7A63' }}>Out of stock</span>
+            : <button onClick={e => { e.stopPropagation(); dispatch(addLocal(p)) }} style={{ padding: '4px 10px', borderRadius: 99, border: 'none', background: TC, color: 'white', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Add</button>}
         </div>
       </div>
     </div>
@@ -176,13 +192,14 @@ export default function ProductDetailModal({ product }) {
     <>
     <SEO
       title={product.name}
-      description={`${product.name} — ${product.category}. Handcrafted by independent artisans. ₹${product.price}. Shop at Prettycrafted.`}
+      description={`${product.name} — ${product.categories?.[0] || ''}. Handcrafted by independent artisans. ₹${product.price}. Shop at Prettycrafted.`}
+      url={`/products/${product.id}`}
       product={product}
       type="product"
     />
     <div ref={backdropRef} className="modal-backdrop" onClick={e => e.target === e.currentTarget && dispatch(clearActiveProduct())}
       style={{ alignItems: 'flex-start', padding: 0, top: navH, background: '#FAF7F2', backdropFilter: 'none', overflowY: 'auto' }}>
-      <div style={{ background: '#FAF7F2', width: '100%', maxWidth: 1100, borderRadius: 0, boxShadow: 'none', overflow: 'hidden', minHeight: `calc(100vh - ${navH}px)`, margin: '0 auto' }}
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={product.name} style={{ background: '#FAF7F2', width: '100%', maxWidth: 1100, borderRadius: 0, boxShadow: 'none', overflow: 'hidden', minHeight: `calc(100vh - ${navH}px)`, margin: '0 auto' }}
         className="animate-fade-up">
 
         {/* Sticky top bar — breadcrumb + close */}
@@ -190,11 +207,11 @@ export default function ProductDetailModal({ product }) {
           <div style={{ fontSize: 12, color: '#9C7A63', display: 'flex', gap: 6, alignItems: 'center', overflow: 'hidden', whiteSpace: 'nowrap' }}>
             <span style={{ cursor: 'pointer' }} onClick={() => dispatch(clearActiveProduct())}>Home</span>
             <span>›</span>
-            <span style={{ cursor: 'pointer' }} onClick={() => dispatch(clearActiveProduct())}>{product.category}</span>
+            <span style={{ cursor: 'pointer' }} onClick={() => dispatch(clearActiveProduct())}>{product.categories?.[0]}</span>
             <span>›</span>
             <span style={{ color: '#2C1A0E', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</span>
           </div>
-          <button onClick={() => dispatch(clearActiveProduct())} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginLeft: 12 }}>×</button>
+          <button onClick={() => dispatch(clearActiveProduct())} aria-label="Close" style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginLeft: 12 }}>×</button>
         </div>
 
         {/* Main grid: gallery + info */}
@@ -224,7 +241,7 @@ export default function ProductDetailModal({ product }) {
                 </svg>
               </button>
               {gallery[activeImage].imageUrl ? (
-                <img src={gallery[activeImage].imageUrl} alt={`${product.name} — image ${activeImage + 1}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: zoom.active ? `scale(1.5) translate(${(50 - zoom.x) * 0.4}%, ${(50 - zoom.y) * 0.4}%)` : 'scale(1)', transition: zoom.active ? 'transform 0.1s linear' : 'transform 0.3s ease', transformOrigin: `${zoom.x}% ${zoom.y}%` }} />
+                <img src={cloudinaryOptimized(gallery[activeImage].imageUrl, 800)} alt={`${product.name} — image ${activeImage + 1}`} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: zoom.active ? `scale(1.5) translate(${(50 - zoom.x) * 0.4}%, ${(50 - zoom.y) * 0.4}%)` : 'scale(1)', transition: zoom.active ? 'transform 0.1s linear' : 'transform 0.3s ease', transformOrigin: `${zoom.x}% ${zoom.y}%` }} />
               ) : null}
               {!isMobile && <div style={{ position: 'absolute', bottom: 12, right: 14, fontSize: 11, color: 'rgba(44,26,14,0.4)', fontWeight: 600 }}>Hover to zoom</div>}
               {isMobile && (
@@ -240,7 +257,7 @@ export default function ProductDetailModal({ product }) {
                 {gallery.map((p, i) => (
                   <button key={i} onClick={() => setActiveImage(i)}
                     style={{ width: 72, height: 72, borderRadius: 12, background: p.bg||'#EDE4D8', border: `2px solid ${i === activeImage ? TC : '#EDE4D8'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'border-color 0.2s', overflow: 'hidden', flexShrink: 0 }}>
-                    {p.imageUrl && <img src={p.imageUrl} alt={`${product.name} thumbnail ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                    {p.imageUrl && <img src={cloudinaryOptimized(p.imageUrl, 100)} alt={`${product.name} thumbnail ${i + 1}`} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                   </button>
                 ))}
               </div>
@@ -249,7 +266,7 @@ export default function ProductDetailModal({ product }) {
 
           {/* Product info */}
           <div style={{ padding: isMobile ? '20px 20px 0' : '4px 0 0' }}>
-            <div style={{ fontSize: 11, color: '#9C7A63', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{product.category}</div>
+            <div style={{ fontSize: 11, color: '#9C7A63', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{product.categories?.[0]}</div>
             <h1 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 24 : 30, fontWeight: 700, color: '#2C1A0E', lineHeight: 1.15, marginBottom: 12 }}>{product.name}</h1>
 
             {/* Rating summary */}
@@ -259,7 +276,11 @@ export default function ProductDetailModal({ product }) {
                 <span style={{ fontSize: 14, fontWeight: 700, color: '#2C1A0E' }}>{avgRating.toFixed(1)}</span>
                 <span style={{ fontSize: 13, color: '#9C7A63', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setActiveTab('reviews')}>({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})</span>
               </>}
-              <span style={{ fontSize: 12, color: '#7A9A6B', fontWeight: 600 }}>✓ In Stock ({stockCount} left)</span>
+              {outOfStock
+                ? <span style={{ fontSize: 12, color: '#C44A4A', fontWeight: 700 }}>Out of stock</span>
+                : lowStock
+                  ? <span style={{ fontSize: 12, color: '#C08A1E', fontWeight: 700 }}>Only {stock} left</span>
+                  : <span style={{ fontSize: 12, color: '#7A9A6B', fontWeight: 600 }}>✓ In Stock</span>}
             </div>
 
             {/* Price */}
@@ -270,25 +291,28 @@ export default function ProductDetailModal({ product }) {
               {product.originalPrice > product.price && <span style={{ fontSize: 12, background: '#EAF2E8', color: '#2A7A3B', padding: '2px 8px', borderRadius: 99, fontWeight: 700 }}>Save {Math.round((1 - product.price / product.originalPrice) * 100)}%</span>}
             </div>
 
-            {/* Qty + Add to Cart + Buy Now */}
+            {/* Qty + Add to Cart + Buy Now — all disabled when out of stock */}
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', background: '#F5EEE6', borderRadius: 99, flexShrink: 0 }}>
-                <button onClick={() => setQty(q => Math.max(1, q - 1))} style={{ width: 38, height: 46, border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: '#6B4F3A' }}>−</button>
+              <div style={{ display: 'flex', alignItems: 'center', background: '#F5EEE6', borderRadius: 99, flexShrink: 0, opacity: outOfStock ? 0.5 : 1 }}>
+                <button onClick={() => setQty(q => Math.max(1, q - 1))} disabled={outOfStock} aria-label="Decrease quantity" style={{ width: 38, height: 46, border: 'none', background: 'none', cursor: outOfStock ? 'default' : 'pointer', fontSize: 18, color: '#6B4F3A' }}>−</button>
                 <span style={{ fontSize: 15, fontWeight: 700, minWidth: 26, textAlign: 'center' }}>{qty}</span>
-                <button onClick={() => setQty(q => q + 1)} style={{ width: 38, height: 46, border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: '#6B4F3A' }}>+</button>
+                <button onClick={() => setQty(q => Number.isFinite(stock) ? Math.min(stock, q + 1) : q + 1)} disabled={outOfStock} aria-label="Increase quantity" style={{ width: 38, height: 46, border: 'none', background: 'none', cursor: outOfStock ? 'default' : 'pointer', fontSize: 18, color: '#6B4F3A' }}>+</button>
               </div>
-              <button onClick={handleAdd} style={{ flex: 1, padding: '13px 16px', borderRadius: 99, border: 'none', background: addedFlash ? '#7A9A6B' : TC, color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'background 0.3s', minHeight: 46 }}>
-                {addedFlash ? '✓ Added!' : 'Add to Cart'}
+              <button onClick={handleAdd} disabled={outOfStock} style={{ flex: 1, padding: '13px 16px', borderRadius: 99, border: 'none', background: outOfStock ? '#EDE4D8' : addedFlash ? '#7A9A6B' : TC, color: outOfStock ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 14, cursor: outOfStock ? 'default' : 'pointer', transition: 'background 0.3s', minHeight: 46 }}>
+                {outOfStock ? 'Out of Stock' : addedFlash ? '✓ Added!' : 'Add to Cart'}
               </button>
-              <button onClick={() => { for (let i = 0; i < qty; i++) dispatch(addLocal(product)); dispatch(clearActiveProduct()); dispatch(openCart()) }}
-                style={{ flex: 1, padding: '13px 16px', borderRadius: 99, border: 'none', background: `linear-gradient(135deg, ${TC}, #A85A38)`, color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', minHeight: 46, boxShadow: '0 4px 12px rgba(196,112,74,0.35)' }}>
-                Buy Now
-              </button>
+              {!outOfStock && (
+                <button onClick={() => { for (let i = 0; i < qty; i++) dispatch(addLocal(product)); dispatch(clearActiveProduct()); dispatch(openCart()) }}
+                  style={{ flex: 1, padding: '13px 16px', borderRadius: 99, border: 'none', background: `linear-gradient(135deg, ${TC}, #A85A38)`, color: 'white', fontWeight: 700, fontSize: 14, cursor: 'pointer', minHeight: 46, boxShadow: '0 4px 12px rgba(196,112,74,0.35)' }}>
+                  Buy Now
+                </button>
+              )}
             </div>
 
             {/* Shipping trust badges */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '16px', background: 'white', borderRadius: 16, border: '1px solid #EDE4D8', marginBottom: 24 }}>
-              {[['🚚', 'Free shipping', 'on orders over ₹799'], ['💌', 'Gift wrapping', 'available at checkout'], ['↩️', 'Free returns', '30-day hassle-free returns'], ['🔒', 'Secure checkout', 'SSL encrypted payment']].map(([e, t, s]) => (
+              {/* Return copy must match the seeded Return policy (14-day window). */}
+              {[['🚚', 'Free delivery', 'on orders above ₹999'], ['💌', 'Gift wrapping', 'available at checkout'], ['↩️', 'Easy returns', '14-day return window on eligible items'], ['🔒', 'Secure checkout', 'SSL encrypted payment']].map(([e, t, s]) => (
                 <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span style={{ fontSize: 18, flexShrink: 0, width: 24, textAlign: 'center' }}>{e}</span>
                   <div>
@@ -429,8 +453,8 @@ export default function ProductDetailModal({ product }) {
                 <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 18 : 22, fontWeight: 700, color: '#2C1A0E' }}>Similar Products</h3>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => scrollCarousel(similarRef, -1)} style={{ width: 36, height: 36, borderRadius: '50%', border: '1.5px solid #EDE4D8', background: 'white', cursor: 'pointer', fontSize: 14 }}>←</button>
-                <button onClick={() => scrollCarousel(similarRef, 1)} style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: TC, color: 'white', cursor: 'pointer', fontSize: 14 }}>→</button>
+                <button onClick={() => scrollCarousel(similarRef, -1)} aria-label="Scroll left" style={{ width: 36, height: 36, borderRadius: '50%', border: '1.5px solid #EDE4D8', background: 'white', cursor: 'pointer', fontSize: 14 }}>←</button>
+                <button onClick={() => scrollCarousel(similarRef, 1)} aria-label="Scroll right" style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: TC, color: 'white', cursor: 'pointer', fontSize: 14 }}>→</button>
               </div>
             </div>
             <div ref={similarRef} style={{ display: 'flex', gap: 12, overflowX: 'auto', scrollSnapType: 'x mandatory', scrollbarWidth: 'none', paddingBottom: 4 }} className="no-scrollbar">

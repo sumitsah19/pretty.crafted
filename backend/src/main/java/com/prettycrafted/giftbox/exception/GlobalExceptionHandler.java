@@ -52,11 +52,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
-        // A unique-constraint hit (e.g. a phone already linked to another account)
-        // is a client conflict, not a server fault — keep the detail out of the body.
+        // A DB constraint hit (unique collision, or a FK still referenced) is a
+        // client conflict, not a server fault. This is a generic fallback — services
+        // that can anticipate a specific collision should pre-check and throw a
+        // ConflictException with a precise message instead (see e.g. CategoryService,
+        // CouponService). Keep the raw DB detail out of the response body.
         log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
-            .body(new ApiError("conflict", "This information is already linked to another account."));
+            .body(new ApiError("conflict", "This change conflicts with existing data and could not be saved."));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

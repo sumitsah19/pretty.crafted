@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -25,7 +26,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "orders")
+// razorpay_order_id is looked up on every payment webhook (findByRazorpayOrderId)
+// — index it so that hot path stays a point lookup rather than a full scan.
+@Table(name = "orders", indexes = @Index(name = "idx_orders_razorpay_order_id", columnList = "razorpay_order_id"))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -61,6 +64,14 @@ public class Order {
     /** Amount knocked off the subtotal by the coupon; null when no coupon. */
     @Column(name = "discount_amount", precision = 10, scale = 2)
     private BigDecimal discountAmount;
+
+    /**
+     * Flat delivery fee charged at placement (0 when the order qualified for
+     * free delivery); null on orders placed before the fee existed. Included
+     * in {@code totalAmount}. See OrderService.DELIVERY_FEE.
+     */
+    @Column(name = "delivery_fee", precision = 10, scale = 2)
+    private BigDecimal deliveryFee;
 
     @Column(name = "razorpay_order_id", length = 80)
     private String razorpayOrderId;

@@ -39,6 +39,16 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @RequiredArgsConstructor
 @Transactional
 public class OrderService {
+
+    /**
+     * Delivery pricing: orders whose discounted merchandise total is below the
+     * threshold pay a flat fee; at or above it delivery is free. The storefront
+     * mirrors these numbers for display (frontend/src/utils/delivery.js) — the
+     * amount actually charged always comes from here. Keep the two in sync.
+     */
+    static final BigDecimal FREE_DELIVERY_THRESHOLD = new BigDecimal("999");
+    static final BigDecimal DELIVERY_FEE = new BigDecimal("79.00");
+
     private final OrderRepository orderRepo;
     private final CartItemRepository cartRepo;
     private final GiftBoxRepository giftBoxRepo;
@@ -159,17 +169,28 @@ public class OrderService {
             total = total.subtract(discount);
         }
 
+        // Delivery fee last, on the discounted merchandise total — a coupon that
+        // drops the order below the threshold re-introduces the fee, exactly as
+        // the cart/checkout preview shows.
+        BigDecimal deliveryFee = total.compareTo(FREE_DELIVERY_THRESHOLD) >= 0
+                ? BigDecimal.ZERO
+                : DELIVERY_FEE;
+        order.setDeliveryFee(deliveryFee);
+        total = total.add(deliveryFee);
+
         order.setTotalAmount(total);
 
         String rzpOrderId = null;
         if (isRazorpay) {
             // Razorpay rejects orders below its ₹1.00 (100 paise) minimum, which a
             // deep discount (e.g. a 100%-off coupon) can produce. Fail fast with
-            // clear guidance instead of surfacing an opaque gateway error — a free
-            // or near-free order can still be placed as Cash on Delivery.
+            // clear guidance instead of surfacing an opaque gateway error. (Do NOT
+            // suggest Cash on Delivery here — the storefront checkout no longer
+            // offers it.)
             if (total.compareTo(BigDecimal.ONE) < 0) {
                 throw new BadRequestException(
-                        "This order total is below the ₹1 minimum for online payment. Please choose Cash on Delivery.");
+                        "This order total is below the ₹1 minimum for online payment. "
+                        + "Please remove the coupon or add another item to your cart.");
             }
             rzpOrderId = paymentService.createOrder(total);
             order.setRazorpayOrderId(rzpOrderId);
@@ -426,7 +447,10 @@ public class OrderService {
     // --- Admin methods ---
 
     @Transactional(readOnly = true)
-    public Page<OrderDto> adminListOrders(OrderStatus status, Pageable pageable) {
+    public Page<OrderDto> adminListOrders(OrderStatus status, String q, Pageable pageable) {
+        if (q != null && !q.isBlank()) {
+            return orderRepo.search(status, q.trim(), pageable).map(OrderDto::from);
+        }
         if (status != null) {
             return orderRepo.findByStatus(status, pageable).map(OrderDto::from);
         }
@@ -465,7 +489,25 @@ public class OrderService {
             // restore stock that was actually taken.
             applyCancellation(order);
         } else {
+            // An online (Razorpay) order only becomes PAID through a verified
+            // payment (verify endpoint or webhook), which is also what decrements
+            // stock and consumes the coupon. Forcing it forward here would fulfil
+            // an order whose stock was never taken and whose money never arrived.
+            if (order.getRazorpayOrderId() != null
+                    && order.getPaymentStatus() != PaymentStatus.SUCCESS) {
+                throw new ConflictException(
+                    "This order's online payment has not been captured yet. "
+                    + "It moves forward automatically once the payment is confirmed; until then it can only be cancelled.");
+            }
             order.setStatus(next);
+            // COD: cash changes hands at the door, so delivery is the moment the
+            // payment actually succeeds. Recording it keeps revenue and customer
+            // spend stats (which count PaymentStatus.SUCCESS) honest.
+            if (next == OrderStatus.DELIVERED
+                    && order.getRazorpayOrderId() == null
+                    && order.getPaymentStatus() == PaymentStatus.PENDING) {
+                order.setPaymentStatus(PaymentStatus.SUCCESS);
+            }
         }
         return OrderDto.from(order);
     }

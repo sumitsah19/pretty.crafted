@@ -2,6 +2,7 @@ package com.prettycrafted.giftbox.controller;
 
 import com.prettycrafted.giftbox.dto.MarketingDto;
 import com.prettycrafted.giftbox.service.MarketingService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -21,7 +22,7 @@ public class AdminMarketingController {
     }
 
     @PutMapping
-    public MarketingDto update(@RequestBody MarketingDto dto) {
+    public MarketingDto update(@Valid @RequestBody MarketingDto dto) {
         return service.update(dto);
     }
 }

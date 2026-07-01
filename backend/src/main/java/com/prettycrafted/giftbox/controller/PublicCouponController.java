@@ -1,6 +1,6 @@
 package com.prettycrafted.giftbox.controller;
 
-import com.prettycrafted.giftbox.dto.CouponDto;
+import com.prettycrafted.giftbox.dto.PublicCouponDto;
 import com.prettycrafted.giftbox.service.CouponService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,7 +21,7 @@ public class PublicCouponController {
     private final CouponService couponService;
 
     @GetMapping("/validate")
-    public CouponDto validate(@RequestParam String code) {
+    public PublicCouponDto validate(@RequestParam String code) {
         return couponService.validate(code);
     }
 }

@@ -5,10 +5,15 @@ import com.prettycrafted.giftbox.domain.Product;
 import com.prettycrafted.giftbox.domain.ProductImage;
 import com.prettycrafted.giftbox.dto.ProductDto;
 import com.prettycrafted.giftbox.dto.ProductRequest;
+import com.prettycrafted.giftbox.exception.ConflictException;
 import com.prettycrafted.giftbox.exception.NotFoundException;
+import com.prettycrafted.giftbox.repository.CartItemRepository;
 import com.prettycrafted.giftbox.repository.CategoryRepository;
 import com.prettycrafted.giftbox.repository.ProductRepository;
+import com.prettycrafted.giftbox.repository.ReviewRepository;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,10 +27,12 @@ public class ProductService {
 
     private final ProductRepository productRepo;
     private final CategoryRepository categoryRepo;
+    private final ReviewRepository reviewRepo;
+    private final CartItemRepository cartItemRepo;
 
     public Page<ProductDto> list(Long categoryId, String q, Pageable pageable) {
         if (categoryId != null) {
-            return productRepo.findByCategoryId(categoryId, pageable).map(ProductDto::from);
+            return productRepo.findByCategoriesId(categoryId, pageable).map(ProductDto::from);
         }
         if (q != null && !q.isBlank()) {
             return productRepo.findByNameContainingIgnoreCase(q.trim(), pageable).map(ProductDto::from);
@@ -35,7 +42,7 @@ public class ProductService {
 
     /** All curated hamper products (the "Hampers" category), unpaginated. */
     public List<ProductDto> hampers() {
-        return productRepo.findByCategory_NameIgnoreCaseOrderByIdAsc("Hampers")
+        return productRepo.findByCategoriesNameIgnoreCase("Hampers")
                 .stream().map(ProductDto::from).toList();
     }
 
@@ -47,8 +54,7 @@ public class ProductService {
 
     @Transactional
     public ProductDto create(ProductRequest req) {
-        Category category = categoryRepo.findById(req.categoryId())
-                .orElseThrow(() -> new NotFoundException("Category not found: " + req.categoryId()));
+        Set<Category> categories = resolveCategories(req.categoryIds());
 
         List<String> urls = req.imageUrls() != null ? req.imageUrls() : List.of();
         String primary = urls.isEmpty() ? null : urls.get(0);
@@ -63,11 +69,10 @@ public class ProductService {
                 .originalPrice(req.originalPrice())
                 .stock(req.stock())
                 .imageUrl(primary)
-                .category(category)
-                .recipient(req.recipient() != null ? req.recipient() : "all")
+                .categories(categories)
+                .recipients(req.recipients() != null ? new LinkedHashSet<>(req.recipients()) : new LinkedHashSet<>())
                 .tag(req.tag() != null ? req.tag() : "")
-                .rating(req.rating())
-                .reviewCount(req.reviewCount())
+                .heroSlot(req.heroSlot())
                 .build();
 
         addImages(product, urls);
@@ -78,8 +83,7 @@ public class ProductService {
     public ProductDto update(Long id, ProductRequest req) {
         Product product = productRepo.findById(id)
                 .orElseThrow(() -> new NotFoundException("Product not found: " + id));
-        Category category = categoryRepo.findById(req.categoryId())
-                .orElseThrow(() -> new NotFoundException("Category not found: " + req.categoryId()));
+        Set<Category> categories = resolveCategories(req.categoryIds());
 
         List<String> urls = req.imageUrls() != null ? req.imageUrls() : List.of();
         String primary = urls.isEmpty() ? null : urls.get(0);
@@ -93,11 +97,10 @@ public class ProductService {
         product.setOriginalPrice(req.originalPrice());
         product.setStock(req.stock());
         product.setImageUrl(primary);
-        product.setCategory(category);
-        if (req.recipient() != null) product.setRecipient(req.recipient());
+        product.setCategories(categories);
+        if (req.recipients() != null) product.setRecipients(new LinkedHashSet<>(req.recipients()));
         if (req.tag() != null) product.setTag(req.tag());
-        product.setRating(req.rating());
-        product.setReviewCount(req.reviewCount());
+        product.setHeroSlot(req.heroSlot());
 
         product.getImages().clear();
         addImages(product, urls);
@@ -105,12 +108,47 @@ public class ProductService {
         return ProductDto.from(product);
     }
 
+    /**
+     * Blocks deletion when the product has real history it would orphan (the
+     * products/order_items and products/review FKs have no cascade, so
+     * deleting anyway would otherwise fail with a raw, confusing DB error —
+     * see GlobalExceptionHandler's generic DataIntegrityViolationException
+     * message, which was written for an unrelated conflict). Deleting a
+     * product with sales/review history isn't something admin should be able
+     * to do at all — hiding it (removing all categories) is the correct action.
+     */
     @Transactional
     public void delete(Long id) {
         if (!productRepo.existsById(id)) {
             throw new NotFoundException("Product not found: " + id);
         }
+        if (productRepo.existsInOrders(id)) {
+            throw new ConflictException(
+                "This product has order history and can't be deleted. Remove it from all categories instead so it stops appearing in the storefront.");
+        }
+        if (reviewRepo.countByProductId(id) > 0) {
+            throw new ConflictException(
+                "This product has customer reviews and can't be deleted. Remove it from all categories instead so it stops appearing in the storefront.");
+        }
+        if (cartItemRepo.existsByProductId(id)) {
+            throw new ConflictException(
+                "This product is currently in a customer's cart and can't be deleted right now. Remove it from all categories instead so it stops appearing in the storefront.");
+        }
+        if (productRepo.existsInGiftBoxes(id)) {
+            throw new ConflictException(
+                "This product is currently part of a customer's gift box and can't be deleted right now. Remove it from all categories instead so it stops appearing in the storefront.");
+        }
         productRepo.deleteById(id);
+    }
+
+    /** Fetches every requested category, failing fast if any id doesn't exist
+     *  rather than silently saving a product with fewer categories than asked. */
+    private Set<Category> resolveCategories(List<Long> categoryIds) {
+        List<Category> found = categoryRepo.findAllById(categoryIds);
+        if (found.size() != Set.copyOf(categoryIds).size()) {
+            throw new NotFoundException("One or more categories not found: " + categoryIds);
+        }
+        return new LinkedHashSet<>(found);
     }
 
     private void addImages(Product product, List<String> urls) {

@@ -5,9 +5,11 @@ import { closeCheckout, openLogin } from '../../store/slices/uiSlice'
 import { selectIsLoggedIn } from '../../store/slices/authSlice'
 import { ordersApi, cartApi, couponApi, giftBoxApi, addressApi } from '../../api/services'
 import { analytics } from '../../analytics'
+import { useModalFocus } from '../../hooks/useModalFocus'
+import { deliveryFeeFor } from '../../utils/delivery'
 
 const TC = '#C4704A'
-const STEPS = ['Address', 'Review', 'Payment']
+const STEPS = ['Address', 'Review Order']
 const RAZORPAY_CHECKOUT_URL = 'https://checkout.razorpay.com/v1/checkout.js'
 
 let razorpayScriptPromise
@@ -33,13 +35,13 @@ const loadRazorpayScript = () => {
 
 export default function CheckoutModal() {
   const dispatch = useDispatch()
+  const dialogRef = useModalFocus()
   const { items, boxes } = useSelector(selectCart)
   const coupon = useSelector(selectCoupon) // applied in cart or here; shared via Redux
   const isLoggedIn = useSelector(selectIsLoggedIn)
   const showLogin = useSelector(s => s.ui.showLogin) // login can open ON TOP of checkout
   const [step, setStep] = useState(1)
   const [addr, setAddr] = useState({ name: '', phone: '', line1: '', line2: '', city: '', state: '', zip: '', country: 'India' })
-  const [payMethod, setPayMethod] = useState('online')
   const [placing, setPlacing] = useState(false)
   const [placed, setPlaced] = useState(false)
   const [orderError, setOrderError] = useState('')
@@ -78,7 +80,12 @@ export default function CheckoutModal() {
   const discount = coupon
     ? Math.round(subtotalItems * coupon.discountPercent) / 100
     : 0
-  const total = Math.max(0, subtotalItems - discount)
+  // Delivery fee mirrors OrderService: flat fee below the free-delivery
+  // threshold, applied to the discounted merchandise total. The server
+  // recomputes this at placement — this is display only.
+  const discounted = Math.max(0, subtotalItems - discount)
+  const deliveryFee = deliveryFeeFor(discounted)
+  const total = discounted + deliveryFee
 
   const applyCoupon = async () => {
     const code = couponInput.trim()
@@ -107,7 +114,12 @@ export default function CheckoutModal() {
   // prefill never overwrites their own input. Written only from event handlers.
   const touchedRef = useRef(false)
   const setA = (k, v) => { touchedRef.current = true; setAddr((p) => ({ ...p, [k]: v })) }
-  const addrValid = addr.name && addr.phone && addr.line1 && addr.city && addr.zip
+  // Phone is the courier's delivery contact and ZIP routes the shipment — a
+  // typo here means a failed delivery, so both are validated, not just non-blank.
+  // Phone accepts an Indian mobile with optional +91/91 prefix and spaces/dashes.
+  const phoneValid = /^(\+?91)?[6-9]\d{9}$/.test(addr.phone.replace(/[\s-]/g, ''))
+  const zipValid = /^[1-9]\d{5}$/.test(addr.zip.trim())
+  const addrValid = addr.name && phoneValid && addr.line1 && addr.city && zipValid
 
   // Map a saved AddressDto onto the checkout form shape.
   const fillFromSaved = (a) => setAddr({
@@ -135,7 +147,6 @@ export default function CheckoutModal() {
       .catch(() => { /* address book unavailable — manual entry still works */ })
     return () => { cancelled = true }
   }, [isLoggedIn])
-  const payValid = payMethod === 'cod' || payMethod === 'online'
 
   const inputSt = { width: '100%', padding: '11px 14px', borderRadius: 10, fontSize: 13, border: '1.5px solid #EDE4D8', background: '#FDFAF7', color: '#2C1A0E', outline: 'none', fontFamily: "'DM Sans',sans-serif", transition: 'border-color 0.2s' }
   const focus = (e) => e.target.style.borderColor = TC
@@ -207,12 +218,12 @@ export default function CheckoutModal() {
     setOrderError('')
 
     try {
-      const backendPaymentMethod = payMethod === 'cod' ? 'COD' : 'RAZORPAY'
-
+      // Every order in this flow goes straight through Razorpay — there's no
+      // COD (or any other) selection step anymore.
       // Reuse the order from a previous attempt (e.g. the Razorpay popup was dismissed)
       // as long as the cart and address haven't changed — avoids duplicate orders.
       let res
-      if (backendPaymentMethod === 'RAZORPAY' && pendingOrder?.sig === checkoutSig) {
+      if (pendingOrder?.sig === checkoutSig) {
         res = pendingOrder.res
       } else {
         // Make sure the server's gift boxes match the cart before the order is
@@ -280,72 +291,68 @@ export default function CheckoutModal() {
         res = await ordersApi.create({
           shippingAddress,
           contactPhone: addr.phone,
-          paymentMethod: backendPaymentMethod,
+          paymentMethod: 'RAZORPAY',
           couponCode: coupon?.code || undefined,
         })
-        if (backendPaymentMethod === 'RAZORPAY') {
-          setPendingOrder({ res, sig: checkoutSig })
-        }
+        setPendingOrder({ res, sig: checkoutSig })
       }
 
       const order = res.data?.order
       const orderId = order?.id || res.data?.id || res.data?.orderNumber || null
       setServerOrderId(orderId)
 
-      if (backendPaymentMethod === 'RAZORPAY') {
-        if (!order?.razorpayOrderId || !res.data?.razorpayKeyId) {
-          throw new Error('Payment gateway did not return the required Razorpay details.')
-        }
+      if (!order?.razorpayOrderId || !res.data?.razorpayKeyId) {
+        throw new Error('Payment gateway did not return the required Razorpay details.')
+      }
 
-        await loadRazorpayScript()
+      await loadRazorpayScript()
 
-        await new Promise((resolve, reject) => {
-          const checkout = new window.Razorpay({
-            key: res.data.razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
-            amount: Math.round(Number(order.totalAmount || total) * 100),
-            currency: 'INR',
-            name: 'Prettycrafted',
-            description: `Order #${orderId}`,
-            order_id: order.razorpayOrderId,
-            prefill: {
-              name: addr.name,
-              contact: addr.phone,
-            },
-            notes: {
-              orderId: String(orderId),
-            },
-            theme: {
-              color: TC,
-            },
-            handler: async (response) => {
-              try {
-                await ordersApi.verifyPayment(orderId, {
-                  // Backend's VerifyPaymentRequest binds snake_case keys (@JsonProperty),
-                  // which is also exactly how Razorpay names them — pass them through as-is.
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                })
-                resolve()
-              } catch (verifyErr) {
-                reject(verifyErr)
-              }
-            },
-            modal: {
-              ondismiss: () => reject(new Error('Payment was cancelled before completion.')),
-            },
-          })
-
-          checkout.on('payment.failed', (response) => {
-            reject(new Error(response.error?.description || 'Payment failed. Please try again.'))
-          })
-
-          checkout.open()
+      await new Promise((resolve, reject) => {
+        const checkout = new window.Razorpay({
+          key: res.data.razorpayKeyId || import.meta.env.VITE_RAZORPAY_KEY_ID,
+          amount: Math.round(Number(order.totalAmount || total) * 100),
+          currency: 'INR',
+          name: 'Prettycrafted',
+          description: `Order #${orderId}`,
+          order_id: order.razorpayOrderId,
+          prefill: {
+            name: addr.name,
+            contact: addr.phone,
+          },
+          notes: {
+            orderId: String(orderId),
+          },
+          theme: {
+            color: TC,
+          },
+          handler: async (response) => {
+            try {
+              await ordersApi.verifyPayment(orderId, {
+                // Backend's VerifyPaymentRequest binds snake_case keys (@JsonProperty),
+                // which is also exactly how Razorpay names them — pass them through as-is.
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              })
+              resolve()
+            } catch (verifyErr) {
+              reject(verifyErr)
+            }
+          },
+          modal: {
+            ondismiss: () => reject(new Error('Payment was cancelled before completion.')),
+          },
         })
 
-        // Payment verified — the pending order is settled, nothing to reuse anymore.
-        setPendingOrder(null)
-      }
+        checkout.on('payment.failed', (response) => {
+          reject(new Error(response.error?.description || 'Payment failed. Please try again.'))
+        })
+
+        checkout.open()
+      })
+
+      // Payment verified — the pending order is settled, nothing to reuse anymore.
+      setPendingOrder(null)
 
       analytics.orderPlaced(orderId, total)
       setPlacing(false)
@@ -390,13 +397,13 @@ export default function CheckoutModal() {
 
   return (
     <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) handleClose() }}>
-      <div style={{ background: '#FAF7F2', borderRadius: 24, width: '100%', maxWidth: 520, maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(44,26,14,0.25)' }} className="animate-fade-up">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={placed ? 'Order confirmed' : 'Checkout'} style={{ background: '#FAF7F2', borderRadius: 24, width: '100%', maxWidth: 520, maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(44,26,14,0.25)' }} className="animate-fade-up">
 
         {/* Header */}
         <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid #EDE4D8', flexShrink: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: placed ? 0 : 16 }}>
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700 }}>{placed ? 'Order Confirmed! 🎉' : 'Checkout'}</div>
-            <button onClick={handleClose} disabled={placing} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: placing ? 'default' : 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: placing ? 0.5 : 1 }}>×</button>
+            <button onClick={handleClose} disabled={placing} aria-label="Close" style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: placing ? 'default' : 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: placing ? 0.5 : 1 }}>×</button>
           </div>
           {!placed && (
             <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -456,14 +463,20 @@ export default function CheckoutModal() {
               {[['name', 'Full Name *', 'Jane Doe'], ['phone', 'Phone Number *', '+91 98765 43210'], ['line1', 'Address Line 1 *', '123 Main Street'], ['line2', 'Address Line 2', 'Apt, Suite (optional)']].map(([k, label, ph]) => (
                 <div key={k}>
                   <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 5 }}>{label}</label>
-                  <input value={addr[k]} onChange={(e) => setA(k, e.target.value)} placeholder={ph} required={k !== 'line2'} style={inputSt} onFocus={focus} onBlur={blur} />
+                  <input value={addr[k]} onChange={(e) => setA(k, e.target.value)} placeholder={ph} required={k !== 'line2'} type={k === 'phone' ? 'tel' : 'text'} inputMode={k === 'phone' ? 'tel' : undefined} style={inputSt} onFocus={focus} onBlur={blur} />
+                  {k === 'phone' && addr.phone && !phoneValid && (
+                    <div style={{ fontSize: 11, color: '#C44A4A', marginTop: 5 }}>Enter a valid 10-digit Indian mobile number</div>
+                  )}
                 </div>
               ))}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {[['city', 'City *', 'Mumbai'], ['state', 'State', 'Maharashtra'], ['zip', 'ZIP *', '400001']].map(([k, label, ph]) => (
+                {[['city', 'City *', 'Mumbai'], ['state', 'State', 'Maharashtra'], ['zip', 'PIN Code *', '400001']].map(([k, label, ph]) => (
                   <div key={k}>
                     <label style={{ fontSize: 11, fontWeight: 600, color: '#6B4F3A', display: 'block', marginBottom: 5 }}>{label}</label>
-                    <input value={addr[k]} onChange={(e) => setA(k, e.target.value)} placeholder={ph} required={k !== 'state'} style={inputSt} onFocus={focus} onBlur={blur} />
+                    <input value={addr[k]} onChange={(e) => setA(k, e.target.value)} placeholder={ph} required={k !== 'state'} inputMode={k === 'zip' ? 'numeric' : undefined} maxLength={k === 'zip' ? 6 : undefined} style={inputSt} onFocus={focus} onBlur={blur} />
+                    {k === 'zip' && addr.zip && !zipValid && (
+                      <div style={{ fontSize: 11, color: '#C44A4A', marginTop: 5 }}>Enter a valid 6-digit PIN code</div>
+                    )}
                   </div>
                 ))}
                 <div>
@@ -477,34 +490,10 @@ export default function CheckoutModal() {
             </div>
           )}
 
-          {/* STEP 3: PAYMENT */}
-          {step === 3 && !placed && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Payment Method</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${payMethod === 'online' ? TC : '#EDE4D8'}`, background: payMethod === 'online' ? '#FDF5F0' : 'white', cursor: 'pointer' }}>
-                  <input type="radio" checked={payMethod === 'online'} onChange={() => setPayMethod('online')} style={{ accentColor: TC, width: 16, height: 16 }} />
-                  <span style={{ fontSize: 20 }}>💳</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: '#2C1A0E' }}>Cards / UPI</div>
-                    <div style={{ fontSize: 10, color: '#9C7A63', marginTop: 1 }}>via Razorpay</div>
-                  </div>
-                </label>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${payMethod === 'cod' ? TC : '#EDE4D8'}`, background: payMethod === 'cod' ? '#FDF5F0' : 'white', cursor: 'pointer' }}>
-                  <input type="radio" checked={payMethod === 'cod'} onChange={() => setPayMethod('cod')} style={{ accentColor: TC, width: 16, height: 16 }} />
-                  <span style={{ fontSize: 20 }}>💵</span>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: '#2C1A0E' }}>Cash on Delivery</div>
-                  </div>
-                </label>
-              </div>
-
-              {/* no inline inputs or notices for online payments */}
-            </div>
-          )}
-
-          {/* STEP 2: REVIEW */}
+          {/* STEP 2: REVIEW ORDER — the last step. Its primary button opens
+              Razorpay Checkout directly; Razorpay's own UI already covers
+              UPI/Cards/Net Banking/Wallets/EMI, so there's no payment-method
+              screen to build here. */}
           {step === 2 && !placed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 600 }}>Review Your Order</div>
@@ -573,7 +562,9 @@ export default function CheckoutModal() {
                 {discount > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13, color: '#7A9A6B', fontWeight: 600 }}><span>Discount ({coupon.code})</span><span>−₹{discount.toFixed(2)}</span></div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13, color: '#6B4F3A' }}><span>Delivery</span><span style={{ color: '#7A9A6B', fontWeight: 600 }}>Free</span></div>
+                {deliveryFee === 0
+                  ? <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13, color: '#6B4F3A' }}><span>Delivery</span><span style={{ color: '#7A9A6B', fontWeight: 600 }}>Free</span></div>
+                  : <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13, color: '#6B4F3A' }}><span>Delivery</span><span>₹{deliveryFee.toFixed(2)}</span></div>}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #EDE4D8', paddingTop: 8 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#2C1A0E' }}>Total</div>
                   <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 700, color: TC }}>₹{total.toFixed(2)}</div>
@@ -606,7 +597,7 @@ export default function CheckoutModal() {
         {!placed && (
           <div style={{ padding: '16px 28px 24px', borderTop: '1px solid #EDE4D8', flexShrink: 0 }}>
             {orderError && (
-              <div style={{ background: '#FEE2E2', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#C44A4A', marginBottom: 12 }}>
+              <div role="alert" style={{ background: '#FEE2E2', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#C44A4A', marginBottom: 12 }}>
                 ⚠️ {orderError}
               </div>
             )}
@@ -614,15 +605,17 @@ export default function CheckoutModal() {
               {step > 1 && (
                 <button onClick={() => setStep((s) => s - 1)} style={{ flex: 1, padding: '13px', borderRadius: 99, border: '1.5px solid #EDE4D8', background: 'none', color: '#6B4F3A', fontWeight: 600, cursor: 'pointer', fontSize: 14, minHeight: 48 }}>← Back</button>
               )}
-              {step < 3 ? (
-                <button onClick={() => setStep((s) => s + 1)} disabled={step === 1 && !addrValid}
-                  style={{ flex: 2, padding: '13px', borderRadius: 99, border: 'none', background: (step === 1 ? addrValid : true) ? TC : '#EDE4D8', color: (step === 1 ? addrValid : true) ? 'white' : '#9C7A63', fontWeight: 700, fontSize: 14, cursor: (step === 1 ? addrValid : true) ? 'pointer' : 'default', minHeight: 48 }}>
-                  {step === 1 ? 'Review Order →' : 'Continue to Payment →'}
+              {step === 1 ? (
+                <button onClick={() => setStep((s) => s + 1)} disabled={!addrValid}
+                  style={{ flex: 2, padding: '13px', borderRadius: 99, border: 'none', background: addrValid ? TC : '#EDE4D8', color: addrValid ? 'white' : '#9C7A63', fontWeight: 700, fontSize: 14, cursor: addrValid ? 'pointer' : 'default', minHeight: 48 }}>
+                  Continue
                 </button>
               ) : (
-                <button onClick={placeOrder} disabled={placing || !payValid}
-                  style={{ flex: 2, padding: '13px', borderRadius: 99, border: 'none', background: placing || !payValid ? '#EDE4D8' : `linear-gradient(135deg, ${TC}, #A85A38)`, color: placing || !payValid ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: placing || !payValid ? 'default' : 'pointer', minHeight: 48, boxShadow: placing || !payValid ? 'none' : '0 6px 20px rgba(196,112,74,0.35)' }}>
-                  {placing ? 'Placing Order...' : `Place Order — ₹${total.toFixed(2)}`}
+                // Last step — clicking this opens Razorpay Checkout immediately
+                // (see placeOrder); there's no intermediate payment-method screen.
+                <button onClick={placeOrder} disabled={placing}
+                  style={{ flex: 2, padding: '13px', borderRadius: 99, border: 'none', background: placing ? '#EDE4D8' : `linear-gradient(135deg, ${TC}, #A85A38)`, color: placing ? '#9C7A63' : 'white', fontWeight: 700, fontSize: 15, cursor: placing ? 'default' : 'pointer', minHeight: 48, boxShadow: placing ? 'none' : '0 6px 20px rgba(196,112,74,0.35)' }}>
+                  {placing ? 'Placing Order...' : 'Continue to Payment'}
                 </button>
               )}
             </div>

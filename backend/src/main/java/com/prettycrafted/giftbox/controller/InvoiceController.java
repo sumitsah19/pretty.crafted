@@ -117,6 +117,10 @@ public class InvoiceController {
             summary.append("<tr style=\"color:#7A9A6B\"><td>" + label + "</td><td style=\"text-align:right\">- "
                     + money(discount) + "</td></tr>");
         }
+        // Delivery fee (null on orders that predate it — shown as Free).
+        BigDecimal deliveryFee = o.deliveryFee() == null ? BigDecimal.ZERO : o.deliveryFee();
+        summary.append("<tr><td>Delivery</td><td style=\"text-align:right\">"
+                + (deliveryFee.signum() > 0 ? money(deliveryFee) : "Free") + "</td></tr>");
         summary.append(
                 "<tr class=\"grand\"><td>Total</td><td style=\"text-align:right\">" + money(o.totalAmount())
                         + "</td></tr>");

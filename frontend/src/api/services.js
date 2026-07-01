@@ -79,6 +79,12 @@ export const promotionsApi = {
   list: () => api.get('/public/promotions'),
 }
 
+// ── NEWSLETTER (public — homepage signup form) ───────────────────
+// 204 on success; idempotent for already-subscribed addresses.
+export const newsletterApi = {
+  subscribe: (email) => api.post('/public/newsletter', { email }),
+}
+
 // ── FAQs (public read — Help Center accordion) ───────────────────
 export const faqApi = {
   list: () => api.get('/public/faqs'),
@@ -151,11 +157,6 @@ export const occasionAdminApi = {
   feature:    (id)       => api.patch(`/admin/occasions/${id}/feature`),
   visibility: (id)       => api.patch(`/admin/occasions/${id}/visibility`),
   remove:     (id)       => api.delete(`/admin/occasions/${id}`),
-}
-
-// ── HERO CARDS (public read — storefront hero CoverFlow) ─────────
-export const heroCardsApi = {
-  list: () => api.get('/public/hero-cards'),
 }
 
 // ── BUILD BOXES (public read — "Build Your Own Box" CoverFlow) ───

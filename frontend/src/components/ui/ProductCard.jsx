@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { toggleWishlist, selectWishlistIds, wishlistKey } from '../../store/slices/wishlistSlice'
+import { formatPrice } from '../../utils/formatPrice'
+import { cloudinaryOptimized } from '../../utils/cloudinaryUrl'
+import { analytics } from '../../analytics'
 
 const SparklesSvg = () => (
   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -26,7 +29,10 @@ export function ProductSkeleton() {
   )
 }
 
-export default function ProductCard({ product, onClick }) {
+// Memoized: rendered 6-100+ times per grid. Props are a stable product object
+// plus an onClick; wishlist state is read via its own selector inside, so this
+// only re-renders when the product/onClick identity actually changes.
+function ProductCard({ product, onClick }) {
   const [hover, setHover] = useState(false)
   const [wishHover, setWishHover] = useState(false)
   const dispatch = useDispatch()
@@ -44,13 +50,18 @@ export default function ProductCard({ product, onClick }) {
   const hasMrp   = Number.isFinite(orig) && orig > product.price
   const save     = hasMrp ? Math.round((1 - product.price / orig) * 100) : 0
   const pct      = hasRating ? Math.max(0, Math.min(100, rating / 5 * 100)) : 0
-  const rs       = (n) => 'Rs. ' + Number(n).toLocaleString('en-IN') + '.00'
 
   return (
     <div
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      // Clickable div → make it a real keyboard target: Tab reaches it,
+      // Enter/Space activate it, screen readers announce it as a button.
+      role="button"
+      tabIndex={0}
+      aria-label={`View ${product.name}`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } }}
       style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
     >
       {/* Square image */}
@@ -64,7 +75,7 @@ export default function ProductCard({ product, onClick }) {
       }}>
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.85 }}>
           {product.imageUrl
-            ? <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ? <img src={cloudinaryOptimized(product.imageUrl, 400)} alt={product.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : <SparklesSvg />
           }
         </div>
@@ -81,7 +92,7 @@ export default function ProductCard({ product, onClick }) {
 
         {/* Wishlist button */}
         <button
-          onClick={(e) => { e.stopPropagation(); dispatch(toggleWishlist(wishlistKey(product))) }}
+          onClick={(e) => { e.stopPropagation(); (wishlisted ? analytics.wishlistRemove : analytics.wishlistAdd)(product.id); dispatch(toggleWishlist(wishlistKey(product))) }}
           onMouseEnter={() => setWishHover(true)}
           onMouseLeave={() => setWishHover(false)}
           style={{
@@ -120,8 +131,8 @@ export default function ProductCard({ product, onClick }) {
 
       {/* Prices */}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 7, whiteSpace: 'nowrap' }}>
-        {hasMrp && <span style={{ fontSize: 12.5, color: '#9C7A63', textDecoration: 'line-through' }}>{rs(orig)}</span>}
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#2C1A0E' }}>{rs(product.price)}</span>
+        {hasMrp && <span style={{ fontSize: 12.5, color: '#9C7A63', textDecoration: 'line-through' }}>{formatPrice(orig)}</span>}
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#2C1A0E' }}>{formatPrice(product.price)}</span>
       </div>
 
       {save > 0 && (
@@ -132,3 +143,5 @@ export default function ProductCard({ product, onClick }) {
     </div>
   )
 }
+
+export default memo(ProductCard)

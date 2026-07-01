@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { openBoxBuilder, openShop, setActiveProduct } from '../store/slices/uiSlice'
+import { openBoxBuilder, setActiveProduct } from '../store/slices/uiSlice'
 import { selectProducts } from '../store/slices/productsSlice'
 import { useWindowWidth } from '../hooks/useWindowWidth'
 import ProductCard, { ProductSkeleton } from './ui/ProductCard'
-import { useProductFilters, ProductFilterBar } from './ui/ProductFilters'
+import { useProductFilters } from '../hooks/useProductFilters'
+import { ProductFilterBar } from './ui/ProductFilters'
 
 /* ── Carousel cards ──────────────────────────────────────────
    A faithful port of the reference hero: a 3-card 3D carousel that
@@ -22,8 +23,10 @@ const CARDS = [
     headlineItalic: "They'll Cherish",
     subtext: 'Celebrate togetherness with keepsakes and experiences the whole family will treasure.',
     cta: 'Shop Family Gifts',
-    // Family-friendly picks: anything for "everyone" or kids.
-    match: p => p.recipient === 'anyone' || p.recipient === 'kids',
+    // Matches Product.heroSlot === 'family' (admin-curated in Products admin →
+    // "Homepage Hero Card"). Falls back to a heuristic below until admin curates.
+    slot: 'family',
+    match: p => !p.recipients?.length || p.recipients.includes('kids'),
   },
   {
     id: 1, src: '/hero/undraw_cool-girl-avatar_fifz.svg',
@@ -33,7 +36,8 @@ const CARDS = [
     headlineItalic: "She'll Adore",
     subtext: 'Thoughtfully curated, beautifully wrapped gifts chosen with her heart in mind.',
     cta: 'Shop for Her',
-    match: p => p.recipient === 'her',
+    slot: 'her',
+    match: p => p.recipients?.includes('her'),
   },
   {
     id: 2, src: '/hero/undraw_jewelry_39lx.svg',
@@ -43,7 +47,8 @@ const CARDS = [
     headlineItalic: 'That Lasts',
     subtext: 'Exquisite accessories and fine jewellery for every milestone and occasion.',
     cta: 'Shop Accessories',
-    match: p => /jewel|accessor/i.test(p.category || ''),
+    slot: 'accessories',
+    match: p => (p.categories || []).some(c => /jewel|accessor/i.test(c)),
   },
 ]
 
@@ -325,7 +330,6 @@ export default function Hero() {
         open={overlayOpen}
         products={products}
         onClose={() => setOverlayOpen(false)}
-        onShop={() => { setOverlayOpen(false); dispatch(openShop()) }}
         onProductClick={p => { setOverlayOpen(false); dispatch(setActiveProduct(p)) }}
         px={px}
       />
@@ -370,13 +374,17 @@ function SecondaryBtn({ children, mobile, onClick }) {
   )
 }
 
-function CategoryOverlay({ idx, open, products, onClose, onShop, onProductClick, px }) {
+function CategoryOverlay({ idx, open, products, onClose, onProductClick, px }) {
   const data = CAT_DATA[idx]
   const card = CARDS[idx]
 
-  // Real backend products for this category; fall back to the full catalogue
-  // if nothing matches the filter, so the grid is never empty.
+  // Admin-curated picks (Products admin → "Homepage Hero Card") take priority.
+  // Until admin curates this slot, fall back to a recipient/category heuristic,
+  // and if even that matches nothing, show the full catalogue — the grid is
+  // never empty.
   const categoryProducts = useMemo(() => {
+    const curated = products.filter(p => p.heroSlot === card.slot)
+    if (curated.length) return curated
     const matched = products.filter(card.match)
     return matched.length ? matched : products
   }, [products, card])
@@ -402,12 +410,9 @@ function CategoryOverlay({ idx, open, products, onClose, onShop, onProductClick,
         <img src={card.src} alt={card.label} style={{ width: 160, height: 160, objectFit: 'contain', marginBottom: 12 }} />
         <div style={{ fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 10, color: card.accent }}>{data.eyebrow}</div>
         <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 40, fontWeight: 700, lineHeight: 1.08, color: '#2a1a0e', margin: '0 0 12px' }}>{data.title}</h2>
-        <p style={{ fontSize: 15, color: '#7a5c40', lineHeight: 1.65, maxWidth: 440, margin: '0 0 28px' }}>{data.sub}</p>
-        <button onClick={onShop} style={{
-          padding: '14px 32px', borderRadius: 99, border: 'none', color: '#fdf6ee', fontWeight: 600,
-          fontSize: 14, fontFamily: 'inherit', cursor: 'pointer', background: card.accent,
-          boxShadow: `0 8px 24px -6px ${card.shadow}`,
-        }}>{card.cta}</button>
+        {/* No CTA button here — the user already clicked one to open this
+            overlay, and the curated grid below is the call to action now. */}
+        <p style={{ fontSize: 15, color: '#7a5c40', lineHeight: 1.65, maxWidth: 440, margin: 0 }}>{data.sub}</p>
       </div>
 
       <div style={{ padding: `28px ${px}px 60px`, maxWidth: 1100, margin: '0 auto' }}>

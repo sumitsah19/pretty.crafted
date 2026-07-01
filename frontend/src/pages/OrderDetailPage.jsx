@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ordersApi } from '../api/services'
+import { useWindowWidth } from '../hooks/useWindowWidth'
 
 const TC = '#C4704A'
+
+// The fallback invoice is assembled as an HTML string and written into a new
+// window — item names and the shipping address must be escaped exactly like
+// the backend InvoiceController does, or they inject markup into that window.
+const esc = (s) => String(s ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 
 function UABadge({ status }) {
   const map = {
@@ -47,15 +55,17 @@ export default function OrderDetailPage() {
   const navigate = useNavigate()
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
+  const ww = useWindowWidth()
+  const isMobile = ww < 640
 
   const generateInvoiceHtml = (o) => {
     const itemsHtml = (o.items || []).map(it => {
       const unit = Number(it.unitPrice || 0)
       const line = Number(it.lineTotal || 0)
-      return `<tr><td style="padding:8px;border-bottom:1px solid #eee">${it.itemName}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${it.quantity}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">₹${unit.toLocaleString('en-IN')}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">₹${line.toLocaleString('en-IN')}</td></tr>`
+      return `<tr><td style="padding:8px;border-bottom:1px solid #eee">${esc(it.itemName)}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${Number(it.quantity) || 0}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">₹${unit.toLocaleString('en-IN')}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:right">₹${line.toLocaleString('en-IN')}</td></tr>`
     }).join('')
 
-    const ship = o.shippingAddress || ''
+    const ship = esc(o.shippingAddress)
     const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleString('en-IN') : ''
 
     return `<!doctype html><html><head><meta charset="utf-8"><title>Invoice #${o.id}</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family: Arial, Helvetica, sans-serif;color:#2C1A0E;padding:24px} .header{display:flex;justify-content:space-between;align-items:flex-start} .brand{font-family:'Playfair Display',serif;font-size:20px;color:${TC}} table{width:100%;border-collapse:collapse;margin-top:18px} th,td{padding:8px;text-align:left} .right{text-align:right} .muted{color:#6B4F3A;font-size:13px} .total{font-weight:800;font-size:16px;text-align:right;margin-top:12px}</style></head><body><div class="header"><div><div class="brand">Prettycrafted</div><div class="muted">Invoice #: ${o.id}</div></div><div style="text-align:right"><div style="font-weight:700">₹${Number(o.totalAmount||0).toLocaleString('en-IN')}</div><div class="muted">${dateStr}</div></div></div><hr/><div style="display:flex;gap:20px;margin-top:10px"><div><div style="font-weight:700">Bill To</div><div class="muted">${ship || ''}</div></div></div><table class="items"><thead><tr><th style="text-align:left">Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Total</th></tr></thead><tbody>${itemsHtml}</tbody></table><div class="total">Total: ₹${Number(o.totalAmount||0).toLocaleString('en-IN')}</div><div style="margin-top:18px;font-size:12px;color:#9C7A63">Thank you for ordering from Prettycrafted. This is an electronically generated invoice.</div></body></html>`
@@ -106,7 +116,7 @@ export default function OrderDetailPage() {
 
   if (loading) return (
     <div style={{ padding:32, textAlign:'center' }}>
-      <div style={{ width:36, height:36, border:'3px solid #EDE4D8', borderTopColor:TC, borderRadius:'50%', margin:'0 auto 12px', animation:'uaSpin 0.8s linear infinite' }} />
+      <div className="animate-spin-slow" style={{ width:36, height:36, border:'3px solid #EDE4D8', borderTopColor:TC, borderRadius:'50%', margin:'0 auto 12px' }} />
       Loading order…
     </div>
   )
@@ -143,7 +153,7 @@ export default function OrderDetailPage() {
         )}
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 320px', gap:20 }}>
         <div>
           <div style={{ background:'white', borderRadius:12, padding:16, border:'1px solid #EDE4D8', marginBottom:12 }}>
             <div style={{ fontSize:14, fontWeight:700, marginBottom:8 }}>Items</div>
@@ -187,12 +197,16 @@ export default function OrderDetailPage() {
                 Discount{order.couponCode ? ` (${order.couponCode})` : ''} <span>−₹{Number(order.discountAmount || 0).toLocaleString('en-IN')}</span>
               </div>
             )}
+            {/* deliveryFee is null on orders placed before the fee existed — shown as Free */}
+            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+              Delivery {Number(order.deliveryFee || 0) > 0
+                ? <span>₹{Number(order.deliveryFee).toLocaleString('en-IN')}</span>
+                : <span style={{ color:'#7A9A6B', fontWeight:600 }}>Free</span>}
+            </div>
             <div style={{ display:'flex', justifyContent:'space-between', fontWeight:700, marginTop:8 }}>Total <span>₹{Number(order.totalAmount || 0).toLocaleString('en-IN')}</span></div>
           </div>
         </div>
       </div>
-
-      <style>{`@keyframes uaSpin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }

@@ -13,6 +13,8 @@ import com.prettycrafted.giftbox.repository.OrderRepository;
 import com.prettycrafted.giftbox.repository.ProductRepository;
 import com.prettycrafted.giftbox.repository.ReviewRepository;
 import com.prettycrafted.giftbox.repository.UserRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -65,7 +67,26 @@ public class ReviewService {
             .rating(req.rating())
             .body(req.body())
             .build();
+        ReviewDto dto = ReviewDto.from(reviewRepository.save(review));
 
-        return ReviewDto.from(reviewRepository.save(review));
+        recomputeProductRatingSnapshot(product);
+
+        return dto;
+    }
+
+    /**
+     * Keeps {@code Product.rating}/{@code reviewCount} — the denormalised snapshot
+     * shown on product cards (see {@link Product} class doc) — in sync with the
+     * real {@link Review} rows. This is the only place these fields are written;
+     * they are never admin-editable (see {@code ProductService}), so this is the
+     * sole source of truth for them.
+     */
+    private void recomputeProductRatingSnapshot(Product product) {
+        long count = reviewRepository.countByProductId(product.getId());
+        Double average = reviewRepository.averageRatingByProductId(product.getId());
+        product.setReviewCount((int) count);
+        product.setRating(average != null
+            ? BigDecimal.valueOf(average).setScale(1, RoundingMode.HALF_UP)
+            : null);
     }
 }

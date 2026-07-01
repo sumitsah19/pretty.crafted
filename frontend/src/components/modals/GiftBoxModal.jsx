@@ -6,6 +6,9 @@ import { selectProducts } from '../../store/slices/productsSlice'
 import { selectIsLoggedIn } from '../../store/slices/authSlice'
 import { giftBoxApi, buildBoxApi } from '../../api/services'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
+import { useModalFocus } from '../../hooks/useModalFocus'
+import { cloudinaryOptimized } from '../../utils/cloudinaryUrl'
+import { analytics } from '../../analytics'
 
 const TC = '#C4704A'
 const GOLD = '#C08A1E'
@@ -312,7 +315,7 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
                   position: 'relative', overflow: 'hidden',
                 }}>
                   {hasImage ? (
-                    <img src={song.imageUrl} alt={cardTitle} draggable={false}
+                    <img src={cloudinaryOptimized(song.imageUrl, 400)} alt={cardTitle} draggable={false}
                       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, userSelect: 'none', pointerEvents: 'none' }} />
                   ) : (
                     <>
@@ -342,6 +345,7 @@ function CoverFlow({ songs, currentIndex, setCurrentIndex, onSongSelect, albumSi
 /* ── Main ────────────────────────────────────────────────── */
 export default function GiftBoxModal() {
   const dispatch    = useDispatch()
+  const dialogRef   = useModalFocus()
   const products    = useSelector(selectProducts)
   const isLoggedIn  = useSelector(selectIsLoggedIn)
   const showLogin   = useSelector(s => s.ui.showLogin) // login can open ON TOP of the builder
@@ -382,6 +386,10 @@ export default function GiftBoxModal() {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
   }, [])
+
+  // The builder is mounted only while open, so this fires once per open regardless
+  // of which entry point (Nav, Hero, footer…) triggered it.
+  useEffect(() => { analytics.giftBoxOpen() }, [])
 
   useEffect(() => {
     // Escape closes the builder — but if the image lightbox is open, leave the
@@ -465,17 +473,21 @@ export default function GiftBoxModal() {
   const productsTotal = selectedProducts.reduce((s, p) => s + Number(p.price || 0), 0)
   const boxPrice      = basePrice + wrapPrice + productsTotal
 
-  /* Filter products by recipient + category */
+  /* Filter products by recipient + category. A product with no recipients
+     targets everyone, and can belong to more than one category. */
   const byRecipient = products.filter(p => {
     if (recipient === 'everyone') return true
-    return p.recipient === recipient || !p.recipient || p.recipient === 'anyone'
+    return !p.recipients?.length || p.recipients.includes(recipient)
   })
-  const categories   = [...new Set(byRecipient.map(p => p.category).filter(Boolean))]
-  const byCategory   = activeCategory ? byRecipient.filter(p => p.category === activeCategory) : byRecipient
+  const categories   = [...new Set(byRecipient.flatMap(p => p.categories || []))]
+  const byCategory   = activeCategory ? byRecipient.filter(p => (p.categories || []).includes(activeCategory)) : byRecipient
   const displayProds = showAllProducts ? byCategory : byCategory.slice(0, 6)
 
   const toggleProduct = (product) => {
     const isSelected = selectedProducts.some(p => p.id === product.id)
+    // Out-of-stock items can be viewed but never added — the server would
+    // reject the whole box at create time with a confusing error otherwise.
+    if (!isSelected && Number(product.stock) <= 0) return
     if (!isSelected && selectedProducts.length >= BOX_MAX) return
     setSelectedProducts(prev =>
       isSelected ? prev.filter(p => p.id !== product.id) : [...prev, product]
@@ -550,12 +562,13 @@ export default function GiftBoxModal() {
   }, [pendingAdd, isLoggedIn, showLogin])
 
   return (
-    <div style={{ position: 'fixed', inset: 0, top: navH, zIndex: 1200, background: '#FAF7F2', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Build your gift box" style={{ position: 'fixed', inset: 0, top: navH, zIndex: 1200, background: '#FAF7F2', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       <style>{`@keyframes pc-shake{0%,100%{transform:translateX(0)}15%{transform:translateX(-6px)}30%{transform:translateX(6px)}45%{transform:translateX(-5px)}60%{transform:translateX(5px)}75%{transform:translateX(-3px)}90%{transform:translateX(3px)}}.pc-shake{animation:pc-shake 0.6s ease;border:2px solid #e53e3e!important;background:rgba(229,62,62,0.04)!important;}.gb-pills::-webkit-scrollbar{display:none}`}</style>
 
       {/* Floating close button */}
       <button
         onClick={() => dispatch(closeBoxBuilder())}
+        aria-label="Close"
         style={{ position: 'fixed', top: navH + 14, right: 20, zIndex: 1210, width: 36, height: 36, borderRadius: '50%', background: '#fff', border: '1px solid rgba(0,0,0,0.12)', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', cursor: 'pointer', fontSize: 20, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
       >×</button>
 
@@ -663,7 +676,7 @@ export default function GiftBoxModal() {
                           <span style={{ fontSize: 11, color: GOLD, fontWeight: 500, lineHeight: 1.3 }}>{selectedProducts[i].name}</span>
                           <span style={{ fontSize: 10, color: '#9C7A63' }}>{fmtInr(selectedProducts[i].price)}</span>
                         </div>
-                        <button type="button" onClick={() => setSelectedProducts(prev => prev.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 4, right: 4, width: 14, height: 14, borderRadius: '50%', background: 'rgba(212,155,35,0.3)', border: 'none', cursor: 'pointer', color: GOLD, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
+                        <button type="button" onClick={() => setSelectedProducts(prev => prev.filter((_, j) => j !== i))} aria-label={`Remove ${selectedProducts[i].name} from box`} style={{ position: 'absolute', top: 4, right: 4, width: 14, height: 14, borderRadius: '50%', background: 'rgba(212,155,35,0.3)', border: 'none', cursor: 'pointer', color: GOLD, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
                       </>
                     ) : (
                       <span style={{ fontSize: 11, color: '#9C7A63' }}>Slot {i + 1}</span>
@@ -721,8 +734,9 @@ export default function GiftBoxModal() {
                 {displayProds.map(p => {
                   const isSelected = selectedProducts.some(sp => sp.id === p.id)
                   const atMax      = selectedProducts.length >= BOX_MAX
-                  const disabled   = atMax && !isSelected
-                  const catGrad    = CAT_GRADIENT[p.category] || 'linear-gradient(135deg,#f5eee6,#c9956b)'
+                  const soldOut    = Number(p.stock) <= 0
+                  const disabled   = (atMax || soldOut) && !isSelected
+                  const catGrad    = CAT_GRADIENT[p.categories?.[0]] || 'linear-gradient(135deg,#f5eee6,#c9956b)'
                   // Same pricing/rating treatment as ProductCard, compacted for the picker grid:
                   // MRP strike-through + save % only when it's a real discount, stars only when rated.
                   const orig      = Number(p.originalPrice ?? p.origPrice)
@@ -736,12 +750,14 @@ export default function GiftBoxModal() {
                       // Tap opens the product (image gallery + details); adding to the box
                       // happens from the "Add to box" button inside that lightbox.
                       onClick={() => { setPreviewProduct(p); setPreviewIdx(0) }}
+                      role="button" tabIndex={0} aria-label={`View ${p.name}`}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPreviewProduct(p); setPreviewIdx(0) } }}
                       onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.transform = 'translateY(-3px)' }}
                       onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.transform = 'none' }}
                       style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'all 0.2s', opacity: disabled ? 0.55 : 1, transform: isSelected ? 'translateY(-3px)' : 'none' }}>
                       <div style={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: 14, background: catGrad, overflow: 'hidden', marginBottom: 8, boxShadow: isSelected ? `0 0 0 2.5px ${GOLD}, 0 8px 22px rgba(192,138,30,0.22)` : '0 1px 4px rgba(44,26,14,0.08)', transition: 'box-shadow 0.25s ease' }}>
                         {p.imageUrl
-                          ? <img src={p.imageUrl} alt={p.name} draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ? <img src={cloudinaryOptimized(p.imageUrl, 300)} alt={p.name} draggable={false} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                           : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34 }}>{p.emoji}</div>}
                         {p.tag && (
                           <span style={{ position: 'absolute', top: 8, left: 8, padding: '3px 8px', borderRadius: 6, background: '#2C1A0E', color: '#fff', fontSize: 9, fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>
@@ -752,6 +768,11 @@ export default function GiftBoxModal() {
                           <div style={{ position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: '50%', background: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                           </div>
+                        )}
+                        {soldOut && (
+                          <span style={{ position: 'absolute', bottom: 8, left: 8, padding: '3px 8px', borderRadius: 6, background: 'rgba(44,26,14,0.75)', color: '#fff', fontSize: 9, fontWeight: 700, letterSpacing: '0.02em' }}>
+                            Out of stock
+                          </span>
                         )}
                         {/* Hint that the tile opens a gallery; badge shows the image count. */}
                         {p.imageUrls?.length > 1 && (
@@ -797,7 +818,7 @@ export default function GiftBoxModal() {
           {/* Box cover image */}
           <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: selectedCard?.cover || TC, aspectRatio: '16 / 9' }}>
             {selectedCard?.imageUrl ? (
-              <img src={selectedCard.imageUrl} alt={selectedCard.title || 'Selected box'}
+              <img src={cloudinaryOptimized(selectedCard.imageUrl, 600)} alt={selectedCard.title || 'Selected box'}
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
               <>
@@ -825,9 +846,9 @@ export default function GiftBoxModal() {
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(selectedProducts.length, 4)}, 1fr)`, gap: 8 }}>
                 {selectedProducts.map((prod) => (
                   <div key={prod.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ aspectRatio: '1 / 1', borderRadius: 9, overflow: 'hidden', position: 'relative', background: CAT_GRADIENT[prod.category] || 'linear-gradient(135deg,#f5eee6,#c9956b)' }}>
+                    <div style={{ aspectRatio: '1 / 1', borderRadius: 9, overflow: 'hidden', position: 'relative', background: CAT_GRADIENT[prod.categories?.[0]] || 'linear-gradient(135deg,#f5eee6,#c9956b)' }}>
                       {prod.imageUrl
-                        ? <img src={prod.imageUrl} alt={prod.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ? <img src={cloudinaryOptimized(prod.imageUrl, 200)} alt={prod.name} loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                         : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>{prod.emoji}</div>}
                     </div>
                     <span style={{ fontSize: 11, color: '#6B4F3A', lineHeight: 1.25, textAlign: 'center', wordBreak: 'break-word' }}>{prod.name}</span>
@@ -908,7 +929,8 @@ export default function GiftBoxModal() {
         const multi   = urls.length > 1
         const isSel   = selectedProducts.some(sp => sp.id === previewProduct.id)
         const atMax   = selectedProducts.length >= BOX_MAX
-        const catGrad = CAT_GRADIENT[previewProduct.category] || 'linear-gradient(135deg,#f5eee6,#c9956b)'
+        const soldOut = Number(previewProduct.stock) <= 0
+        const catGrad = CAT_GRADIENT[previewProduct.categories?.[0]] || 'linear-gradient(135deg,#f5eee6,#c9956b)'
         const go      = (dir) => setPreviewIdx(i => (i + dir + urls.length) % urls.length)
         return (
           <div onClick={() => setPreviewProduct(null)}
@@ -922,7 +944,7 @@ export default function GiftBoxModal() {
                 onTouchEnd={(e) => { const dx = e.changedTouches[0].clientX - previewTouchX.current; if (multi && Math.abs(dx) > 40) go(dx < 0 ? 1 : -1) }}
                 style={{ position: 'relative', aspectRatio: '1 / 1', background: catGrad, overflow: 'hidden', userSelect: 'none' }}>
                 {urls[idx]
-                  ? <img src={urls[idx]} alt={`${previewProduct.name} — image ${idx + 1}`} draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ? <img src={cloudinaryOptimized(urls[idx], 500)} alt={`${previewProduct.name} — image ${idx + 1}`} draggable={false} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
                   : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 64 }}>{previewProduct.emoji}</div>}
 
                 <button type="button" onClick={() => setPreviewProduct(null)} aria-label="Close"
@@ -962,12 +984,12 @@ export default function GiftBoxModal() {
                 {previewProduct.description && (
                   <p style={{ margin: 0, fontSize: 12.5, color: '#6B4F3A', lineHeight: 1.5, maxHeight: 96, overflowY: 'auto' }}>{previewProduct.description}</p>
                 )}
-                <button type="button" disabled={!isSel && atMax}
+                <button type="button" disabled={!isSel && (atMax || soldOut)}
                   onClick={() => { toggleProduct(previewProduct); setPreviewProduct(null) }}
-                  style={{ height: 42, borderRadius: 11, border: isSel ? `1.5px solid ${GOLD}` : 'none', cursor: (!isSel && atMax) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s',
-                    background: isSel ? 'rgba(192,138,30,0.12)' : (!isSel && atMax) ? 'rgba(0,0,0,0.08)' : 'linear-gradient(135deg,#C4704A,#B05F3C)',
-                    color: isSel ? GOLD : (!isSel && atMax) ? '#9C7A63' : '#fff' }}>
-                  {isSel ? '✓ In your box — remove' : (atMax ? `Box full · ${BOX_MAX} max` : '+ Add to box')}
+                  style={{ height: 42, borderRadius: 11, border: isSel ? `1.5px solid ${GOLD}` : 'none', cursor: (!isSel && (atMax || soldOut)) ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s',
+                    background: isSel ? 'rgba(192,138,30,0.12)' : (!isSel && (atMax || soldOut)) ? 'rgba(0,0,0,0.08)' : 'linear-gradient(135deg,#C4704A,#B05F3C)',
+                    color: isSel ? GOLD : (!isSel && (atMax || soldOut)) ? '#9C7A63' : '#fff' }}>
+                  {isSel ? '✓ In your box — remove' : soldOut ? 'Out of stock' : atMax ? `Box full · ${BOX_MAX} max` : '+ Add to box'}
                 </button>
               </div>
             </div>

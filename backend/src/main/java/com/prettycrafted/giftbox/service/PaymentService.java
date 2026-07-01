@@ -160,10 +160,11 @@ public class PaymentService {
         String message = e.getMessage();
         if (message == null) return false;
         String lower = message.toLowerCase();
+        // Match only unambiguous credential-failure phrasings. Bare substrings
+        // like "auth" or "key" would misclassify unrelated gateway errors (e.g.
+        // "order id key missing") as a 401 credential problem.
         return lower.contains("authentication failed")
-            || lower.contains("auth")
             || lower.contains("unauthorized")
-            || lower.contains("401")
-            || lower.contains("key");
+            || lower.contains("401");
     }
 }

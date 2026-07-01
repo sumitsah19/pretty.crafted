@@ -6,7 +6,6 @@ const uiSlice = createSlice({
     showLogin: false,
     showSearch: false,
     showBoxBuilder: false,
-    showOccasions: false,
     showCheckout: false,
     activeProduct: null,
     activeOccasion: null,
@@ -25,13 +24,11 @@ const uiSlice = createSlice({
     closeSearch: (state) => { state.showSearch = false },
     openBoxBuilder: (state) => { state.showBoxBuilder = true },
     closeBoxBuilder: (state) => { state.showBoxBuilder = false },
-    openOccasions: (state) => { state.showOccasions = true },
-    closeOccasions: (state) => { state.showOccasions = false },
     openCheckout: (state) => { state.showCheckout = true },
     closeCheckout: (state) => { state.showCheckout = false },
     setActiveProduct: (state, action) => { state.activeProduct = action.payload },
     clearActiveProduct: (state) => { state.activeProduct = null },
-    setActiveOccasion: (state, action) => { state.activeOccasion = action.payload; state.showOccasions = false },
+    setActiveOccasion: (state, action) => { state.activeOccasion = action.payload },
     clearActiveOccasion: (state) => { state.activeOccasion = null },
     // Optional payload: the screen to open on, e.g. openUserAccount('orders')
     openUserAccount: (state, action) => { state.showUserAccount = true; state.userAccountView = action.payload || 'home' },
@@ -51,7 +48,6 @@ export const {
   openLogin, closeLogin,
   openSearch, closeSearch,
   openBoxBuilder, closeBoxBuilder,
-  openOccasions, closeOccasions,
   openCheckout, closeCheckout,
   setActiveProduct, clearActiveProduct,
   setActiveOccasion, clearActiveOccasion,
@@ -65,4 +61,5 @@ export const {
 export const selectUI = (state) => state.ui
 export const selectCartOpen = (state) => state.ui.cartOpen
 export const selectWishlistOpen = (state) => state.ui.wishlistOpen
+export const selectUserAccountView = (state) => state.ui.userAccountView
 export default uiSlice.reducer

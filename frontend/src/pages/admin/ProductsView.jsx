@@ -1,55 +1,66 @@
 import { useState, useEffect } from 'react'
-import { productAdminApi, categoriesApi, productsApi, uploadApi } from '../../api/services'
+import { useDispatch, useSelector } from 'react-redux'
+import { productAdminApi, productsApi, uploadApi } from '../../api/services'
+import { fetchCategories, selectCategories } from '../../store/slices/categoriesSlice'
 import { TC, DARK, MID, LIGHT, BEIGE, CREAM, SectionHeader } from './shared'
+
+// The homepage hero carousel has exactly 3 fixed slots (see Hero.jsx's CARDS).
+// A product can feature in at most one at a time; leaving it unset falls back
+// to a recipient/category heuristic on the storefront so a slot is never empty.
+const HERO_SLOTS = [
+  ['family', 'For the Family'],
+  ['her', 'Gifts for Her'],
+  ['accessories', 'Fine Accessories'],
+]
+const heroSlotLabel = (slot) => HERO_SLOTS.find(([v]) => v === slot)?.[1]
 
 // ─── PRODUCTS VIEW ─────────────────────────────────────────────────
 export default function ProductsView({ onToast }) {
+  const dispatch = useDispatch()
+  // Categories come from the shared cache (fetched once, reused across admin tabs).
+  const categories = useSelector(selectCategories)
   const [products, setProducts] = useState([])
-  const [categories, setCategories] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [editItem, setEditItem] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', materials: '', care: '', shippingAndReturns: '', price: '', originalPrice: '', rating: '', reviewCount: '', stock: '', categoryId: '', imageUrls: [], tag: '', recipient: '' })
+  const [form, setForm] = useState({ name: '', description: '', materials: '', care: '', shippingAndReturns: '', price: '', originalPrice: '', stock: '', categoryIds: [], imageUrls: [], tag: '', recipients: [], heroSlot: '' })
+
+  useEffect(() => { dispatch(fetchCategories()) }, [dispatch])
 
   useEffect(() => {
-    Promise.all([
-      productsApi.list({ size: 100 }),
-      categoriesApi.list(),
-    ]).then(([pRes, cRes]) => {
-      setProducts(pRes.data?.content || pRes.data || [])
-      setCategories(cRes.data || [])
-    }).catch((err) => {
-      onToast(err.response?.data?.message || 'Failed to load products')
-    }).finally(() => setLoading(false))
+    productsApi.list({ size: 100 })
+      .then((pRes) => setProducts(pRes.data?.content || pRes.data || []))
+      .catch((err) => onToast(err.response?.data?.message || 'Failed to load products'))
+      .finally(() => setLoading(false))
   }, [onToast])
 
   const [lowStockOnly, setLowStockOnly] = useState(false)
 
   const filtered = products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.categoryName || '').toLowerCase().includes(search.toLowerCase())
+      (p.categoryNames || []).some(n => n.toLowerCase().includes(search.toLowerCase()))
     const matchStock = !lowStockOnly || p.stock <= 5
     return matchSearch && matchStock
   })
 
   const openAdd = () => {
     setEditItem(null)
-    setForm({ name: '', description: '', materials: '', care: '', shippingAndReturns: '', price: '', originalPrice: '', rating: '', reviewCount: '', stock: '', categoryId: categories[0]?.id || '', imageUrls: [], tag: '', recipient: '' })
+    setForm({ name: '', description: '', materials: '', care: '', shippingAndReturns: '', price: '', originalPrice: '', stock: '', categoryIds: [], imageUrls: [], tag: '', recipients: [], heroSlot: '' })
     setShowAdd(true)
   }
   const openEdit = (p) => {
     setEditItem(p)
-    setForm({ name: p.name, description: p.description || '', materials: p.materials || '', care: p.care || '', shippingAndReturns: p.shippingAndReturns || '', price: p.price, originalPrice: p.originalPrice ?? '', rating: p.rating ?? '', reviewCount: p.reviewCount ?? '', stock: p.stock, categoryId: p.categoryId, imageUrls: p.imageUrls?.length ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []), tag: p.tag || '', recipient: p.recipient || '' })
+    setForm({ name: p.name, description: p.description || '', materials: p.materials || '', care: p.care || '', shippingAndReturns: p.shippingAndReturns || '', price: p.price, originalPrice: p.originalPrice ?? '', stock: p.stock, categoryIds: p.categoryIds || [], imageUrls: p.imageUrls?.length ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []), tag: p.tag || '', recipients: p.recipients || [], heroSlot: p.heroSlot || '' })
     setShowAdd(true)
   }
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const payload = { name: form.name, description: form.description, materials: form.materials, care: form.care, shippingAndReturns: form.shippingAndReturns, price: Number(form.price), originalPrice: form.originalPrice === '' ? null : Number(form.originalPrice), rating: form.rating === '' ? null : Math.round(Number(form.rating) * 10) / 10, reviewCount: form.reviewCount === '' ? null : Number(form.reviewCount), stock: Number(form.stock), categoryId: Number(form.categoryId), imageUrls: form.imageUrls, tag: form.tag, recipient: form.recipient }
+      const payload = { name: form.name, description: form.description, materials: form.materials, care: form.care, shippingAndReturns: form.shippingAndReturns, price: Number(form.price), originalPrice: form.originalPrice === '' ? null : Number(form.originalPrice), stock: Number(form.stock), categoryIds: form.categoryIds.map(Number), imageUrls: form.imageUrls, tag: form.tag, recipients: form.recipients, heroSlot: form.heroSlot || null }
       if (editItem) {
         const { data } = await productAdminApi.update(editItem.id, payload)
         setProducts(ps => ps.map(p => p.id === data.id ? data : p))
@@ -121,8 +132,9 @@ export default function ProductsView({ onToast }) {
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ fontWeight: 600, color: DARK }}>{p.name}</div>
                     {p.imageUrl && <div style={{ fontSize: 10, color: LIGHT, marginTop: 2, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.imageUrl}</div>}
+                    {p.heroSlot && <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 700, background: '#FDF1EA', color: TC, padding: '2px 7px', borderRadius: 99, marginTop: 4 }}>🎠 {heroSlotLabel(p.heroSlot)}</span>}
                   </td>
-                  <td style={{ padding: '14px 16px', color: MID }}>{p.categoryName}</td>
+                  <td style={{ padding: '14px 16px', color: MID }}>{(p.categoryNames || []).join(', ')}</td>
                   <td style={{ padding: '14px 16px', fontWeight: 700, color: TC }}>₹{Number(p.price).toLocaleString()}</td>
                   <td style={{ padding: '14px 16px' }}>
                     <span style={{ fontWeight: 600, color: p.stock <= 5 ? '#A02A2A' : DARK }}>{p.stock}</span>
@@ -153,7 +165,7 @@ export default function ProductsView({ onToast }) {
           <div style={{ background: CREAM, borderRadius: 24, padding: '32px 28px', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(44,26,14,0.2)', animation: 'fadeUp 0.25s ease' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700 }}>{editItem ? 'Edit Product' : 'Add Product'}</div>
-              <button onClick={() => { setShowAdd(false); setEditItem(null) }} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
+              <button onClick={() => { setShowAdd(false); setEditItem(null) }} aria-label="Close" style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
             </div>
             {[
               { label: 'Product Name', key: 'name', type: 'text' },
@@ -163,8 +175,6 @@ export default function ProductsView({ onToast }) {
               { label: 'Shipping & Returns', key: 'shippingAndReturns', type: 'textarea', hint: 'Shown in the Shipping & Returns tab. Line breaks are preserved.' },
               { label: 'Price (₹)', key: 'price', type: 'number' },
               { label: 'Original Price / MRP (₹)', key: 'originalPrice', type: 'number', hint: 'Optional. Shown struck-through with a Save % badge when higher than the price.' },
-              { label: 'Rating (0–5)', key: 'rating', type: 'number', hint: 'Optional. Average star rating shown on the product card.' },
-              { label: 'Review count', key: 'reviewCount', type: 'number', hint: 'Optional. Number of reviews shown next to the stars.' },
               { label: 'Stock', key: 'stock', type: 'number' },
             ].map(({ label, key, type, hint }) => (
               <div key={key} style={{ marginBottom: 14 }}>
@@ -194,16 +204,34 @@ export default function ProductsView({ onToast }) {
               </select>
             </div>
 
-            {/* Recipient dropdown */}
+            {/* Recipients — a product can target more than one; none checked shows for everyone. */}
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Recipient</label>
-              <select value={form.recipient} onChange={e => setForm(f => ({ ...f, recipient: e.target.value }))}
+              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Recipients</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[['her', 'Her'], ['him', 'Him'], ['kids', 'Kids']].map(([value, label]) => {
+                  const checked = form.recipients.includes(value)
+                  return (
+                    <label key={value} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 99, border: `1.5px solid ${checked ? TC : BEIGE}`, background: checked ? '#FDF1EA' : 'white', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={checked}
+                        onChange={e => setForm(f => ({ ...f, recipients: e.target.checked ? [...f.recipients, value] : f.recipients.filter(r => r !== value) }))}
+                        style={{ width: 14, height: 14, accentColor: TC, cursor: 'pointer' }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: checked ? TC : DARK }}>{label}</span>
+                    </label>
+                  )
+                })}
+              </div>
+              <div style={{ fontSize: 10, color: LIGHT, marginTop: 6 }}>Leave all unchecked to show for everyone.</div>
+            </div>
+
+            {/* Homepage hero carousel — one of the 3 fixed card slots, or none. */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Homepage Hero Card</label>
+              <select value={form.heroSlot} onChange={e => setForm(f => ({ ...f, heroSlot: e.target.value }))}
                 style={{ ...inp, cursor: 'pointer' }}>
-                <option value="all">All</option>
-                <option value="her">Her</option>
-                <option value="him">Him</option>
-                <option value="kids">Kids</option>
+                <option value="">— Not featured —</option>
+                {HERO_SLOTS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
+              <div style={{ fontSize: 10, color: LIGHT, marginTop: 6 }}>Feature this product in one of the 3 homepage hero cards' product grid.</div>
             </div>
 
             {/* Multi-image upload */}
@@ -223,6 +251,7 @@ export default function ProductsView({ onToast }) {
                           <img src={url} alt={`Product ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                           {i === 0 && <span style={{ position: 'absolute', top: 6, left: 6, background: TC, color: 'white', fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 99 }}>Primary</span>}
                           <button onClick={() => setForm(f => ({ ...f, imageUrls: f.imageUrls.filter((_, idx) => idx !== i) }))}
+                            aria-label={`Remove image ${i + 1}`}
                             style={{ position: 'absolute', top: 5, right: 5, background: 'rgba(44,26,14,0.65)', border: 'none', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', color: 'white', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
                         </div>
                       ) : (
@@ -244,15 +273,26 @@ export default function ProductsView({ onToast }) {
               </div>
               {form.imageUrls.length > 0 && <div style={{ fontSize: 11, color: LIGHT, marginTop: 8 }}>First image is primary. Click × to remove.</div>}
             </div>
+            {/* Categories — a product can belong to more than one (e.g. a scented
+                candle listed under both "Candles & Scents" and "Hampers"). */}
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Category</label>
-              <select value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
-                style={{ ...inp, cursor: 'pointer' }}>
-                <option value="">Select category…</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <label style={{ fontSize: 11, fontWeight: 700, color: MID, display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Categories</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {categories.map(c => {
+                  const checked = form.categoryIds.includes(c.id)
+                  return (
+                    <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 99, border: `1.5px solid ${checked ? TC : BEIGE}`, background: checked ? '#FDF1EA' : 'white', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={checked}
+                        onChange={e => setForm(f => ({ ...f, categoryIds: e.target.checked ? [...f.categoryIds, c.id] : f.categoryIds.filter(id => id !== c.id) }))}
+                        style={{ width: 14, height: 14, accentColor: TC, cursor: 'pointer' }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: checked ? TC : DARK }}>{c.name}</span>
+                    </label>
+                  )
+                })}
+              </div>
+              {!form.categoryIds.length && <div style={{ fontSize: 10, color: '#A02A2A', marginTop: 6 }}>Select at least one category.</div>}
             </div>
-            <button onClick={handleSave} disabled={saving || !form.name || !form.price || !form.stock || !form.categoryId}
+            <button onClick={handleSave} disabled={saving || !form.name || !form.price || !form.stock || !form.categoryIds.length}
               style={{ width: '100%', padding: 13, borderRadius: 99, border: 'none', background: saving ? BEIGE : TC, color: saving ? LIGHT : 'white', fontWeight: 700, fontSize: 14, cursor: saving ? 'default' : 'pointer', marginTop: 8 }}>
               {saving ? 'Saving…' : editItem ? 'Save Changes' : 'Add to Catalogue'}
             </button>

@@ -37,10 +37,14 @@ export default function SEO({
           '@type': 'Offer',
           price: product.price,
           priceCurrency: 'INR',
-          availability: 'https://schema.org/InStock',
+          // Reflect real stock — advertising sold-out items as InStock is a
+          // rich-result policy violation. Unknown stock is assumed available.
+          availability: Number(product.stock) <= 0
+            ? 'https://schema.org/OutOfStock'
+            : 'https://schema.org/InStock',
           seller: { '@type': 'Organization', name: SITE_NAME },
         },
-        ...(product.category && { category: product.category }),
+        ...(product.categories?.[0] && { category: product.categories[0] }),
       }
     : null
 

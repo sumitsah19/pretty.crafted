@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { TC, DARK, MID, LIGHT, BEIGE, BG, Toast } from './admin/shared'
 import DashboardView from './admin/DashboardView'
 import ProductsView from './admin/ProductsView'
@@ -69,7 +69,7 @@ function Sidebar({ active, setActive, collapsed, setCollapsed, isMobile, mobileO
 
         {/* Back to store */}
         <div style={{ padding: collapsed && !isMobile ? '16px 0' : '16px 20px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-          <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', justifyContent: collapsed && !isMobile ? 'center' : 'flex-start' }}>
+          <a href="/" aria-label="Back to Store" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', justifyContent: collapsed && !isMobile ? 'center' : 'flex-start' }}>
             <span style={{ fontSize: 14, color: MID }}>←</span>
             {(!collapsed || isMobile) && <span style={{ fontSize: 12, color: MID, fontWeight: 500 }}>Back to Store</span>}
           </a>
@@ -86,6 +86,7 @@ export default function AdminPage() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [toast, setToast] = useState(null)
   const [ww, setWw] = useState(window.innerWidth)
+  const today = useMemo(() => new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), [])
 
   useEffect(() => {
     const r = () => setWw(window.innerWidth)
@@ -134,7 +135,7 @@ export default function AdminPage() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div style={{ fontSize: 12, color: LIGHT, background: '#F5EEE6', padding: '5px 12px', borderRadius: 99, fontWeight: 500 }}>May 20, 2026</div>
+            <div style={{ fontSize: 12, color: LIGHT, background: '#F5EEE6', padding: '5px 12px', borderRadius: 99, fontWeight: 500 }}>{today}</div>
             <div style={{ width: 34, height: 34, borderRadius: '50%', background: TC, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>A</div>
           </div>
         </header>

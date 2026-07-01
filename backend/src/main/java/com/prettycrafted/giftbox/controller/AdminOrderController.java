@@ -26,8 +26,9 @@ public class AdminOrderController {
 
     @GetMapping
     public Page<OrderDto> list(@RequestParam(required = false) OrderStatus status,
+                               @RequestParam(required = false) String q,
                                @PageableDefault(size = 20) Pageable pageable) {
-        return service.adminListOrders(status, pageable);
+        return service.adminListOrders(status, q, pageable);
     }
 
     @PatchMapping("/{id}/status")

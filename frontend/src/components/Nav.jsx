@@ -1,15 +1,27 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { selectIsLoggedIn, selectUser } from '../store/slices/authSlice'
 import { selectCartCount } from '../store/slices/cartSlice'
 import { selectWishlistIds } from '../store/slices/wishlistSlice'
 import { openLogin, openSearch, openBoxBuilder, openUserAccount, openCart, openWishlist, selectUI } from '../store/slices/uiSlice'
 import { useWindowWidth } from '../hooks/useWindowWidth'
+import ContactSupportSheet from './ContactSupportSheet'
 
 const TC = '#C4704A'
 
 export default function Nav({ onScrollTo }) {
   const dispatch = useDispatch()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+
+  // Router-aware home navigation: raw history.pushState would change the URL
+  // without React Router noticing, leaving route-driven state (SEO tags, route
+  // matching) stuck on the previous page.
+  const goHome = () => {
+    if (pathname !== '/') navigate('/')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
   const isLoggedIn = useSelector(selectIsLoggedIn)
   const user = useSelector(selectUser)
   const cartCount = useSelector(selectCartCount)
@@ -23,6 +35,7 @@ export default function Nav({ onScrollTo }) {
   const [scrolled, setScrolled] = useState(false)
   const [isSticky, setIsSticky] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [contactOpen, setContactOpen] = useState(false)
   const sentinelRef = useRef(null)
 
   const navHeight = isMobile ? 60 : 72
@@ -61,6 +74,20 @@ export default function Nav({ onScrollTo }) {
   ]
 
   const showSolid = isSticky || scrolled || (isMobile && mobileOpen) || overlayOpen
+
+  // Lock background scroll while the full-screen mobile menu is open, and let
+  // Escape close it — same convention as the app's other full-screen overlays.
+  useEffect(() => {
+    if (!isMobile || !mobileOpen) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e) => { if (e.key === 'Escape') setMobileOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [isMobile, mobileOpen])
 
   return (
     <>
@@ -118,11 +145,7 @@ export default function Nav({ onScrollTo }) {
 
             {/* CENTER — Logo (crawlable home link + brand entity signal) */}
             <a href="/" aria-label="Prettycrafted home"
-              onClick={(e) => {
-                e.preventDefault()
-                if (window.location.pathname !== '/') window.history.pushState({}, '', '/')
-                window.scrollTo({ top: 0, behavior: 'smooth' })
-              }}
+              onClick={(e) => { e.preventDefault(); goHome() }}
               style={{ fontFamily: "'Playfair Display',serif", fontSize: isMobile ? 20 : 24, fontWeight: 700, color: '#2C1A0E', letterSpacing: '-0.02em', whiteSpace: 'nowrap', cursor: 'pointer', textDecoration: 'none' }}>
               Prettycrafted
             </a>
@@ -192,28 +215,42 @@ export default function Nav({ onScrollTo }) {
         </nav>
       </div>
 
-      {/* Mobile Dropdown */}
+      {/* Full-screen mobile navigation panel — an opaque, edge-to-edge takeover
+          of the viewport (its own header + close button), not a floating
+          dropdown card or a `.modal-backdrop` overlay. */}
       {isMobile && mobileOpen && (
-        <div style={{
+        <div className="animate-slide-right" style={{
           position: 'fixed',
-          top: navHeight,
-          left: 0, right: 0,
-          zIndex: 199,
-          maxHeight: `calc(100vh - ${navHeight}px)`,
-          overflowY: 'auto',
-          background: 'rgba(250,247,242,0.98)',
-          backdropFilter: 'blur(16px)',
-          borderBottom: '1px solid #EDE4D8',
-          boxShadow: '0 12px 30px rgba(44,26,14,0.12)',
-          animation: 'slideDown 0.22s ease',
+          inset: 0,
+          zIndex: 250,
+          background: '#FAF7F2',
+          display: 'flex',
+          flexDirection: 'column',
         }}>
-          <div style={{ padding: '8px 16px 16px', paddingTop: 40 }}>
+          {/* Panel header — same height as the nav bar so open/close feels continuous */}
+          <div style={{ height: navHeight, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', borderBottom: '1px solid #EDE4D8' }}>
+            <a href="/" aria-label="Prettycrafted home"
+              onClick={(e) => { e.preventDefault(); setMobileOpen(false); goHome() }}
+              style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: '#2C1A0E', letterSpacing: '-0.02em', textDecoration: 'none' }}>
+              Prettycrafted
+            </a>
+            <button onClick={() => setMobileOpen(false)} aria-label="Close menu"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, flexShrink: 0 }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2C1A0E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Panel body — fills the rest of the screen, scrolls internally if needed */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 16px 32px' }} className="no-scrollbar">
             {/* Quick-action tiles */}
-            <div style={{ display: 'flex', gap: 8, paddingBottom: 12, marginBottom: 8, borderBottom: '1px solid #EDE4D8' }}>
+            <div style={{ display: 'flex', gap: 8, paddingBottom: 16, marginBottom: 16, borderBottom: '1px solid #EDE4D8' }}>
               {[
                 { label: isLoggedIn ? 'Account' : 'Sign In', icon: <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>, action: () => { setMobileOpen(false); setTimeout(() => isLoggedIn ? dispatch(openUserAccount()) : dispatch(openLogin()), 100) } },
                 { label: 'Wish List', icon: <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />, action: () => { setMobileOpen(false); setTimeout(() => dispatch(openWishlist()), 100) } },
                 { label: 'Gift Finder', icon: <><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>, action: () => { setMobileOpen(false); setTimeout(() => dispatch(openSearch()), 100) } },
+                { label: 'Help', icon: <><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></>, action: () => { setMobileOpen(false); setTimeout(() => dispatch(openUserAccount('help')), 100) } },
               ].map(q => (
                 <button key={q.label} onClick={q.action}
                   style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '12px 4px', background: 'white', border: '1px solid #EDE4D8', borderRadius: 14, cursor: 'pointer', minHeight: 64 }}>
@@ -232,14 +269,42 @@ export default function Nav({ onScrollTo }) {
                 <svg style={{ marginLeft: 'auto' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9C7A63" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
               </a>
             ))}
-            <a href="/gift-boxes" onClick={e => { e.preventDefault(); setMobileOpen(false); dispatch(openBoxBuilder()) }}
-              style={{ marginTop: 12, display: 'block', width: '100%', padding: '14px', borderRadius: 12, background: TC, color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 4px 16px rgba(196,112,74,0.3)', textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box' }}>
-              🎁 Build a Gift Box
-            </a>
+            {/* Need Help? — same box footprint as the old Build a Gift Box CTA
+                (size/position/padding/radius), now a clean white section. */}
+            <div style={{ marginTop: 12, width: '100%', padding: '14px', borderRadius: 12, background: 'white', border: '1px solid #EDE4D8', boxShadow: '0 2px 12px rgba(44,26,14,0.06)', boxSizing: 'border-box', textAlign: 'center' }}>
+              <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700, color: '#2C1A0E', marginBottom: 12 }}>Need Help?</div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <HelpOutlineButton onClick={() => { setMobileOpen(false); setTimeout(() => dispatch(openUserAccount('help')), 100) }}>
+                  Help Center
+                </HelpOutlineButton>
+                <HelpOutlineButton onClick={() => setContactOpen(true)}>
+                  Contact Us
+                </HelpOutlineButton>
+              </div>
+            </div>
           </div>
         </div>
       )}
+
+      <ContactSupportSheet open={contactOpen} onClose={() => setContactOpen(false)} />
     </>
+  )
+}
+
+function HelpOutlineButton({ onClick, children }) {
+  const [hover, setHover] = useState(false)
+  return (
+    <button onClick={onClick}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      onTouchStart={() => setHover(true)} onTouchEnd={() => setHover(false)}
+      style={{
+        flex: 1, padding: '11px 0', borderRadius: 99, border: `1.5px solid ${TC}`,
+        background: hover ? TC : 'white', color: hover ? 'white' : TC,
+        fontWeight: 700, fontSize: 13.5, letterSpacing: '0.01em', cursor: 'pointer',
+        transition: 'all 0.2s', transform: hover ? 'scale(0.97)' : 'scale(1)',
+      }}>
+      {children}
+    </button>
   )
 }
 

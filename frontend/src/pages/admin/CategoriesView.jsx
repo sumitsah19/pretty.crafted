@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import { categoriesApi } from '../../api/services'
+import { fetchCategories, setCategories, selectCategories, selectCategoriesLoaded } from '../../store/slices/categoriesSlice'
 import { TC, DARK, MID, LIGHT, BEIGE, CREAM, SectionHeader } from './shared'
 
 // ─── CATEGORIES VIEW ───────────────────────────────────────────────
 export default function CategoriesView({ onToast }) {
-  const [cats, setCats] = useState([])
-  const [loading, setLoading] = useState(true)
+  const dispatch = useDispatch()
+  // Shared cache — this view owns category mutations, so it fetches once and
+  // pushes every change back into the store (keeps ProductsView & the footer in sync).
+  const cats = useSelector(selectCategories)
+  const loaded = useSelector(selectCategoriesLoaded)
+  const loading = !loaded
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState(null)
@@ -13,12 +19,7 @@ export default function CategoriesView({ onToast }) {
 
   const inp = { width: '100%', padding: '10px 14px', borderRadius: 12, border: `1.5px solid ${BEIGE}`, fontSize: 13, background: 'white', fontFamily: "'DM Sans',sans-serif", outline: 'none', color: DARK }
 
-  useEffect(() => {
-    categoriesApi.list()
-      .then(({ data }) => setCats(data || []))
-      .catch(() => onToast('Failed to load categories'))
-      .finally(() => setLoading(false))
-  }, [onToast])
+  useEffect(() => { dispatch(fetchCategories()) }, [dispatch])
 
   const autoSlug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
@@ -39,11 +40,11 @@ export default function CategoriesView({ onToast }) {
     try {
       if (editItem) {
         const { data } = await categoriesApi.update(editItem.id, form)
-        setCats(cs => cs.map(c => c.id === data.id ? data : c))
+        dispatch(setCategories(cats.map(c => c.id === data.id ? data : c)))
         onToast('Category updated')
       } else {
         const { data } = await categoriesApi.create(form)
-        setCats(cs => [...cs, data])
+        dispatch(setCategories([...cats, data]))
         onToast('Category added')
       }
       setShowForm(false)
@@ -56,7 +57,7 @@ export default function CategoriesView({ onToast }) {
     if (!window.confirm('Delete this category? Products in it will be affected.')) return
     try {
       await categoriesApi.remove(id)
-      setCats(cs => cs.filter(c => c.id !== id))
+      dispatch(setCategories(cats.filter(c => c.id !== id)))
       onToast('Category deleted')
     } catch { onToast('Delete failed') }
   }
@@ -92,7 +93,7 @@ export default function CategoriesView({ onToast }) {
           <div style={{ background: CREAM, borderRadius: 24, padding: '32px 28px', width: '100%', maxWidth: 440, boxShadow: '0 24px 64px rgba(44,26,14,0.2)', animation: 'fadeUp 0.25s ease' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700 }}>{editItem ? 'Edit Category' : 'Add Category'}</div>
-              <button onClick={() => setShowForm(false)} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
+              <button onClick={() => setShowForm(false)} aria-label="Close" style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
             </div>
             {[
               { label: 'Name', key: 'name' },

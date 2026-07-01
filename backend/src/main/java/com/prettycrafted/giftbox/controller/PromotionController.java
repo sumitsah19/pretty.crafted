@@ -1,6 +1,6 @@
 package com.prettycrafted.giftbox.controller;
 
-import com.prettycrafted.giftbox.dto.CouponDto;
+import com.prettycrafted.giftbox.dto.PublicCouponDto;
 import com.prettycrafted.giftbox.service.CouponService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +19,7 @@ public class PromotionController {
     private final CouponService couponService;
 
     @GetMapping
-    public List<CouponDto> activePromotions() {
+    public List<PublicCouponDto> activePromotions() {
         return couponService.listActive();
     }
 }

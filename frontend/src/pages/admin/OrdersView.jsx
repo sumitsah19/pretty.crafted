@@ -3,12 +3,17 @@ import { adminApi } from '../../api/services'
 import { TC, DARK, MID, LIGHT, BEIGE, CREAM, Badge, SectionHeader } from './shared'
 
 // ─── ORDER DETAIL MODAL ────────────────────────────────────────────
+// An unpaid online (Razorpay) order only advances via a verified payment —
+// the backend rejects admin advancing it (it can only be cancelled). Mirror
+// that here so the button isn't a guaranteed error.
+const nextStatus = (o) => {
+  if (o.razorpayOrderId && o.paymentStatus !== 'SUCCESS') return null
+  const map = { PENDING: 'PAID', PAID: 'SHIPPED', SHIPPED: 'DELIVERED' }
+  return map[o.status] || null
+}
+
 function OrderDetailModal({ order, onClose, onUpdateStatus, onUpdateTracking, updatingId, savingTracking }) {
-  const nextStatus = (status) => {
-    const map = { PENDING: 'PAID', PAID: 'SHIPPED', SHIPPED: 'DELIVERED' }
-    return map[status] || null
-  }
-  const next = nextStatus(order.status)
+  const next = nextStatus(order)
 
   const [courier, setCourier] = useState(order.courier || '')
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || '')
@@ -25,7 +30,7 @@ function OrderDetailModal({ order, onClose, onUpdateStatus, onUpdateTracking, up
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: DARK }}>Order #{order.id}</div>
             <div style={{ fontSize: 12, color: LIGHT, marginTop: 2 }}>{order.createdAt ? new Date(order.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</div>
           </div>
-          <button onClick={onClose} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', fontSize: 18, color: MID, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          <button onClick={onClose} aria-label="Close" style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', fontSize: 18, color: MID, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
 
         <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -33,7 +38,8 @@ function OrderDetailModal({ order, onClose, onUpdateStatus, onUpdateTracking, up
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <Badge status={order.status?.toLowerCase()} />
             <span style={{ fontSize: 12, color: LIGHT }}>Payment:</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: order.paymentStatus === 'PAID' ? '#2A7A3B' : order.paymentStatus === 'FAILED' ? '#A02A2A' : MID }}>{order.paymentStatus}</span>
+            {/* PaymentStatus enum: PENDING | SUCCESS | FAILED | REFUNDED */}
+            <span style={{ fontSize: 12, fontWeight: 600, color: order.paymentStatus === 'SUCCESS' ? '#2A7A3B' : order.paymentStatus === 'FAILED' ? '#A02A2A' : MID }}>{order.paymentStatus}</span>
           </div>
 
           {/* Customer */}
@@ -141,23 +147,28 @@ export default function OrdersView({ onToast }) {
   const [savingTracking, setSavingTracking] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState(null)
 
-  const STATUS_FILTERS = ['all', 'PENDING', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+  // Must mirror the backend OrderStatus enum exactly — an unknown value makes
+  // the status query 400 and the list silently go stale.
+  const STATUS_FILTERS = ['all', 'PENDING', 'PAID', 'SHIPPED', 'DELIVERED', 'CANCELLED']
 
-  const fetchOrders = useCallback(async (status) => {
+  const fetchOrders = useCallback(async (status, q) => {
     setLoading(true)
     try {
-      const params = status !== 'all' ? { status, size: 50 } : { size: 50 }
+      const params = { size: 50 }
+      if (status !== 'all') params.status = status
+      if (q && q.trim()) params.q = q.trim()
       const { data } = await adminApi.orders(params)
       setOrders(data?.content || [])
     } catch { /* keep previous list on failure */ } finally { setLoading(false) }
   }, [])
 
-  // Deferred a tick so fetchOrders' setLoading(true) is an async side effect,
-  // not a synchronous setState inside the effect body.
+  // Debounced so every keystroke doesn't fire a request; also re-runs on
+  // filter change. Search is server-side — filtering only the ~50 orders
+  // already loaded on this page would miss anything outside that page.
   useEffect(() => {
-    const t = setTimeout(() => fetchOrders(filter), 0)
+    const t = setTimeout(() => fetchOrders(filter, search), search ? 300 : 0)
     return () => clearTimeout(t)
-  }, [filter, fetchOrders])
+  }, [filter, search, fetchOrders])
 
   const updateStatus = async (id, newStatus) => {
     setUpdatingId(id)
@@ -179,11 +190,6 @@ export default function OrdersView({ onToast }) {
     } catch { onToast('Tracking update failed') } finally { setSavingTracking(false) }
   }
 
-  const nextStatus = (status) => {
-    const map = { PENDING: 'PAID', PAID: 'SHIPPED', SHIPPED: 'DELIVERED' }
-    return map[status] || null
-  }
-
   return (
     <div>
       <SectionHeader title="Orders" sub={loading ? 'Loading…' : `${orders.length} orders`} />
@@ -201,12 +207,8 @@ export default function OrdersView({ onToast }) {
         ))}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {orders.filter(o => {
-          if (!search.trim()) return true
-          const q = search.toLowerCase()
-          return String(o.id).includes(q) || (o.userName || '').toLowerCase().includes(q) || (o.userEmail || '').toLowerCase().includes(q)
-        }).map((o, i) => {
-          const next = nextStatus(o.status)
+        {orders.map((o, i) => {
+          const next = nextStatus(o)
           return (
             <div key={o.id} onClick={() => setSelectedOrder(o)} style={{ background: 'white', borderRadius: 18, padding: '18px 22px', border: `1px solid ${BEIGE}`, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', boxShadow: '0 2px 8px rgba(44,26,14,0.04)', animation: 'fadeUp 0.4s ease forwards', animationDelay: `${i * 0.03}s`, cursor: 'pointer', transition: 'box-shadow 0.15s' }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(44,26,14,0.1)'}
@@ -240,11 +242,7 @@ export default function OrdersView({ onToast }) {
             </div>
           )
         })}
-        {!loading && orders.filter(o => {
-          if (!search.trim()) return true
-          const q = search.toLowerCase()
-          return String(o.id).includes(q) || (o.userName || '').toLowerCase().includes(q) || (o.userEmail || '').toLowerCase().includes(q)
-        }).length === 0 && (
+        {!loading && orders.length === 0 && (
           <div style={{ textAlign: 'center', padding: '48px', color: LIGHT, background: 'white', borderRadius: 18, border: `1px solid ${BEIGE}` }}>No orders found</div>
         )}
       </div>

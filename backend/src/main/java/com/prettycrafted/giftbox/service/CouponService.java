@@ -3,6 +3,7 @@ package com.prettycrafted.giftbox.service;
 import com.prettycrafted.giftbox.domain.Coupon;
 import com.prettycrafted.giftbox.dto.CouponDto;
 import com.prettycrafted.giftbox.dto.CouponRequest;
+import com.prettycrafted.giftbox.dto.PublicCouponDto;
 import com.prettycrafted.giftbox.exception.BadRequestException;
 import com.prettycrafted.giftbox.exception.ConflictException;
 import com.prettycrafted.giftbox.exception.NotFoundException;
@@ -27,9 +28,10 @@ public class CouponService {
         return repo.findAllByOrderByCreatedAtDesc().stream().map(CouponDto::from).toList();
     }
 
+    /** Public storefront shape — see {@link PublicCouponDto} for what's withheld. */
     @Transactional(readOnly = true)
-    public List<CouponDto> listActive() {
-        return repo.findByActiveTrueOrderByCreatedAtDesc().stream().map(CouponDto::from).toList();
+    public List<PublicCouponDto> listActive() {
+        return repo.findByActiveTrueOrderByCreatedAtDesc().stream().map(PublicCouponDto::from).toList();
     }
 
     public CouponDto create(CouponRequest req) {
@@ -48,10 +50,10 @@ public class CouponService {
         return CouponDto.from(repo.save(coupon));
     }
 
-    /** Checks a code without consuming a use — backs the checkout "Apply" button. */
+    /** Checks a code without consuming a use — backs the checkout "Apply" button (public endpoint). */
     @Transactional(readOnly = true)
-    public CouponDto validate(String code) {
-        return CouponDto.from(requireRedeemable(code));
+    public PublicCouponDto validate(String code) {
+        return PublicCouponDto.from(requireRedeemable(code));
     }
 
     /**

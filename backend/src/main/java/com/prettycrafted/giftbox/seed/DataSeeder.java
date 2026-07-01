@@ -2,8 +2,6 @@ package com.prettycrafted.giftbox.seed;
 
 import com.prettycrafted.giftbox.domain.Category;
 import com.prettycrafted.giftbox.domain.Faq;
-import com.prettycrafted.giftbox.domain.HeroCard;
-import com.prettycrafted.giftbox.domain.HeroCardType;
 import com.prettycrafted.giftbox.domain.Occasion;
 import com.prettycrafted.giftbox.domain.Policy;
 import com.prettycrafted.giftbox.domain.Product;
@@ -11,14 +9,19 @@ import com.prettycrafted.giftbox.domain.Role;
 import com.prettycrafted.giftbox.domain.User;
 import com.prettycrafted.giftbox.repository.CategoryRepository;
 import com.prettycrafted.giftbox.repository.FaqRepository;
-import com.prettycrafted.giftbox.repository.HeroCardRepository;
 import com.prettycrafted.giftbox.repository.OccasionRepository;
 import com.prettycrafted.giftbox.repository.PolicyRepository;
 import com.prettycrafted.giftbox.repository.ProductRepository;
+import com.prettycrafted.giftbox.repository.ReviewRepository;
 import com.prettycrafted.giftbox.repository.UserRepository;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,10 +37,10 @@ public class DataSeeder implements CommandLineRunner {
     private final CategoryRepository categoryRepo;
     private final ProductRepository productRepo;
     private final UserRepository userRepo;
-    private final HeroCardRepository heroCardRepo;
     private final FaqRepository faqRepo;
     private final PolicyRepository policyRepo;
     private final OccasionRepository occasionRepo;
+    private final ReviewRepository reviewRepo;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.seed.admin-password:}")
@@ -57,7 +60,9 @@ public class DataSeeder implements CommandLineRunner {
         seedCatalog();
         seedHampers();
         backfillProductMetrics();
-        seedHeroCards();
+        backfillReviewAggregates();
+        backfillCategoriesAndRecipients();
+        backfillHeroSlots();
         seedFaqs();
         seedPolicies();
         seedOccasions();
@@ -120,37 +125,39 @@ public class DataSeeder implements CommandLineRunner {
             .name("Accessories").slug("accessories")
             .description("Finishing touches to everyday charm.").build());
 
-        seed(jewellery, "Pearl Earrings", "Handcrafted pearl drop earrings.", "499.00", 40);
-        seed(jewellery, "Charm Bracelet", "Rose gold plated with pink crystal charm.", "349.00", 60);
-        seed(jewellery, "Gold Anklet", "Dainty chain, perfect for layering.", "299.00", 35);
+        seed(List.of(jewellery), "Pearl Earrings", "Handcrafted pearl drop earrings.", "499.00", 40);
+        seed(List.of(jewellery), "Charm Bracelet", "Rose gold plated with pink crystal charm.", "349.00", 60);
+        seed(List.of(jewellery, accessories), "Gold Anklet", "Dainty chain, perfect for layering.", "299.00", 35);
 
-        seed(wellness, "Rose Candle", "Soy wax, 40h burn time, rose petals.", "549.00", 25);
-        seed(wellness, "Face Mask Set", "Three sheet masks for a dewy finish.", "199.00", 120);
-        seed(wellness, "Skincare Kit", "Cleanser, toner, and serum mini set.", "749.00", 18);
-        seed(wellness, "Herbal Tea", "Rose and hibiscus, 20 sachets.", "249.00", 80);
+        seed(List.of(wellness), "Rose Candle", "Soy wax, 40h burn time, rose petals.", "549.00", 25);
+        seed(List.of(wellness), "Face Mask Set", "Three sheet masks for a dewy finish.", "199.00", 120);
+        seed(List.of(wellness), "Skincare Kit", "Cleanser, toner, and serum mini set.", "749.00", 18);
+        seed(List.of(wellness, treats), "Herbal Tea", "Rose and hibiscus, 20 sachets.", "249.00", 80);
 
-        seed(treats, "Pink Chocolate Box", "Assorted artisan chocolates, 12 pieces.", "399.00", 50);
-        seed(treats, "Dry Fruit Box", "Almonds, cashews, cranberries, pistachios.", "299.00", 70);
-        seed(treats, "Macarons", "Six rose-pink French macarons.", "349.00", 30);
+        seed(List.of(treats), "Pink Chocolate Box", "Assorted artisan chocolates, 12 pieces.", "399.00", 50);
+        seed(List.of(treats), "Dry Fruit Box", "Almonds, cashews, cranberries, pistachios.", "299.00", 70);
+        seed(List.of(treats), "Macarons", "Six rose-pink French macarons.", "349.00", 30);
 
-        seed(keepsakes, "Photo Album", "Pink linen cover, 40 pages.", "649.00", 22);
-        seed(keepsakes, "Gold-foil Journal", "Lined pages with gold trim.", "299.00", 90);
+        seed(List.of(keepsakes), "Photo Album", "Pink linen cover, 40 pages.", "649.00", 22);
+        seed(List.of(keepsakes), "Gold-foil Journal", "Lined pages with gold trim.", "299.00", 90);
 
-        seed(accessories, "Hair Bow Set", "Three silk bows, rose shades.", "299.00", 45);
-        seed(accessories, "Silk Scrunchies", "Pack of five, assorted pinks.", "199.00", 150);
-        seed(accessories, "Crystal Keychain", "Heart crystal on rose gold chain.", "249.00", 100);
+        seed(List.of(accessories), "Hair Bow Set", "Three silk bows, rose shades.", "299.00", 45);
+        seed(List.of(accessories), "Silk Scrunchies", "Pack of five, assorted pinks.", "199.00", 150);
+        seed(List.of(accessories), "Crystal Keychain", "Heart crystal on rose gold chain.", "249.00", 100);
 
         log.info("Seed complete: {} categories, {} products",
             categoryRepo.count(), productRepo.count());
     }
 
-    private void seed(Category c, String name, String desc, String price, int stock) {
+    // A product can belong to more than one category (e.g. "Gold Anklet" is both
+    // Jewellery and Accessories) — see Product.categories.
+    private void seed(List<Category> cats, String name, String desc, String price, int stock) {
         Product p = Product.builder()
             .name(name)
             .description(desc)
             .price(new BigDecimal(price))
             .stock(stock)
-            .category(c)
+            .categories(new LinkedHashSet<>(cats))
             .popularityScore(0)
             .build();
         applyMetrics(p);
@@ -171,22 +178,24 @@ public class DataSeeder implements CommandLineRunner {
             .name("Hampers").slug("hampers")
             .description("Curated gift hampers, ready to gift.").build());
 
-        seedHamper(hampers, "Radiant Morning Hamper", "Soy candle, rose clay mask, linen print & more.", "1499.00", 30, "her", "Bestseller");
-        seedHamper(hampers, "Artisan Coffee Ritual", "Specialty brew, stoneware mug, spiced honey & journal.", "1199.00", 30, "him", "New");
-        seedHamper(hampers, "Garden & Bloom Box", "Terrarium kit, botanicals ring, wildflower candle.", "1349.00", 30, "all", "Bestseller");
-        seedHamper(hampers, "Golden Hour Luxe Set", "Gold ear cuff, watercolor print, leather journal.", "1899.00", 30, "her", "");
+        seedHamper(hampers, "Radiant Morning Hamper", "Soy candle, rose clay mask, linen print & more.", "1499.00", 30, List.of("her", "kids"), "Bestseller");
+        seedHamper(hampers, "Artisan Coffee Ritual", "Specialty brew, stoneware mug, spiced honey & journal.", "1199.00", 30, List.of("him"), "New");
+        seedHamper(hampers, "Garden & Bloom Box", "Terrarium kit, botanicals ring, wildflower candle.", "1349.00", 30, List.of(), "Bestseller");
+        seedHamper(hampers, "Golden Hour Luxe Set", "Gold ear cuff, watercolor print, leather journal.", "1899.00", 30, List.of("her"), "");
 
         log.info("Seed complete: hampers category with {} products", productRepo.count());
     }
 
-    private void seedHamper(Category c, String name, String desc, String price, int stock, String recipient, String tag) {
+    // recipients: any combination of "her"/"him"/"kids"; an empty list (the old
+    // "all" value) means the hamper isn't targeted and shows for everyone.
+    private void seedHamper(Category c, String name, String desc, String price, int stock, List<String> recipients, String tag) {
         Product p = Product.builder()
             .name(name)
             .description(desc)
             .price(new BigDecimal(price))
             .stock(stock)
-            .category(c)
-            .recipient(recipient)
+            .categories(new LinkedHashSet<>(List.of(c)))
+            .recipients(new LinkedHashSet<>(recipients))
             .tag(tag)
             .popularityScore(0)
             .build();
@@ -234,31 +243,119 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     /**
-     * Seeds a handful of cards for the storefront hero CoverFlow so the carousel
-     * renders real images out of the box. Idempotent — served read-only via the
-     * public /api/public/hero-cards endpoint.
+     * Recomputes every product's {@code rating}/{@code reviewCount} snapshot from
+     * its real {@link com.prettycrafted.giftbox.domain.Review} rows. Runs on every
+     * boot (cheap at catalogue scale) so it self-heals any product whose snapshot
+     * drifted from reality — including rows that predate this pipeline, when the
+     * fields were the only thing an admin could hand-enter (see {@code ProductService}).
      */
-    private void seedHeroCards() {
-        if (heroCardRepo.count() > 0) return;
-        log.info("Seeding hero cards...");
-
-        seedHeroCard("https://res.cloudinary.com/demo/image/upload/v1/giftbox/hero/velvet-box.jpg",      "Velvet Box",     HeroCardType.PRODUCT, 0);
-        seedHeroCard("https://res.cloudinary.com/demo/image/upload/v1/giftbox/hero/blossom-crate.jpg",    "Blossom Crate",  HeroCardType.HAMPER,  1);
-        seedHeroCard("https://res.cloudinary.com/demo/image/upload/v1/giftbox/hero/golden-hour.jpg",      "Golden Hour",    HeroCardType.PRODUCT, 2);
-        seedHeroCard("https://res.cloudinary.com/demo/image/upload/v1/giftbox/hero/petal-pine.jpg",       "Petal & Pine",   HeroCardType.HAMPER,  3);
-        seedHeroCard("https://res.cloudinary.com/demo/image/upload/v1/giftbox/hero/copper-dream.jpg",     "Copper Dream",   HeroCardType.PRODUCT, 4);
-
-        log.info("Seed complete: {} hero cards", heroCardRepo.count());
+    private void backfillReviewAggregates() {
+        List<Product> products = productRepo.findAll();
+        int changed = 0;
+        for (Product p : products) {
+            Integer reviewCount = (int) reviewRepo.countByProductId(p.getId());
+            Double average = reviewRepo.averageRatingByProductId(p.getId());
+            BigDecimal rating = average != null
+                ? BigDecimal.valueOf(average).setScale(1, RoundingMode.HALF_UP)
+                : null;
+            boolean unchanged = Objects.equals(rating, p.getRating()) && reviewCount.equals(p.getReviewCount());
+            if (!unchanged) {
+                p.setRating(rating);
+                p.setReviewCount(reviewCount);
+                changed++;
+            }
+        }
+        if (changed > 0) {
+            productRepo.saveAll(products);
+            log.info("Recomputed rating/review-count snapshot on {} product(s)", changed);
+        }
     }
 
-    private void seedHeroCard(String imageUrl, String title, HeroCardType type, int order) {
-        heroCardRepo.save(HeroCard.builder()
-            .imageUrl(imageUrl)
-            .title(title)
-            .type(type)
-            .displayOrder(order)
-            .active(true)
-            .build());
+    /**
+     * One-time migration off the old single {@code category_id} / {@code recipient}
+     * columns (Product no longer maps either — see its class doc). Reads their raw
+     * values via native SQL and populates the new {@code product_categories} /
+     * {@code product_recipients} tables, and relaxes the old column's NOT NULL
+     * constraint since new inserts no longer supply it. Runs on every boot but only
+     * touches products whose new collections are still empty, so it's a no-op once
+     * every product has been migrated.
+     */
+    private void backfillCategoriesAndRecipients() {
+        productRepo.relaxLegacyCategoryIdConstraint();
+
+        Map<Long, Product> productsById = productRepo.findAll().stream()
+            .collect(Collectors.toMap(Product::getId, p -> p));
+
+        int categoriesLinked = 0;
+        for (Object[] row : productRepo.findLegacyCategoryLinks()) {
+            Product p = productsById.get(((Number) row[0]).longValue());
+            if (p == null || !p.getCategories().isEmpty()) continue;
+            Long categoryId = ((Number) row[1]).longValue();
+            if (categoryRepo.findById(categoryId).map(p.getCategories()::add).orElse(false)) {
+                categoriesLinked++;
+            }
+        }
+
+        int recipientsLinked = 0;
+        for (Object[] row : productRepo.findLegacyRecipients()) {
+            Product p = productsById.get(((Number) row[0]).longValue());
+            if (p == null || !p.getRecipients().isEmpty()) continue;
+            p.getRecipients().add((String) row[1]);
+            recipientsLinked++;
+        }
+
+        // Self-heal: an earlier version of this migration didn't exclude blank
+        // legacy values, so some products may already have a bogus "" entry in
+        // their recipients set — strip it regardless of the isEmpty() gate above.
+        int blanksRemoved = 0;
+        for (Product p : productsById.values()) {
+            if (p.getRecipients().removeIf(r -> r == null || r.isBlank())) blanksRemoved++;
+        }
+
+        if (categoriesLinked > 0 || recipientsLinked > 0 || blanksRemoved > 0) {
+            productRepo.saveAll(productsById.values());
+            log.info("Migrated {} product(s) off legacy category_id, {} off legacy recipient, {} blank recipient(s) cleaned",
+                categoriesLinked, recipientsLinked, blanksRemoved);
+        }
+    }
+
+    /**
+     * One-time starter curation for the homepage hero carousel's 3 fixed slots
+     * ("family" / "her" / "accessories" — see {@code Product.heroSlot} and
+     * {@code Hero.jsx}'s CARDS). Runs once: as soon as any product has a
+     * heroSlot set — from this seed or a later admin edit — it never runs
+     * again, so admin curation is never overwritten. Products not named below
+     * (and any admin adds afterwards) are simply left unslotted; the
+     * storefront falls back to a recipient/category heuristic for a slot with
+     * no curated products, so nothing is ever empty even before this runs.
+     */
+    private void backfillHeroSlots() {
+        if (productRepo.existsByHeroSlotIsNotNull()) return;
+
+        Map<String, Product> byName = productRepo.findAll().stream()
+            .collect(Collectors.toMap(Product::getName, p -> p, (a, b) -> a));
+
+        int assigned = 0;
+        assigned += assignHeroSlot(byName, "family", "Garden & Bloom Box", "Photo Album", "Dry Fruit Box");
+        assigned += assignHeroSlot(byName, "her", "Rose Candle", "Golden Hour Luxe Set", "Radiant Morning Hamper");
+        assigned += assignHeroSlot(byName, "accessories", "Pearl Earrings", "Charm Bracelet", "Gold Anklet", "Crystal Keychain");
+
+        if (assigned > 0) {
+            log.info("Curated {} product(s) into homepage hero carousel slots", assigned);
+        }
+    }
+
+    private int assignHeroSlot(Map<String, Product> byName, String slot, String... names) {
+        int count = 0;
+        for (String name : names) {
+            Product p = byName.get(name);
+            if (p != null) {
+                p.setHeroSlot(slot);
+                productRepo.save(p);
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
@@ -480,7 +577,7 @@ public class DataSeeder implements CommandLineRunner {
             These are estimates shown at checkout, not guaranteed delivery dates, and may vary based on your location and our shipping partners' schedules.
 
             ## 4. Shipping Charges
-            We currently offer **free standard delivery on every order** across India. Any exceptions (for example, expedited shipping options, if offered) will be clearly shown at checkout before you pay.
+            Standard delivery is **free on orders of ₹999 or more** (after any discounts). Orders below ₹999 carry a flat **₹79 delivery fee**, shown clearly in your cart and at checkout before you pay.
 
             ## 5. Order Tracking
             Once your order ships, a tracking link becomes available on your order detail page under **Account → My Orders**. You will also receive an email/SMS update when your order ships and when it is out for delivery.
@@ -708,9 +805,24 @@ public class DataSeeder implements CommandLineRunner {
      * an already-seeded database would otherwise end up with no featured occasion
      * at all. If nothing is featured yet, feature "mothers" (today's banner) so the
      * homepage doesn't fall back to an arbitrary occasion after this upgrade.
+     *
+     * <p>Also self-heals the opposite problem: {@code findByFeaturedTrue()} returns
+     * a {@code List}, not a single entity, precisely so that if the "at most one
+     * featured" invariant is ever violated (bad data from before locking was added
+     * to {@code toggleFeatured}, a manual DB edit, etc.) this runs on every boot and
+     * quietly keeps one and un-features the rest, instead of the app crashing here
+     * on startup.
      */
     private void backfillFeaturedOccasion() {
-        if (occasionRepo.findByFeaturedTrue().isPresent()) return;
+        List<Occasion> featured = occasionRepo.findByFeaturedTrue();
+        if (featured.size() > 1) {
+            log.warn("Found {} occasions marked featured at once — keeping '{}', un-featuring the rest",
+                featured.size(), featured.get(0).getSlug());
+            featured.stream().skip(1).forEach(o -> o.setFeatured(false));
+            occasionRepo.saveAll(featured);
+            return;
+        }
+        if (!featured.isEmpty()) return;
         occasionRepo.findAll().stream()
             .filter(o -> "mothers".equals(o.getSlug()))
             .findFirst()

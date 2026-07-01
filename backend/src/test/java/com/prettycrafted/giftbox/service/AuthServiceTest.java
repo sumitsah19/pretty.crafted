@@ -1,5 +1,6 @@
 package com.prettycrafted.giftbox.service;
 
+import com.prettycrafted.giftbox.config.TokenVersionCache;
 import com.prettycrafted.giftbox.domain.Role;
 import com.prettycrafted.giftbox.domain.User;
 import com.prettycrafted.giftbox.dto.LoginRequest;
@@ -16,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,6 +31,7 @@ class AuthServiceTest {
     @Mock JwtService jwtService;
     @Mock EmailService emailService;
     @Mock Msg91Service msg91Service;
+    @Mock TokenVersionCache tokenVersionCache;
 
     @InjectMocks AuthService service;
 
@@ -93,11 +96,19 @@ class AuthServiceTest {
         when(passwordEncoder.matches("correct", "hashed")).thenReturn(true);
         when(passwordEncoder.encode("newpassword1")).thenReturn("newhash");
 
-        service.updateProfile(1L, new UpdateProfileRequest("Name", null, "correct", "newpassword1"));
+        // The password-change path registers an after-commit synchronization to
+        // invalidate the token-version cache; that requires an active context.
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.updateProfile(1L, new UpdateProfileRequest("Name", null, "correct", "newpassword1"));
 
-        assertEquals("newhash", user.getPasswordHash());
-        // Existing sessions must die with the old password.
-        assertEquals(versionBefore + 1, user.getTokenVersion());
+            assertEquals("newhash", user.getPasswordHash());
+            // Existing sessions must die with the old password.
+            assertEquals(versionBefore + 1, user.getTokenVersion());
+            assertEquals(1, TransactionSynchronizationManager.getSynchronizations().size());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Test

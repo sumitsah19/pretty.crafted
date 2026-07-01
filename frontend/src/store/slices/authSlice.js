@@ -56,11 +56,6 @@ const authSlice = createSlice({
     authChecked: false,
   },
   reducers: {
-    logout(state) {
-      state.user = null
-      state.token = null
-      clearToken()
-    },
     clearError(state) {
       state.error = null
     },
@@ -123,8 +118,7 @@ const authSlice = createSlice({
   },
 })
 
-export const { logout, clearError, setUser } = authSlice.actions
-export const selectAuth = (state) => state.auth
+export const { clearError, setUser } = authSlice.actions
 export const selectUser = (state) => state.auth.user
 // Use user presence, not token — token is ephemeral (lost on refresh until backend sends cookie)
 export const selectIsLoggedIn = (state) => !!state.auth.user

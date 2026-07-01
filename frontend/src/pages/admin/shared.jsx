@@ -88,7 +88,7 @@ export function Toast({ msg, onDone }) {
     return () => clearTimeout(t)
   }, [onDone])
   return (
-    <div style={{ position: 'fixed', bottom: 28, right: 28, zIndex: 9999, background: DARK, color: 'white', borderRadius: 14, padding: '13px 20px', fontSize: 13, fontWeight: 600, boxShadow: '0 8px 32px rgba(44,26,14,0.25)', display: 'flex', alignItems: 'center', gap: 10, animation: 'fadeUp 0.3s ease' }}>
+    <div role="status" aria-live="polite" style={{ position: 'fixed', bottom: 28, right: 28, zIndex: 9999, background: DARK, color: 'white', borderRadius: 14, padding: '13px 20px', fontSize: 13, fontWeight: 600, boxShadow: '0 8px 32px rgba(44,26,14,0.25)', display: 'flex', alignItems: 'center', gap: 10, animation: 'fadeUp 0.3s ease' }}>
       <span style={{ color: TC }}>✓</span> {msg}
     </div>
   )

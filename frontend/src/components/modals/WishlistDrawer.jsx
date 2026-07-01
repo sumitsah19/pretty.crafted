@@ -4,11 +4,13 @@ import { selectWishlistIds, toggleWishlist, wishlistKey } from '../../store/slic
 import { closeWishlist } from '../../store/slices/uiSlice'
 import { selectProducts, selectHampers } from '../../store/slices/productsSlice'
 import { addLocal } from '../../store/slices/cartSlice'
+import { useModalFocus } from '../../hooks/useModalFocus'
 
 const TC = '#C4704A'
 
 export default function WishlistDrawer() {
   const dispatch = useDispatch()
+  const dialogRef = useModalFocus()
   const wishlistIds = useSelector(selectWishlistIds)
   const products = useSelector(selectProducts)
   const hampers = useSelector(selectHampers)
@@ -26,13 +28,13 @@ export default function WishlistDrawer() {
 
   return (
     <div onClick={(e) => e.target === e.currentTarget && dispatch(closeWishlist())} style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(44,26,14,0.45)', backdropFilter: 'blur(4px)' }}>
-      <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: 400, background: '#FAF7F2', boxShadow: '-8px 0 40px rgba(44,26,14,0.15)', display: 'flex', flexDirection: 'column' }} className="animate-slide-right">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Wishlist" style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: 400, background: '#FAF7F2', boxShadow: '-8px 0 40px rgba(44,26,14,0.15)', display: 'flex', flexDirection: 'column' }} className="animate-slide-right">
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700, color: '#2C1A0E' }}>My Wishlist</div>
             <div style={{ fontSize: 12, color: '#9C7A63', marginTop: 2 }}>{wishlisted.length} {wishlisted.length === 1 ? 'item' : 'items'} saved</div>
           </div>
-          <button onClick={() => dispatch(closeWishlist())} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          <button onClick={() => dispatch(closeWishlist())} aria-label="Close" style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
@@ -49,7 +51,7 @@ export default function WishlistDrawer() {
                 <div key={p.id} style={{ background: 'white', borderRadius: 16, padding: '14px 16px', border: '1px solid #EDE4D8', display: 'flex', gap: 14, alignItems: 'center', animation: `fadeUp 0.35s ease ${i * 0.05}s backwards` }}>
                   <div style={{ width: 64, height: 64, borderRadius: 12, background: p.bg || '#EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>{p.emoji}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{p.category}</div>
+                    <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 2 }}>{p.categories?.[0]}</div>
                     <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 14, fontWeight: 600, color: '#2C1A0E', lineHeight: 1.3, marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                     <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>₹{p.price}</div>
                   </div>

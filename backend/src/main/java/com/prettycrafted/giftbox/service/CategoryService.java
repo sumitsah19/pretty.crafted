@@ -3,6 +3,7 @@ package com.prettycrafted.giftbox.service;
 import com.prettycrafted.giftbox.domain.Category;
 import com.prettycrafted.giftbox.dto.CategoryDto;
 import com.prettycrafted.giftbox.dto.CategoryRequest;
+import com.prettycrafted.giftbox.exception.ConflictException;
 import com.prettycrafted.giftbox.exception.NotFoundException;
 import com.prettycrafted.giftbox.repository.CategoryRepository;
 import java.util.List;
@@ -28,6 +29,14 @@ public class CategoryService {
     }
 
     public CategoryDto create(CategoryRequest req) {
+        // Pre-check the unique constraints so the admin gets a clear message
+        // instead of a raw DB error surfaced through the generic handler.
+        if (repo.existsByName(req.name())) {
+            throw new ConflictException("A category named \"" + req.name() + "\" already exists.");
+        }
+        if (repo.existsBySlug(req.slug())) {
+            throw new ConflictException("A category with the slug \"" + req.slug() + "\" already exists.");
+        }
         Category c = Category.builder()
             .name(req.name())
             .slug(req.slug())
@@ -40,6 +49,12 @@ public class CategoryService {
     public CategoryDto update(Long id, CategoryRequest req) {
         Category c = repo.findById(id)
             .orElseThrow(() -> new NotFoundException("Category not found: " + id));
+        if (repo.existsByNameAndIdNot(req.name(), id)) {
+            throw new ConflictException("A category named \"" + req.name() + "\" already exists.");
+        }
+        if (repo.existsBySlugAndIdNot(req.slug(), id)) {
+            throw new ConflictException("A category with the slug \"" + req.slug() + "\" already exists.");
+        }
         c.setName(req.name());
         c.setSlug(req.slug());
         c.setDescription(req.description());

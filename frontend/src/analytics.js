@@ -11,12 +11,11 @@ export function initAnalytics() {
     autocapture: false,
     capture_pageview: true,
     persistence: 'localStorage',
-    loaded: (ph) => {
-      if (import.meta.env.DEV) ph.opt_out_capturing()
-      // Respect the Cookie Settings preference — stay opted out until the
-      // visitor explicitly grants Analytics consent (see /cookie-policy).
-      else if (!getCookieConsent()?.analytics) ph.opt_out_capturing()
-    },
+    // Consent is checked BEFORE init, not in the `loaded` callback — the
+    // initial $pageview fires during init, so a late opt-out would already
+    // have leaked one event. setAnalyticsConsent() opts in/out later when the
+    // visitor saves their Cookie Settings.
+    opt_out_capturing_by_default: import.meta.env.DEV || !getCookieConsent()?.analytics,
   })
 }
 
@@ -45,10 +44,11 @@ export function track(event, props = {}) {
 // ── Named event helpers (keeps call sites readable) ─────────────
 
 export const analytics = {
-  signup:       (method)         => track('signup',          { method }),
+  // No `signup` event: customer accounts are auto-created by Google / phone-OTP
+  // login (no distinct signup step), so `login` covers first-time users too.
   login:        (method)         => track('login',           { method }),
   logout:       ()               => track('logout'),
-  productView:  (product)        => track('product_viewed',  { id: product.id, name: product.name, category: product.category, price: product.price }),
+  productView:  (product)        => track('product_viewed',  { id: product.id, name: product.name, category: product.categories?.[0], price: product.price }),
   addToCart:    (product, qty)   => track('add_to_cart',     { id: product.id, name: product.name, price: product.price, qty }),
   removeFromCart:(product)       => track('remove_from_cart',{ id: product.id, name: product.name }),
   wishlistAdd:  (productId)      => track('wishlist_add',    { id: productId }),

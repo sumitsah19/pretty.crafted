@@ -1,7 +1,6 @@
 package com.prettycrafted.giftbox.config;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
-import com.prettycrafted.giftbox.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -80,8 +79,7 @@ public class SecurityConfig {
                                 // ── OpenAPI / Swagger (only active when enabled) ──
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/uploads/**"))
+                                "/swagger-ui.html"))
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {
                 })
@@ -144,14 +142,14 @@ public class SecurityConfig {
     @Bean
     public JwtDecoder jwtDecoder(
             @Value("${app.jwt.secret}") String secret,
-            UserRepository userRepo) {
+            TokenVersionCache tokenVersionCache) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder
                 .withSecretKey(secretKey(secret))
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
                 JwtValidators.createDefault(),
-                new TokenVersionValidator(userRepo)));
+                new TokenVersionValidator(tokenVersionCache)));
         return decoder;
     }
 

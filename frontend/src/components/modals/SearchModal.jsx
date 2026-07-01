@@ -4,6 +4,7 @@ import { closeSearch, setActiveProduct } from '../../store/slices/uiSlice'
 import { addLocal } from '../../store/slices/cartSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
 import { useDebounce } from '../../hooks/useDebounce'
+import { useModalFocus } from '../../hooks/useModalFocus'
 import { analytics } from '../../analytics'
 
 const TC = '#C4704A'
@@ -11,6 +12,7 @@ const RECENT_KEY = 'pc_searches'
 
 export default function SearchModal() {
   const dispatch = useDispatch()
+  const dialogRef = useModalFocus()
   const products = useSelector(selectProducts)
   const [q, setQ] = useState('')
   const [recentSearches, setRecentSearches] = useState(() => {
@@ -35,9 +37,9 @@ export default function SearchModal() {
     if (!debouncedQ.trim()) return []
 
     const filtered = products.filter((p) => {
-      const text = (p.name + ' ' + p.category + ' ' + (p.tag || '')).toLowerCase()
+      const text = (p.name + ' ' + (p.categories || []).join(' ') + ' ' + (p.tag || '')).toLowerCase()
       const matchQ = debouncedQ.toLowerCase().split(' ').every((w) => text.includes(w))
-      const matchCat = !category || p.category === category
+      const matchCat = !category || (p.categories || []).includes(category)
       return matchQ && matchCat
     })
 
@@ -68,11 +70,11 @@ export default function SearchModal() {
     return () => clearTimeout(t)
   }, [debouncedQ])
 
-  const categories = ['All', ...Array.from(new Set(products.map((p) => p.category)))]
+  const categories = ['All', ...Array.from(new Set(products.flatMap((p) => p.categories || [])))]
 
   return (
     <div onClick={(e) => e.target === e.currentTarget && dispatch(closeSearch())} style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(44,26,14,0.5)', backdropFilter: 'blur(8px)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 16px 16px' }}>
-      <div style={{ width: '100%', maxWidth: 680, background: '#FAF7F2', borderRadius: 24, boxShadow: '0 32px 80px rgba(44,26,14,0.25)', overflow: 'hidden', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }} className="animate-fade-up">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Search products" style={{ width: '100%', maxWidth: 680, background: '#FAF7F2', borderRadius: 24, boxShadow: '0 32px 80px rgba(44,26,14,0.25)', overflow: 'hidden', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }} className="animate-fade-up">
         {/* Search input */}
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #EDE4D8', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'white', borderRadius: 14, padding: '12px 16px', border: `1.5px solid ${TC}` }}>
@@ -80,7 +82,7 @@ export default function SearchModal() {
               <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search gifts, occasions, categories..." style={{ flex: 1, border: 'none', background: 'none', fontSize: 16, color: '#2C1A0E', outline: 'none', fontFamily: "'DM Sans',sans-serif" }} />
-            {q && <button onClick={() => setQ('')} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 14, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>}
+            {q && <button onClick={() => setQ('')} aria-label="Clear search" style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 14, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>}
             <button onClick={() => dispatch(closeSearch())} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#9C7A63', fontWeight: 600 }}>ESC</button>
           </div>
 
@@ -143,12 +145,14 @@ export default function SearchModal() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {results.map((p) => (
                   <div key={p.id} onClick={() => { dispatch(setActiveProduct(p)); dispatch(closeSearch()) }}
+                    role="button" tabIndex={0} aria-label={`View ${p.name}`}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dispatch(setActiveProduct(p)); dispatch(closeSearch()) } }}
                     style={{ display: 'flex', gap: 14, alignItems: 'center', padding: '12px 14px', background: 'white', borderRadius: 14, border: '1px solid #EDE4D8', cursor: 'pointer', transition: 'all 0.2s' }}
                     onMouseEnter={(e) => { e.currentTarget.style.borderColor = TC; e.currentTarget.style.boxShadow = '0 4px 12px rgba(196,112,74,0.1)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#EDE4D8'; e.currentTarget.style.boxShadow = 'none' }}>
                     <div style={{ width: 56, height: 56, borderRadius: 12, background: p.bg || '#EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0 }}>{p.emoji}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>{p.category}</div>
+                      <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>{p.categories?.[0]}</div>
                       <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 14, fontWeight: 600, color: '#2C1A0E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                       {p.tag && <span style={{ fontSize: 10, background: p.tag === 'New' ? '#7A9A6B' : TC, color: 'white', padding: '2px 8px', borderRadius: 99, fontWeight: 700, marginTop: 4, display: 'inline-block' }}>{p.tag}</span>}
                     </div>

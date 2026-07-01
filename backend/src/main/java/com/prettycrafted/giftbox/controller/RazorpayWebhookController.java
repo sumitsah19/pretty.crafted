@@ -107,7 +107,21 @@ public class RazorpayWebhookController {
                         log.error("Webhook: failed to apply post-payment actions for order {}: {}", order.getId(),
                                 e.getMessage());
                         orderService.markOrderCancelled(order.getId());
-                        return ResponseEntity.status(500).build();
+                        // Attempt the refund inline immediately (mirrors OrderController.verifyPayment) —
+                        // don't rely solely on Razorpay redelivering this webhook and hitting the
+                        // CANCELLED-order branch above, since that only happens if/when Razorpay retries.
+                        try {
+                            orderService.refundCapturedPaymentForCancelledOrder(order.getId(), razorpayPaymentId);
+                            log.error("Webhook: payment {} captured but order {} could not be fulfilled — "
+                                    + "cancelled and auto-refunded", razorpayPaymentId, order.getId());
+                            return ResponseEntity.ok().build();
+                        } catch (Exception refundEx) {
+                            log.error("Webhook: FAILED to auto-refund payment {} for order {} after a fulfillment "
+                                    + "error — manual refund required (Razorpay's webhook retry may still catch "
+                                    + "this via the CANCELLED-order branch above): {}",
+                                    razorpayPaymentId, order.getId(), refundEx.getMessage());
+                            return ResponseEntity.status(500).build();
+                        }
                     }
                 }
                 case "payment.failed" -> {

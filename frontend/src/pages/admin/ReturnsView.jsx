@@ -1,6 +1,34 @@
 import { useState, useEffect } from 'react'
 import { returnsAdminApi } from '../../api/services'
-import { TC, DARK, MID, LIGHT, BEIGE, SAGE, SectionHeader } from './shared'
+import { TC, DARK, MID, LIGHT, BEIGE, CREAM, SAGE, SectionHeader } from './shared'
+
+// Note-for-customer prompt shown before Approve/Reject — replaces window.prompt()
+// so it matches the rest of admin's own styled-modal pattern instead of a native
+// browser dialog.
+function NoteModal({ status, initialNote, onCancel, onConfirm }) {
+  const [note, setNote] = useState(initialNote || '')
+  const rejecting = status === 'REJECTED'
+  return (
+    <div onClick={e => e.target === e.currentTarget && onCancel()} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(44,26,14,0.45)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: CREAM, borderRadius: 24, padding: '28px 26px', width: '100%', maxWidth: 420, boxShadow: '0 24px 64px rgba(44,26,14,0.2)', animation: 'fadeUp 0.25s ease' }}>
+        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700, color: DARK, marginBottom: 6 }}>
+          {rejecting ? 'Reject request' : 'Approve request'}
+        </div>
+        <div style={{ fontSize: 12, color: LIGHT, marginBottom: 14 }}>Optional note for the customer.</div>
+        <textarea value={note} onChange={e => setNote(e.target.value)} rows={4}
+          placeholder="e.g. Refund will be processed within 5–7 business days."
+          style={{ width: '100%', padding: '10px 14px', borderRadius: 12, border: `1.5px solid ${BEIGE}`, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background: 'white', color: DARK, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+          onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+        <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: '11px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={() => onConfirm(note.trim() || null)} style={{ flex: 1, padding: '11px 0', borderRadius: 99, border: 'none', background: rejecting ? '#A02A2A' : SAGE, color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            {rejecting ? 'Reject' : 'Approve'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 const STATUSES = ['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'COMPLETED']
 
@@ -24,6 +52,8 @@ export default function ReturnsView({ onToast }) {
   const [filter, setFilter] = useState('ALL')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  // { row, status } while the Approve/Reject note prompt is open; null otherwise.
+  const [pendingNote, setPendingNote] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -34,11 +64,7 @@ export default function ReturnsView({ onToast }) {
     return () => { alive = false }
   }, [filter, onToast])
 
-  const setStatus = async (r, status) => {
-    let adminNote = null
-    if (status === 'REJECTED' || status === 'APPROVED') {
-      adminNote = window.prompt(`Note for the customer (optional) — ${status.toLowerCase()}:`, r.adminNote || '') || null
-    }
+  const applyStatus = async (r, status, adminNote) => {
     try {
       const { data } = await returnsAdminApi.updateStatus(r.id, { status, adminNote })
       // Keep the row if it still matches the active filter, else drop it from view.
@@ -47,6 +73,14 @@ export default function ReturnsView({ onToast }) {
         .filter(x => filter === 'ALL' || x.status === filter))
       onToast(`Request #${data.id} → ${data.status.toLowerCase()}`)
     } catch { onToast('Update failed') }
+  }
+
+  const setStatus = (r, status) => {
+    if (status === 'REJECTED' || status === 'APPROVED') {
+      setPendingNote({ row: r, status })
+      return
+    }
+    applyStatus(r, status, null)
   }
 
   const fmtDate = (s) => s ? new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
@@ -118,6 +152,15 @@ export default function ReturnsView({ onToast }) {
           )
         })}
       </div>
+
+      {pendingNote && (
+        <NoteModal
+          status={pendingNote.status}
+          initialNote={pendingNote.row.adminNote}
+          onCancel={() => setPendingNote(null)}
+          onConfirm={(note) => { applyStatus(pendingNote.row, pendingNote.status, note); setPendingNote(null) }}
+        />
+      )}
     </div>
   )
 }

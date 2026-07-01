@@ -20,6 +20,19 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     long countByStatus(OrderStatus status);
     Optional<Order> findByRazorpayOrderId(String razorpayOrderId);
 
+    /**
+     * Admin search by order id, customer name, or email — matches the whole
+     * result set server-side rather than whatever page is currently loaded in
+     * the admin UI (see AdminOrderController). {@code q} is matched as-is;
+     * callers are responsible for trimming/lower-casing as needed.
+     */
+    @Query("select o from Order o where "
+        + "(:status is null or o.status = :status) and "
+        + "(str(o.id) like concat('%', :q, '%') "
+        + " or lower(o.user.name) like lower(concat('%', :q, '%')) "
+        + " or lower(o.user.email) like lower(concat('%', :q, '%')))")
+    Page<Order> search(@Param("status") OrderStatus status, @Param("q") String q, Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from Order o where o.id = :id")
     Optional<Order> findByIdWithLock(@Param("id") Long id);

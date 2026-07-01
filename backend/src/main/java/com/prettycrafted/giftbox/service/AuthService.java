@@ -8,6 +8,7 @@ import com.prettycrafted.giftbox.dto.LoginRequest;
 import com.prettycrafted.giftbox.dto.OtpVerifyRequest;
 import com.prettycrafted.giftbox.dto.UpdateProfileRequest;
 import com.prettycrafted.giftbox.dto.UserDto;
+import com.prettycrafted.giftbox.config.TokenVersionCache;
 import com.prettycrafted.giftbox.exception.BadRequestException;
 import com.prettycrafted.giftbox.exception.NotFoundException;
 import com.prettycrafted.giftbox.repository.UserRepository;
@@ -26,6 +27,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -37,6 +40,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
     private final Msg91Service msg91Service;
+    private final TokenVersionCache tokenVersionCache;
 
     @Value("${app.google.client-id:}")
     private String googleClientId;
@@ -88,6 +92,17 @@ public class AuthService {
             }
             user.setPasswordHash(passwordEncoder.encode(req.newPassword()));
             user.setTokenVersion(user.getTokenVersion() + 1);
+            // Drop the cached token version only after this bump commits, so a
+            // concurrent request can't re-cache the stale pre-commit value. The
+            // next request then reloads the new version and rejects any session
+            // still carrying the old one.
+            long userId = user.getId();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    tokenVersionCache.invalidate(userId);
+                }
+            });
         }
         return UserDto.from(user);
     }

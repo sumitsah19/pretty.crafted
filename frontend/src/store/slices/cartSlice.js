@@ -1,5 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit'
 import { fetchProducts, fetchHampers } from './productsSlice'
+import { logoutThunk } from './authSlice'
+import { deliveryFeeFor } from '../../utils/delivery'
 
 const localKey = 'pc_cart'
 const boxesKey = 'pc_cart_boxes'
@@ -107,16 +109,29 @@ const cartSlice = createSlice({
       }
       if (changed) saveLocal(state.items)
     }
+    // Once someone signs in, the cart is effectively account-scoped (gift boxes
+    // literally reference the user's server-side rows, and checkout syncs items
+    // to the account). Leaving it behind after logout would hand the next user
+    // of a shared device the previous user's cart — clear it on both manual
+    // logout and the forced 401 logout (both dispatch logoutThunk).
+    const resetOnLogout = (state) => {
+      state.items = []
+      state.boxes = []
+      state.coupon = null
+      saveLocal([])
+      saveBoxes([])
+      saveCoupon(null)
+    }
     builder
       .addCase(fetchProducts.fulfilled, refreshFromCatalog)
       .addCase(fetchHampers.fulfilled, refreshFromCatalog)
+      .addCase(logoutThunk.fulfilled, resetOnLogout)
+      .addCase(logoutThunk.rejected, resetOnLogout)
   },
 })
 
 export const { addLocal, updateLocal, removeLocal, addBox, removeBox, setCoupon, clearCoupon, clearCart } = cartSlice.actions
 export const selectCart = (state) => state.cart
-export const selectCartItems = (state) => state.cart.items
-export const selectCartBoxes = (state) => state.cart.boxes
 export const selectCoupon = (state) => state.cart.coupon
 export const selectCartCount = (state) =>
   state.cart.items.reduce((s, i) => s + i.qty, 0) + state.cart.boxes.length
@@ -130,6 +145,9 @@ export const selectCartTotal = (state) => {
   const discount = coupon
     ? Math.round(subtotal * coupon.discountPercent) / 100
     : 0
-  return Math.max(0, subtotal - discount)
+  // Delivery fee on the discounted merchandise total — same rule as the
+  // backend's OrderService, which computes the amount actually charged.
+  const discounted = Math.max(0, subtotal - discount)
+  return discounted + deliveryFeeFor(discounted)
 }
 export default cartSlice.reducer

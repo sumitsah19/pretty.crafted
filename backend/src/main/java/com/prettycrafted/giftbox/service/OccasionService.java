@@ -94,15 +94,27 @@ public class OccasionService {
      * Toggles whether this occasion is THE featured banner. At most one occasion
      * can be featured at a time — marking one featured automatically un-features
      * whichever occasion held that spot before.
+     *
+     * <p>Uses {@link OccasionRepository#findAllForUpdate()} to pessimistic-lock
+     * every occasion row before reading or changing {@code featured}. Without
+     * this, two concurrent toggles (e.g. two admins each clicking "Set as
+     * Featured" within the same instant) could both read the same prior state
+     * and both write {@code featured=true}, leaving two rows featured — which
+     * would then crash the featured-occasion lookup elsewhere. With the lock,
+     * the second caller blocks until the first transaction commits and then
+     * operates on the now-current state, so the invariant always holds.
      */
     @Transactional
     public OccasionDto toggleFeatured(Long id) {
-        Occasion occasion = repo.findById(id)
+        List<Occasion> all = repo.findAllForUpdate();
+        Occasion occasion = all.stream()
+                .filter(o -> o.getId().equals(id))
+                .findFirst()
                 .orElseThrow(() -> new NotFoundException("Occasion not found: " + id));
         boolean makeFeatured = !occasion.getFeatured();
         if (makeFeatured) {
-            repo.findByFeaturedTrue().ifPresent(current -> {
-                if (!current.getId().equals(id)) current.setFeatured(false);
+            all.forEach(o -> {
+                if (!o.getId().equals(id) && Boolean.TRUE.equals(o.getFeatured())) o.setFeatured(false);
             });
         }
         occasion.setFeatured(makeFeatured);

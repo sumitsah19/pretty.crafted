@@ -50,26 +50,28 @@ const OC_PRODUCTS = [
 ].map(p => ({ ...p, reviewCount: p.rc, demo: true }))
 
 // ── PER-OCCASION HERO CONFIG ─────────────────────────────────────
+// No `cta` field — the hero's own CTA button was removed (redundant once the
+// user is already on the landing page); the product grid below is the CTA now.
 const OCC_CFG = {
-  valentines:   { g:'linear-gradient(130deg,#F5D0D8 0%,#FAF7F2 65%)', e2:'🌹', e3:'💌', h:'Love, Handcrafted',            s:"Every stitch, pour, and petal says what words can't.", cta:'Shop Love Gifts' },
-  mothers:      { g:'linear-gradient(130deg,#F0D5DC 0%,#FAF7F2 65%)', e2:'🌷', e3:'💐', h:'For the Heart of the Home',    s:'Celebrate her with gifts as thoughtful as she is.', cta:"Shop Mother's Day" },
-  fathers:      { g:'linear-gradient(130deg,#C8D0C4 0%,#FAF7F2 65%)', e2:'☕', e3:'🥃', h:'For the Man Who Has It All',   s:'Curated for the modern gentleman — refined, real.', cta:"Shop Father's Day" },
-  birthday:     { g:'linear-gradient(130deg,#E8D5C4 0%,#FAF7F2 65%)', e2:'🎉', e3:'✨', h:'Make It Unforgettable',        s:'Handcrafted gifts that turn birthdays into memories.', cta:'Shop Birthday Gifts' },
-  anniversary:  { g:'linear-gradient(130deg,#E0D5C5 0%,#FAF7F2 65%)', e2:'💍', e3:'🌹', h:'Celebrate Years of Love',      s:'Mark every milestone with something beautifully made.', cta:'Shop Anniversary Gifts' },
-  wedding:      { g:'linear-gradient(130deg,#F2EAE0 0%,#FAF7F2 65%)', e2:'💒', e3:'🥂', h:'For the Start of Forever',     s:'Exquisite gifts that honour the beginning of their story.', cta:'Shop Wedding Gifts' },
-  baby:         { g:'linear-gradient(130deg,#D8E4DC 0%,#FAF7F2 65%)', e2:'🍼', e3:'🌿', h:'Welcome the Tiny Human',       s:'Soft, safe, and made with love for the newest arrival.', cta:'Shop Baby Gifts' },
-  graduation:   { g:'linear-gradient(130deg,#D4C5B5 0%,#FAF7F2 65%)', e2:'🎓', e3:'⭐', h:'Mark the Milestone',           s:'Gifts that celebrate hard work, growth, and the road ahead.', cta:'Shop Graduation Gifts' },
-  christmas:    { g:'linear-gradient(130deg,#C8DBC4 0%,#FAF7F2 65%)', e2:'🎄', e3:'❄️', h:'Wrapped in Warmth & Wonder',   s:'Handcrafted magic for the most wonderful time of year.', cta:'Shop Christmas Gifts' },
-  housewarming: { g:'linear-gradient(130deg,#E0CFB8 0%,#FAF7F2 65%)', e2:'🏡', e3:'🕯️', h:'Welcome Home, with Love',      s:'Help them turn a house into a home with handcrafted warmth.', cta:'Shop Housewarming' },
-  friendship:   { g:'linear-gradient(130deg,#EDD8B0 0%,#FAF7F2 65%)', e2:'🌻', e3:'💛', h:'For Your Favorite Person',     s:'Because some friendships deserve something truly special.', cta:'Shop Friendship Gifts' },
-  him:          { g:'linear-gradient(130deg,#C4D0C0 0%,#FAF7F2 65%)', e2:'🥃', e3:'☕', h:'Crafted for the Modern Man',   s:'Refined, practical, and made with real intention.', cta:'Shop Gifts for Him' },
-  her:          { g:'linear-gradient(130deg,#F0D5DC 0%,#FAF7F2 65%)', e2:'🌹', e3:'✨', h:'Refined, Romantic, Real',      s:'Everything she deserves — handpicked, handcrafted.', cta:'Shop Gifts for Her' },
-  kids:         { g:'linear-gradient(130deg,#D4C0D0 0%,#FAF7F2 65%)', e2:'🧸', e3:'🌈', h:'Joy in Every Detail',          s:'Safe, beautiful, and made to spark wonder.', cta:'Shop Kids Gifts' },
-  corporate:    { g:'linear-gradient(130deg,#D9CFC2 0%,#FAF7F2 65%)', e2:'🎁', e3:'⭐', h:'Premium, Thoughtful, On-Brand', s:'Gifts your team and clients will actually treasure.', cta:'Shop Corporate Gifts' },
-  diwali:       { g:'linear-gradient(130deg,#F0D9A8 0%,#FAF7F2 65%)', e2:'🪔', e3:'✨', h:'Light Up Their Celebrations',   s:'Handcrafted warmth for the festival of lights.', cta:'Shop Diwali Gifts' },
-  rakshabandhan:{ g:'linear-gradient(130deg,#E8D0B0 0%,#FAF7F2 65%)', e2:'🪢', e3:'🎗️', h:'Celebrate the Sibling Bond',    s:'Thoughtful gifts that honour a bond like no other.', cta:'Shop Raksha Bandhan Gifts' },
-  newyear:      { g:'linear-gradient(130deg,#E4D8B0 0%,#FAF7F2 65%)', e2:'✨', e3:'🎊', h:'Fresh Starts, Beautifully Wrapped', s:'Ring in the new year with gifts made to feel like a beginning.', cta:'Shop New Year Gifts' },
-  default:      { g:'linear-gradient(130deg,#EDE4D8 0%,#FAF7F2 65%)', e2:'🎁', e3:'✨', h:'Gifts Made with Heart',        s:'Discover handcrafted treasures curated for this moment.', cta:'Shop This Collection' },
+  valentines:   { g:'linear-gradient(130deg,#F5D0D8 0%,#FAF7F2 65%)', e2:'🌹', e3:'💌', h:'Love, Handcrafted',            s:"Every stitch, pour, and petal says what words can't." },
+  mothers:      { g:'linear-gradient(130deg,#F0D5DC 0%,#FAF7F2 65%)', e2:'🌷', e3:'💐', h:'For the Heart of the Home',    s:'Celebrate her with gifts as thoughtful as she is.' },
+  fathers:      { g:'linear-gradient(130deg,#C8D0C4 0%,#FAF7F2 65%)', e2:'☕', e3:'🥃', h:'For the Man Who Has It All',   s:'Curated for the modern gentleman — refined, real.' },
+  birthday:     { g:'linear-gradient(130deg,#E8D5C4 0%,#FAF7F2 65%)', e2:'🎉', e3:'✨', h:'Make It Unforgettable',        s:'Handcrafted gifts that turn birthdays into memories.' },
+  anniversary:  { g:'linear-gradient(130deg,#E0D5C5 0%,#FAF7F2 65%)', e2:'💍', e3:'🌹', h:'Celebrate Years of Love',      s:'Mark every milestone with something beautifully made.' },
+  wedding:      { g:'linear-gradient(130deg,#F2EAE0 0%,#FAF7F2 65%)', e2:'💒', e3:'🥂', h:'For the Start of Forever',     s:'Exquisite gifts that honour the beginning of their story.' },
+  baby:         { g:'linear-gradient(130deg,#D8E4DC 0%,#FAF7F2 65%)', e2:'🍼', e3:'🌿', h:'Welcome the Tiny Human',       s:'Soft, safe, and made with love for the newest arrival.' },
+  graduation:   { g:'linear-gradient(130deg,#D4C5B5 0%,#FAF7F2 65%)', e2:'🎓', e3:'⭐', h:'Mark the Milestone',           s:'Gifts that celebrate hard work, growth, and the road ahead.' },
+  christmas:    { g:'linear-gradient(130deg,#C8DBC4 0%,#FAF7F2 65%)', e2:'🎄', e3:'❄️', h:'Wrapped in Warmth & Wonder',   s:'Handcrafted magic for the most wonderful time of year.' },
+  housewarming: { g:'linear-gradient(130deg,#E0CFB8 0%,#FAF7F2 65%)', e2:'🏡', e3:'🕯️', h:'Welcome Home, with Love',      s:'Help them turn a house into a home with handcrafted warmth.' },
+  friendship:   { g:'linear-gradient(130deg,#EDD8B0 0%,#FAF7F2 65%)', e2:'🌻', e3:'💛', h:'For Your Favorite Person',     s:'Because some friendships deserve something truly special.' },
+  him:          { g:'linear-gradient(130deg,#C4D0C0 0%,#FAF7F2 65%)', e2:'🥃', e3:'☕', h:'Crafted for the Modern Man',   s:'Refined, practical, and made with real intention.' },
+  her:          { g:'linear-gradient(130deg,#F0D5DC 0%,#FAF7F2 65%)', e2:'🌹', e3:'✨', h:'Refined, Romantic, Real',      s:'Everything she deserves — handpicked, handcrafted.' },
+  kids:         { g:'linear-gradient(130deg,#D4C0D0 0%,#FAF7F2 65%)', e2:'🧸', e3:'🌈', h:'Joy in Every Detail',          s:'Safe, beautiful, and made to spark wonder.' },
+  corporate:    { g:'linear-gradient(130deg,#D9CFC2 0%,#FAF7F2 65%)', e2:'🎁', e3:'⭐', h:'Premium, Thoughtful, On-Brand', s:'Gifts your team and clients will actually treasure.' },
+  diwali:       { g:'linear-gradient(130deg,#F0D9A8 0%,#FAF7F2 65%)', e2:'🪔', e3:'✨', h:'Light Up Their Celebrations',   s:'Handcrafted warmth for the festival of lights.' },
+  rakshabandhan:{ g:'linear-gradient(130deg,#E8D0B0 0%,#FAF7F2 65%)', e2:'🪢', e3:'🎗️', h:'Celebrate the Sibling Bond',    s:'Thoughtful gifts that honour a bond like no other.' },
+  newyear:      { g:'linear-gradient(130deg,#E4D8B0 0%,#FAF7F2 65%)', e2:'✨', e3:'🎊', h:'Fresh Starts, Beautifully Wrapped', s:'Ring in the new year with gifts made to feel like a beginning.' },
+  default:      { g:'linear-gradient(130deg,#EDE4D8 0%,#FAF7F2 65%)', e2:'🎁', e3:'✨', h:'Gifts Made with Heart',        s:'Discover handcrafted treasures curated for this moment.' },
 }
 
 // ── STARS ─────────────────────────────────────────────────────────
@@ -110,7 +112,7 @@ function OcQuickView({ p, onClose, onAddToCart, tc, isMobile }) {
           </div>
           <div style={{ padding: isMobile ? '24px 20px' : '32px 28px' }}>
             <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:8 }}>
-              <button onClick={onClose} style={{ background:'#F5EEE6', border:'none', borderRadius:'50%', width:34, height:34, cursor:'pointer', fontSize:16, color:'#6B4F3A', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+              <button onClick={onClose} aria-label="Close" style={{ background:'#F5EEE6', border:'none', borderRadius:'50%', width:34, height:34, cursor:'pointer', fontSize:16, color:'#6B4F3A', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
             </div>
             <div style={{ fontSize:10, color:'#9C7A63', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>{p.category}</div>
             <div style={{ fontFamily:"'Playfair Display',serif", fontSize: isMobile ? 20 : 24, fontWeight:700, lineHeight:1.2, marginBottom:12, color:'#2C1A0E' }}>{p.name}</div>
@@ -236,12 +238,13 @@ export default function OccasionPage({ occasion }) {
     </div>
   )
 
-  // Hero CTA + trust badges. Rendered inside the text column on desktop and
-  // below the SVG image on mobile (so the buttons sit under the illustration).
+  // "All Occasions" + trust badges. The occasion's own hero CTA (Shop X Gifts)
+  // was removed — the user already clicked a CTA to get here, and the product
+  // grid below is now the sole call to action. Rendered inside the text column
+  // on desktop and below the SVG image on mobile (so it sits under the illustration).
   const ctaBlock = (
     <>
       <div style={{ display:'flex', gap:12, flexWrap:'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
-        <button style={{ padding: isMobile ? '12px 22px' : '14px 30px', borderRadius:99, border:'none', background:TC, color:'white', fontWeight:700, fontSize:14, cursor:'pointer', boxShadow:'0 6px 24px rgba(196,112,74,0.3)' }}>{cfg.cta}</button>
         <button onClick={() => dispatch(clearActiveOccasion())} style={{ padding: isMobile ? '12px 18px' : '14px 24px', borderRadius:99, border:'1.5px solid #D9CBBF', background:'rgba(255,255,255,0.75)', color:'#2C1A0E', fontWeight:600, fontSize:14, cursor:'pointer' }}>All Occasions</button>
       </div>
       <div style={{ display:'flex', gap:20, marginTop:24, flexWrap:'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
@@ -258,7 +261,7 @@ export default function OccasionPage({ occasion }) {
       {/* Sticky header */}
       <div style={{ position:'sticky', top:0, zIndex:20, background:'rgba(250,247,242,0.96)', backdropFilter:'blur(14px)', borderBottom:'1px solid #EDE4D8', padding: isMobile ? '12px 20px' : '14px 48px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <button onClick={() => dispatch(clearActiveOccasion())} style={{ background:'#F5EEE6', border:'none', borderRadius:'50%', width:36, height:36, cursor:'pointer', fontSize:15, display:'flex', alignItems:'center', justifyContent:'center', color:'#6B4F3A' }} title="Back">←</button>
+          <button onClick={() => dispatch(clearActiveOccasion())} aria-label="Back" style={{ background:'#F5EEE6', border:'none', borderRadius:'50%', width:36, height:36, cursor:'pointer', fontSize:15, display:'flex', alignItems:'center', justifyContent:'center', color:'#6B4F3A' }} title="Back">←</button>
           <div>
             <div style={{ fontSize:10, color:TC, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase' }}>Gifts for</div>
             <div style={{ fontFamily:"'Playfair Display',serif", fontSize: isMobile ? 17 : 21, fontWeight:700, color:'#2C1A0E', lineHeight:1 }}>{occasion.title}</div>
@@ -269,7 +272,7 @@ export default function OccasionPage({ occasion }) {
             <span style={{ fontSize:11 }}>⚙</span> Filters
             {filtered.length !== products.length && !loading && <span style={{ background:'rgba(255,255,255,0.3)', borderRadius:99, padding:'1px 6px', fontSize:10 }}>{filtered.length}</span>}
           </button>
-          <button onClick={() => dispatch(clearActiveOccasion())} style={{ background:'#F5EEE6', border:'none', borderRadius:'50%', width:36, height:36, cursor:'pointer', fontSize:18, color:'#6B4F3A', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+          <button onClick={() => dispatch(clearActiveOccasion())} aria-label="Close" style={{ background:'#F5EEE6', border:'none', borderRadius:'50%', width:36, height:36, cursor:'pointer', fontSize:18, color:'#6B4F3A', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
         </div>
       </div>
 

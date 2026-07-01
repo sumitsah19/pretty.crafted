@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { selectUser, logoutThunk, setUser } from '../../store/slices/authSlice'
-import { closeUserAccount, selectUI } from '../../store/slices/uiSlice'
+import { closeUserAccount, selectUserAccountView } from '../../store/slices/uiSlice'
 import { selectWishlistIds, toggleWishlist, wishlistKey } from '../../store/slices/wishlistSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
 import { addLocal } from '../../store/slices/cartSlice'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
+import { useModalFocus } from '../../hooks/useModalFocus'
 import { ordersApi, authApi, addressApi, faqApi, promotionsApi, returnsApi, contactApi } from '../../api/services'
+import ContactSupportSheet from '../ContactSupportSheet'
 
 // Fallback support email if the contact config hasn't loaded / isn't set yet.
 const SUPPORT_EMAIL = 'support@prettycrafted.com'
@@ -17,14 +19,10 @@ const TC = '#C4704A'
 // ── ICON HELPERS ──────────────────────────────────────────────────
 function IconBag()     { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg> }
 function IconHeart()   { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> }
-function IconCard()    { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> }
 function IconGift()    { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg> }
 function IconHelp()    { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> }
-function IconPay()     { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> }
 function IconUser()    { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> }
-function IconSettings(){ return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> }
 function IconLegal()   { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> }
-function IconStar()    { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> }
 function IconChevR()   { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#BBADA0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg> }
 function IconChevD()   { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#BBADA0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg> }
 function IconBack()    { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2C1A0E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg> }
@@ -90,20 +88,6 @@ function ProfileRow({ icon, label, sub, right, onClick, noBorder }) {
   )
 }
 
-// ── REWARD CHIP ───────────────────────────────────────────────────
-function RewardChip({ icon, label, onClick }) {
-  const [hov, setHov] = useState(false)
-  return (
-    <button onClick={onClick}
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ flex:'1 1 calc(50% - 5px)', display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:10, border:'1.5px solid #E8E0D8', background: hov ? '#FAF7F2' : 'white', cursor:'pointer', transition:'all 0.15s', minWidth:0 }}>
-      <span style={{ fontSize:16, flexShrink:0 }}>{icon}</span>
-      <span style={{ flex:1, fontSize:13, fontWeight:500, color:'#2C1A0E', textAlign:'left', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{label}</span>
-      <IconChevR />
-    </button>
-  )
-}
-
 // ── ACCORDION ROW ─────────────────────────────────────────────────
 function AccordionRow({ icon, label, children, noBorder }) {
   const [open, setOpen] = useState(false)
@@ -126,26 +110,10 @@ function AccordionRow({ icon, label, children, noBorder }) {
 
 // ── SUPPORT CARD (contact us) ─────────────────────────────────────
 // Same visual design as the old "Exclusive Member Deals" promo banner —
-// tapping it opens a bottom sheet with WhatsApp / Email support channels
-// sourced from the admin-managed contact config (/api/public/contact).
+// tapping it opens the shared ContactSupportSheet (WhatsApp / Email support
+// channels sourced from the admin-managed contact config).
 function SupportCard({ onToast }) {
   const [open, setOpen] = useState(false)
-  const [contact, setContact] = useState(null)
-
-  useEffect(() => {
-    contactApi.get()
-      .then(({ data }) => setContact(data))
-      .catch(() => setContact(null))
-  }, [])
-
-  const channels = []
-  if (contact?.emailEnabled !== false && (contact?.supportEmail || !contact)) {
-    const email = contact?.supportEmail || SUPPORT_EMAIL
-    channels.push({ key:'email', icon:'✉️', label:'Email Support', href:`mailto:${email}?subject=${encodeURIComponent('Prettycrafted Support Request')}`, toast:'Opening your email app…' })
-  }
-  if (contact?.whatsappEnabled && contact?.whatsappNumber) {
-    channels.push({ key:'whatsapp', icon:'💬', label:'WhatsApp Support', href:`https://wa.me/${contact.whatsappNumber}?text=${encodeURIComponent('Hi! I need help with my order.')}`, external:true, toast:'Opening WhatsApp…' })
-  }
 
   return (
     <>
@@ -164,51 +132,8 @@ function SupportCard({ onToast }) {
         </div>
       </button>
 
-      {open && (
-        <div onClick={() => setOpen(false)}
-          style={{ position:'fixed', inset:0, zIndex:1250, background:'rgba(44,26,14,0.55)', backdropFilter:'blur(4px)', display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ width:'100%', maxWidth:420, background:'white', borderRadius:'20px 20px 0 0', padding:'10px 20px 28px', animation:'uaSlideUp 0.25s cubic-bezier(.2,.9,.3,1)' }}>
-            <div style={{ width:36, height:4, borderRadius:99, background:'#EDE4D8', margin:'8px auto 16px' }} />
-            <div style={{ fontFamily:"'Playfair Display',serif", fontSize:18, fontWeight:700, color:'#2C1A0E', marginBottom:4 }}>Need Help?</div>
-            <div style={{ fontSize:13, color:'#9C7A63', marginBottom:18 }}>Choose how you'd like to reach us</div>
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              {channels.map(ch => (
-                <a key={ch.key} href={ch.href}
-                  {...(ch.external ? { target:'_blank', rel:'noreferrer' } : {})}
-                  onClick={() => { onToast?.(ch.toast); setOpen(false) }}
-                  style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 16px', borderRadius:14, border:'1.5px solid #EDE4D8', textDecoration:'none', background:'#FDF8F4' }}>
-                  <span style={{ fontSize:20 }}>{ch.icon}</span>
-                  <span style={{ fontSize:14, fontWeight:700, color:'#2C1A0E' }}>{ch.label}</span>
-                  <span style={{ marginLeft:'auto' }}><IconChevR /></span>
-                </a>
-              ))}
-            </div>
-            <button onClick={() => setOpen(false)}
-              style={{ width:'100%', marginTop:16, padding:'13px', borderRadius:99, border:'1.5px solid #EDE4D8', background:'white', color:'#6B4F3A', fontWeight:700, fontSize:13, cursor:'pointer' }}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      <ContactSupportSheet open={open} onClose={() => setOpen(false)} onToast={onToast} />
     </>
-  )
-}
-
-// ── PROMO BANNERS ─────────────────────────────────────────────────
-
-function DailyBanner({ onClick }) {
-  return (
-    <button onClick={onClick} style={{ width:'100%', borderRadius:16, overflow:'hidden', border:'none', cursor:'pointer', display:'block', background:'none', padding:0 }}>
-      <div style={{ background:'linear-gradient(110deg,#E8A040 0%,#F5C26B 100%)', padding:'16px 18px', display:'flex', alignItems:'center', gap:14 }}>
-        <div style={{ width:48, height:48, borderRadius:12, background:'rgba(255,255,255,0.22)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, flexShrink:0 }}>🎁</div>
-        <div style={{ textAlign:'left' }}>
-          <div style={{ fontSize:15, fontWeight:800, color:'#3D1F00', lineHeight:1.2 }}>Daily Craft Picks!</div>
-          <div style={{ fontSize:12, color:'#7A4010', marginTop:2, fontWeight:500 }}>Win gift vouchers up to ₹500 today</div>
-        </div>
-        <div style={{ marginLeft:'auto', color:'rgba(61,31,0,0.5)' }}><IconChevR /></div>
-      </div>
-    </button>
   )
 }
 
@@ -363,7 +288,9 @@ function OffersPage({ onToast }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
       {offers.map(o => {
-        const left = o.maxUses != null ? Math.max(0, o.maxUses - (o.uses || 0)) : null
+        // Server sends the remaining-redemption count directly; raw uses/maxUses
+        // counters are no longer exposed publicly (see PublicCouponDto).
+        const left = o.remainingUses ?? null
         return (
           <div key={o.id} style={{ background:'white', borderRadius:16, padding:'16px 18px', border:'1px solid #EDE4D8', boxShadow:'0 1px 4px rgba(44,26,14,0.04)', display:'flex', alignItems:'center', gap:14 }}>
             <div style={{ width:50, height:50, borderRadius:12, background:'#FDF1EA', color:TC, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontWeight:800, fontSize:15 }}>
@@ -517,7 +444,7 @@ function ReturnsPage({ onToast }) {
             {images.map((src, i) => (
               <div key={i} style={{ position:'relative' }}>
                 <img src={src} alt={`evidence ${i + 1}`} style={{ width:60, height:60, objectFit:'cover', borderRadius:10, border:'1px solid #EDE4D8' }} />
-                <button onClick={() => setImages(imgs => imgs.filter((_, j) => j !== i))} style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', border:'none', background:'#2C1A0E', color:'white', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+                <button onClick={() => setImages(imgs => imgs.filter((_, j) => j !== i))} aria-label={`Remove photo ${i + 1}`} style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', border:'none', background:'#2C1A0E', color:'white', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
               </div>
             ))}
             {images.length < 6 && (
@@ -607,6 +534,25 @@ function OrdersPage({ onToast }) {
   const [loading, setLoading] = useState(true)
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const products = useSelector(selectProducts)
+
+  // Re-adds the order's product line items to the local cart, capped at current
+  // stock. Gift boxes and products no longer in the catalog are skipped (a box
+  // is a one-off server-side snapshot and can't be re-added as-is).
+  const reorder = (order) => {
+    const byId = new Map(products.filter(p => !p.demo).map(p => [Number(p.id), p]))
+    let added = 0
+    let skipped = 0
+    for (const item of order.items || []) {
+      const p = item.productId != null ? byId.get(Number(item.productId)) : null
+      if (!p || Number(p.stock) <= 0) { skipped++; continue }
+      const qty = Math.min(Math.max(1, Number(item.quantity) || 1), Number(p.stock) || 1)
+      for (let i = 0; i < qty; i++) dispatch(addLocal(p))
+      added++
+    }
+    if (added === 0) onToast('These items are no longer available')
+    else onToast(skipped > 0 ? 'Added available items to cart' : 'Added to cart')
+  }
 
   useEffect(() => {
     ordersApi.list({ size: 20, sort: 'createdAt,desc' })
@@ -669,7 +615,7 @@ function OrdersPage({ onToast }) {
             )}
             <div style={{ display:'flex', gap:8, marginTop:12 }}>
               <button onClick={() => { dispatch(closeUserAccount()); navigate(`/orders/${order.id}`) }} style={{ padding:'7px 16px', borderRadius:99, border:'1.5px solid #EDE4D8', background:'white', color:'#6B4F3A', fontSize:12, fontWeight:600, cursor:'pointer' }}>View Details</button>
-              <button onClick={() => onToast('Added to cart')} style={{ padding:'7px 16px', borderRadius:99, border:'none', background:TC, color:'white', fontSize:12, fontWeight:600, cursor:'pointer' }}>Reorder</button>
+              <button onClick={() => reorder(order)} style={{ padding:'7px 16px', borderRadius:99, border:'none', background:TC, color:'white', fontSize:12, fontWeight:600, cursor:'pointer' }}>Reorder</button>
             </div>
           </div>
         )
@@ -698,11 +644,11 @@ function WishlistPage({ onToast }) {
       {wishlisted.map(p => (
         <div key={p.id} style={{ background:'white', borderRadius:16, overflow:'hidden', border:'1px solid #EDE4D8' }}>
           <div style={{ height:120, background:p.bg || '#EDE4D8', display:'flex', alignItems:'center', justifyContent:'center', fontSize:48, position:'relative' }}>
-            <button onClick={() => { dispatch(toggleWishlist(wishlistKey(p))); onToast('Removed from wishlist') }} style={{ position:'absolute', top:6, right:6, background:'rgba(255,255,255,0.9)', border:'none', borderRadius:'50%', width:26, height:26, cursor:'pointer', fontSize:13, color:'#A02A2A', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+            <button onClick={() => { dispatch(toggleWishlist(wishlistKey(p))); onToast('Removed from wishlist') }} aria-label={`Remove ${p.name} from wishlist`} style={{ position:'absolute', top:6, right:6, background:'rgba(255,255,255,0.9)', border:'none', borderRadius:'50%', width:26, height:26, cursor:'pointer', fontSize:13, color:'#A02A2A', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
             {p.emoji}
           </div>
           <div style={{ padding:'12px 14px' }}>
-            <div style={{ fontSize:10, color:'#9C7A63', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:3 }}>{p.category}</div>
+            <div style={{ fontSize:10, color:'#9C7A63', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:3 }}>{p.categories?.[0]}</div>
             <div style={{ fontFamily:"'Playfair Display',serif", fontSize:13, fontWeight:600, color:'#2C1A0E', marginBottom:8, lineHeight:1.3 }}>{p.name}</div>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
               <span style={{ fontWeight:700, color:TC, fontSize:14 }}>₹{Number(p.price || 0).toLocaleString('en-IN')}</span>
@@ -724,7 +670,11 @@ function AddressForm({ initial, user, onCancel, onSaved, onToast }) {
   const [form, setForm] = useState({ ...BLANK_ADDR, recipientName: user?.name || '', ...(initial || {}) })
   const [saving, setSaving] = useState(false)
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
-  const valid = form.recipientName.trim() && form.phone.trim() && form.line1.trim() && form.city.trim() && form.zip.trim()
+  // Same rules as checkout (which prefills from these addresses): a real Indian
+  // mobile for the courier and a real 6-digit PIN, not just non-blank strings.
+  const phoneValid = /^(\+?91)?[6-9]\d{9}$/.test(form.phone.replace(/[\s-]/g, ''))
+  const zipValid = /^[1-9]\d{5}$/.test(form.zip.trim())
+  const valid = form.recipientName.trim() && phoneValid && form.line1.trim() && form.city.trim() && zipValid
   const editing = Boolean(initial?.id)
 
   const save = async () => {
@@ -753,11 +703,19 @@ function AddressForm({ initial, user, onCancel, onSaved, onToast }) {
     }
   }
 
+  const fieldError = (k) => {
+    if (k === 'phone' && form.phone && !phoneValid) return 'Enter a valid 10-digit Indian mobile number'
+    if (k === 'zip' && form.zip && !zipValid) return 'Enter a valid 6-digit PIN code'
+    return null
+  }
+
   const field = (k, label, ph) => (
     <div style={{ marginBottom:12 }}>
       <label style={{ fontSize:11, fontWeight:700, color:'#6B4F3A', display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</label>
       <input value={form[k]} onChange={e => set(k, e.target.value)} placeholder={ph} style={addrInputSt}
+        type={k === 'phone' ? 'tel' : 'text'} inputMode={k === 'phone' ? 'tel' : k === 'zip' ? 'numeric' : undefined} maxLength={k === 'zip' ? 6 : undefined}
         onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = '#EDE4D8'} />
+      {fieldError(k) && <div style={{ fontSize:11, color:'#C44A4A', marginTop:5 }}>{fieldError(k)}</div>}
     </div>
   )
 
@@ -767,7 +725,7 @@ function AddressForm({ initial, user, onCancel, onSaved, onToast }) {
       <div style={{ background:'#FAF7F2', borderRadius:24, padding:'26px', width:'100%', maxWidth:420, maxHeight:'90vh', overflowY:'auto', boxShadow:'0 24px 64px rgba(44,26,14,0.18)' }} className="ua-no-scrollbar">
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
           <div style={{ fontFamily:"'Playfair Display',serif", fontSize:17, fontWeight:700 }}>{editing ? 'Edit Address' : 'New Address'}</div>
-          <button onClick={onCancel} style={{ background:'#F5EEE6', border:'none', borderRadius:'50%', width:30, height:30, cursor:'pointer', fontSize:16, color:'#6B4F3A', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+          <button onClick={onCancel} aria-label="Close" style={{ background:'#F5EEE6', border:'none', borderRadius:'50%', width:30, height:30, cursor:'pointer', fontSize:16, color:'#6B4F3A', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
         </div>
         {field('label', 'Label (Home / Office)', 'Home')}
         {field('recipientName', 'Full Name *', 'Jane Doe')}
@@ -962,10 +920,6 @@ function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdm
         </button>
         <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:16, fontWeight:700, color:'#2C1A0E', letterSpacing:'-0.01em' }}>My Profile</div>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <button onClick={() => onToast('Account Balance: ₹0')} style={{ display:'flex', alignItems:'center', gap:5, background:'#F0FBF2', border:'none', borderRadius:99, padding:'6px 11px', cursor:'pointer' }}>
-            <span style={{ fontSize:14 }}>🟢</span>
-            <span style={{ fontSize:12, fontWeight:700, color:'#2A7A3B' }}>₹0</span>
-          </button>
           <button onClick={() => onNavigate('help')} style={{ display:'flex', alignItems:'center', gap:5, background:'#F5F2EE', border:'none', borderRadius:99, padding:'6px 11px', cursor:'pointer' }}>
             <IconHelp />
             <span style={{ fontSize:12, fontWeight:600, color:'#6B4F3A' }}>Help</span>
@@ -979,26 +933,14 @@ function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdm
         {/* HERO */}
         <div style={{ background:'linear-gradient(160deg,#F0EAE0 0%,#EDE4D8 60%,#E8D8C8 100%)', padding:'28px 20px 24px', textAlign:'center', position:'relative' }}>
           <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(circle,rgba(196,112,74,0.08) 1px,transparent 1px)', backgroundSize:'18px 18px', pointerEvents:'none' }} />
-          {/* Avatar with + button */}
+          {/* Avatar */}
           <div style={{ position:'relative', display:'inline-block', marginBottom:14 }}>
             <div style={{ width:76, height:76, borderRadius:'50%', background:'linear-gradient(135deg,#C4704A 0%,#A85A38 100%)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto', boxShadow:'0 6px 20px rgba(196,112,74,0.35)' }}>
               <span style={{ fontFamily:"'Playfair Display',serif", fontSize:30, fontWeight:700, color:'white' }}>{initial}</span>
             </div>
-            <button onClick={() => onToast('Edit photo coming soon')} style={{ position:'absolute', bottom:0, right:0, width:26, height:26, borderRadius:'50%', background:'white', border:`2px solid ${TC}`, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, color:TC, fontWeight:700, lineHeight:1 }}>+</button>
           </div>
           <div style={{ fontFamily:"'Playfair Display',serif", fontSize:22, fontWeight:700, color:'#2C1A0E', marginBottom:14 }}>{name}</div>
-          {/* Membership badges */}
           <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
-            <button onClick={() => onToast('Artisan Member perks!')} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:99, border:'1.5px solid rgba(196,112,74,0.3)', background:'rgba(255,255,255,0.72)', cursor:'pointer', backdropFilter:'blur(4px)' }}>
-              <span style={{ fontSize:13 }}>🤲</span>
-              <span style={{ fontSize:12, fontWeight:700, color:'#6B4F3A', letterSpacing:'0.02em' }}>Artisan Member</span>
-              <IconChevR />
-            </button>
-            <button onClick={() => onToast('Gift Club perks!')} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:99, border:'1.5px solid rgba(122,154,107,0.3)', background:'rgba(255,255,255,0.72)', cursor:'pointer', backdropFilter:'blur(4px)' }}>
-              <span style={{ fontSize:13 }}>🎁</span>
-              <span style={{ fontSize:12, fontWeight:700, color:'#4A7A3B', letterSpacing:'0.02em' }}>Gift Club Select</span>
-              <IconChevR />
-            </button>
             {onAdmin && (
               <button onClick={onAdmin}
                 style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:99, border:'1.5px solid rgba(44,26,14,0.25)', background:'rgba(44,26,14,0.82)', cursor:'pointer', backdropFilter:'blur(4px)', transition:'all 0.18s' }}
@@ -1014,11 +956,11 @@ function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdm
           </div>
         </div>
 
-        {/* QUICK LINKS */}
+        {/* QUICK LINKS — every row is real functionality */}
         <div style={{ margin:'14px 14px 0', background:'white', borderRadius:16, padding:'0 18px', border:'1px solid #EDE8E0', overflow:'hidden' }}>
-          <ProfileRow icon={<IconBag />}   label="My Orders"   sub="Track, return or reorder"       onClick={() => onNavigate('orders')} />
-          <ProfileRow icon={<IconHeart />} label="Wishlist"    sub="Your saved items"                onClick={() => onNavigate('wishlist')} />
-          <ProfileRow icon={<IconCard />}  label="Get 10% off your next gift" sub="Exclusive member offer" onClick={() => onToast('Offer applied!')} noBorder />
+          <ProfileRow icon={<IconBag />}   label="My Orders"        sub="Track, return or reorder"      onClick={() => onNavigate('orders')} />
+          <ProfileRow icon={<IconHeart />} label="Wishlist"         sub="Your saved items"               onClick={() => onNavigate('wishlist')} />
+          <ProfileRow icon={<IconGift />}  label="Offers & Coupons" sub="Active discount codes"          onClick={() => onNavigate('offers')} noBorder />
         </div>
 
         {/* SUPPORT CARD */}
@@ -1026,30 +968,8 @@ function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdm
           <SupportCard onToast={onToast} />
         </div>
 
-        {/* REWARDS & COUPONS */}
-        <div style={{ margin:'14px 14px 0', background:'white', borderRadius:16, padding:'16px 18px', border:'1px solid #EDE8E0' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
-            <div style={{ color:'#6B4F3A' }}><IconGift /></div>
-            <span style={{ fontSize:14, fontWeight:700, color:'#2C1A0E' }}>Rewards & Coupons</span>
-          </div>
-          <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginBottom:10 }}>
-            <RewardChip icon="🟢" label="Account Balance" onClick={() => onToast('Account Balance: ₹0')} />
-            <RewardChip icon="⭐" label="Gift Points"      onClick={() => onToast('Gift Points: 0')} />
-            <RewardChip icon="🎫" label="Coupons"          onClick={() => onToast('No coupons yet')} />
-            <RewardChip icon="🥇" label="My Prizes"        onClick={() => onToast('No prizes yet')} />
-          </div>
-          <div style={{ height:1, background:'#F0EBE4', margin:'4px 0 0' }} />
-          <ProfileRow icon={<IconGift />} label="Gift Cards" sub="Buy or redeem gift cards" onClick={() => onToast('Gift cards coming soon')} noBorder />
-        </div>
-
-        {/* PAYMENTS & ACCOUNT */}
+        {/* ACCOUNT */}
         <div style={{ margin:'14px 14px 0', background:'white', borderRadius:16, padding:'0 18px', border:'1px solid #EDE8E0' }}>
-          <AccordionRow icon={<IconPay />} label="Payments & Credits">
-            <div style={{ paddingLeft:32 }}>
-              <div style={{ marginBottom:8 }}>💳 Saved cards: none</div>
-              <div>🟢 PC Credits balance: ₹0</div>
-            </div>
-          </AccordionRow>
           <AccordionRow icon={<IconUser />} label="Manage Account & Address" noBorder>
             <div style={{ paddingLeft:32 }}>
               <div style={{ marginBottom:6 }}>👤 {name}</div>
@@ -1062,16 +982,9 @@ function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdm
           </AccordionRow>
         </div>
 
-        {/* DAILY PROMO */}
-        <div style={{ margin:'14px 14px 0' }}>
-          <DailyBanner onClick={() => onToast('Daily picks loading...')} />
-        </div>
-
-        {/* HELP & SETTINGS */}
+        {/* HELP & LEGAL */}
         <div style={{ margin:'14px 14px 0', background:'white', borderRadius:16, padding:'0 18px', border:'1px solid #EDE8E0' }}>
           <ProfileRow icon={<IconHelp />}     label="Help Centre"              sub="Chat, call or email us"      onClick={() => onNavigate('help')} />
-          <ProfileRow icon={<IconStar />}     label="Pretty.Crafted Suggests"  sub="Personalized gift ideas"     onClick={() => onToast('Coming soon')} />
-          <ProfileRow icon={<IconSettings />} label="Settings"                 sub="Notifications, privacy"      onClick={() => onToast('Settings coming soon')} />
           <AccordionRow icon={<IconLegal />}  label="Legal & Policies" noBorder>
             <div style={{ paddingLeft:32, display:'flex', flexDirection:'column', gap:10 }}>
               {LEGAL_LINKS.map(l => (
@@ -1104,12 +1017,13 @@ function MobileProfilePage({ user, onClose, onNavigate, onToast, onLogout, onAdm
 export default function UserAccountModal() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
+  const dialogRef = useModalFocus()
   const user = useSelector(selectUser)
   const ww = useWindowWidth()
   const isMobile = ww < 768
   // The modal is unmounted when closed, so the requested screen (e.g. the /orders
   // route dispatches openUserAccount('orders')) is picked up fresh on every open.
-  const initialView = useSelector(selectUI).userAccountView
+  const initialView = useSelector(selectUserAccountView)
   const [view, setView] = useState(initialView || 'home')
   const [toast, setToast] = useState(null)
 
@@ -1200,7 +1114,7 @@ export default function UserAccountModal() {
       )}
 
       {/* Panel */}
-      <div style={{
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="My account" style={{
         position:'fixed',
         inset: isMobile ? 0 : 'auto',
         top: isMobile ? 0 : '50%',
@@ -1219,7 +1133,7 @@ export default function UserAccountModal() {
 
       {/* Toast */}
       {toast && (
-        <div style={{ position:'fixed', bottom: isMobile ? 24 : 28, left:'50%', transform:'translateX(-50%)', zIndex:1400, background:'#2C1A0E', color:'white', borderRadius:12, padding:'12px 20px', fontSize:13, fontWeight:600, boxShadow:'0 8px 28px rgba(0,0,0,0.2)', display:'flex', alignItems:'center', gap:8, animation:'uaUp 0.22s ease', whiteSpace:'nowrap' }}>
+        <div role="status" aria-live="polite" style={{ position:'fixed', bottom: isMobile ? 24 : 28, left:'50%', transform:'translateX(-50%)', zIndex:1400, background:'#2C1A0E', color:'white', borderRadius:12, padding:'12px 20px', fontSize:13, fontWeight:600, boxShadow:'0 8px 28px rgba(0,0,0,0.2)', display:'flex', alignItems:'center', gap:8, animation:'uaUp 0.22s ease', whiteSpace:'nowrap' }}>
           <span style={{ color:TC }}>✓</span> {toast}
         </div>
       )}

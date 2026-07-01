@@ -17,7 +17,12 @@ public class WebConfig implements WebMvcConfigurer {
             .addPathPatterns(
                 "/api/auth/login",
                 "/api/auth/google",
-                "/api/auth/otp/verify"
+                "/api/auth/otp/verify",
+                // Unauthenticated and otherwise unlimited — without this, a script can
+                // brute-force/enumerate active discount codes at any rate.
+                "/api/public/coupons/validate",
+                // Public write endpoint — cap how fast a script can flood the list.
+                "/api/public/newsletter"
             );
     }
 }

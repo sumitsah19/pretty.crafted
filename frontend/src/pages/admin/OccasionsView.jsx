@@ -120,10 +120,15 @@ export default function OccasionsView({ onToast = () => {} }) {
     setBusyId(o.id)
     try {
       const { data } = await occasionAdminApi.feature(o.id)
-      // Marking one occasion featured un-features whichever one held the slot
-      // before — refresh the whole list so that occasion's card updates too.
-      const { data: all } = await occasionAdminApi.list()
-      setOccasions(all || [])
+      // The server has already un-featured whichever occasion held the slot
+      // before (enforced atomically there) — mirror that locally in one pass
+      // instead of a second network round-trip, so a failure here can never be
+      // misreported as the toggle itself having failed.
+      setOccasions(os => os.map(x => {
+        if (x.id === data.id) return data
+        if (data.featured && x.featured) return { ...x, featured: false }
+        return x
+      }))
       onToast(data.featured ? `${data.title} is now the featured banner` : `${data.title} is no longer the featured banner`)
     } catch { onToast('Update failed') } finally { setBusyId(null) }
   }
@@ -184,16 +189,16 @@ export default function OccasionsView({ onToast = () => {} }) {
               {o.featured && !o.active && <span style={{ fontSize: 10, fontWeight: 700, color: '#A02A2A', background: '#FFF5F5', padding: '3px 8px', borderRadius: 99 }}>Featured, but inactive — won't show</span>}
             </div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-              <button onClick={() => openEdit(o)} style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Edit</button>
-              <button onClick={() => toggle(o)} style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{o.active ? 'Deactivate' : 'Activate'}</button>
-              <button onClick={() => toggleVisible(o)} style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{o.visible ? 'Hide' : 'Show'}</button>
+              <button onClick={() => openEdit(o)} disabled={busyId === o.id} style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: busyId === o.id ? 'default' : 'pointer' }}>Edit</button>
+              <button onClick={() => toggle(o)} disabled={busyId === o.id} style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: busyId === o.id ? 'default' : 'pointer' }}>{o.active ? 'Deactivate' : 'Activate'}</button>
+              <button onClick={() => toggleVisible(o)} disabled={busyId === o.id} style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${BEIGE}`, background: 'white', color: MID, fontSize: 11, fontWeight: 600, cursor: busyId === o.id ? 'default' : 'pointer' }}>{o.visible ? 'Hide' : 'Show'}</button>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => toggleFeatured(o)} disabled={!o.active && !o.featured} title={!o.active && !o.featured ? 'Activate this occasion first' : ''}
-                style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${o.featured ? TC : BEIGE}`, background: o.featured ? TC : 'white', color: o.featured ? 'white' : (!o.active ? LIGHT : MID), fontSize: 11, fontWeight: 700, cursor: (!o.active && !o.featured) ? 'default' : 'pointer' }}>
+              <button onClick={() => toggleFeatured(o)} disabled={busyId === o.id || (!o.active && !o.featured)} title={!o.active && !o.featured ? 'Activate this occasion first' : ''}
+                style={{ flex: 1, padding: '7px 0', borderRadius: 99, border: `1.5px solid ${o.featured ? TC : BEIGE}`, background: o.featured ? TC : 'white', color: o.featured ? 'white' : (!o.active ? LIGHT : MID), fontSize: 11, fontWeight: 700, cursor: (busyId === o.id || (!o.active && !o.featured)) ? 'default' : 'pointer' }}>
                 {o.featured ? 'Remove Featured' : 'Set as Featured'}
               </button>
-              <button onClick={() => remove(o)} style={{ padding: '7px 11px', borderRadius: 99, border: '1.5px solid #FED7D7', background: '#FFF5F5', color: '#A02A2A', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Del</button>
+              <button onClick={() => remove(o)} disabled={busyId === o.id} style={{ padding: '7px 11px', borderRadius: 99, border: '1.5px solid #FED7D7', background: '#FFF5F5', color: '#A02A2A', fontSize: 11, fontWeight: 600, cursor: busyId === o.id ? 'default' : 'pointer' }}>Del</button>
             </div>
           </div>
         ))}
@@ -240,7 +245,7 @@ export default function OccasionsView({ onToast = () => {} }) {
           <div style={{ background: CREAM, borderRadius: 24, padding: '32px 28px', width: '100%', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(44,26,14,0.2)', animation: 'fadeUp 0.25s ease' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700 }}>{editItem ? 'Edit Occasion' : 'Add Occasion'}</div>
-              <button onClick={() => { setShowForm(false); setEditItem(null) }} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
+              <button onClick={() => { setShowForm(false); setEditItem(null) }} aria-label="Close" style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
             </div>
 
             <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
@@ -269,7 +274,7 @@ export default function OccasionsView({ onToast = () => {} }) {
               {form.iconImageUrl ? (
                 <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', height: 120, background: form.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <img src={form.iconImageUrl} alt="Icon" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', display: 'block' }} />
-                  <button onClick={() => setForm(f => ({ ...f, iconImageUrl: '' }))} style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(44,26,14,0.65)', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', color: 'white', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                  <button onClick={() => setForm(f => ({ ...f, iconImageUrl: '' }))} aria-label="Remove icon image" style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(44,26,14,0.65)', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', color: 'white', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
                 </div>
               ) : (
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 120, border: `2px dashed ${uploading ? BEIGE : TC}`, borderRadius: 12, cursor: uploading ? 'default' : 'pointer', background: '#FDF6F1', gap: 6 }}>

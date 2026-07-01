@@ -9,4 +9,7 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     List<CartItem> findByUserId(Long userId);
     Optional<CartItem> findByUserIdAndProductId(Long userId, Long productId);
     void deleteByUserId(Long userId);
+
+    /** Used by ProductService.delete() to block deleting a product that's in someone's cart. */
+    boolean existsByProductId(Long productId);
 }

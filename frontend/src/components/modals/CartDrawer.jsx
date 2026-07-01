@@ -4,6 +4,9 @@ import { selectCart, selectCoupon, setCoupon, clearCoupon, updateLocal, removeLo
 import { openCheckout, closeCart } from '../../store/slices/uiSlice'
 import { selectProducts } from '../../store/slices/productsSlice'
 import { giftBoxApi, couponApi } from '../../api/services'
+import { analytics } from '../../analytics'
+import { useModalFocus } from '../../hooks/useModalFocus'
+import { deliveryFeeFor, FREE_DELIVERY_THRESHOLD } from '../../utils/delivery'
 
 const TC = '#C4704A'
 
@@ -15,6 +18,7 @@ const loadSaved = () => {
 
 export default function CartDrawer() {
   const dispatch = useDispatch()
+  const dialogRef = useModalFocus()
   const { items, boxes } = useSelector(selectCart)
   const coupon = useSelector(selectCoupon) // shared with checkout via Redux
   const products = useSelector(selectProducts)
@@ -50,9 +54,11 @@ export default function CartDrawer() {
   // Discount mirrors the server's redeem() math (round to paise, HALF_UP) so the
   // amount shown here matches checkout and what the backend actually charges.
   const discount = coupon ? Math.round(subtotal * coupon.discountPercent) / 100 : 0
-  // No client-side fees: delivery is free and the server computes the order total,
-  // so the drawer total must equal the checkout total (= subtotal − discount).
-  const total = Math.max(0, subtotal - discount)
+  // Delivery fee mirrors OrderService: flat fee below the free-delivery
+  // threshold, applied to the discounted merchandise total.
+  const discounted = Math.max(0, subtotal - discount)
+  const deliveryFee = deliveryFeeFor(discounted)
+  const total = discounted + deliveryFee
 
   const applyCoupon = async () => {
     const code = couponInput.trim()
@@ -92,19 +98,21 @@ export default function CartDrawer() {
   return (
     <>
       <div onClick={() => dispatch(closeCart())} style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(44,26,14,0.4)', backdropFilter: 'blur(3px)' }} />
-      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 1201, width: 'min(420px, 100vw)', background: '#FAF7F2', boxShadow: '-8px 0 40px rgba(44,26,14,0.15)', display: 'flex', flexDirection: 'column' }} className="animate-slide-right">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Shopping cart" style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 1201, width: 'min(420px, 100vw)', background: '#FAF7F2', boxShadow: '-8px 0 40px rgba(44,26,14,0.15)', display: 'flex', flexDirection: 'column' }} className="animate-slide-right">
         {/* Header */}
         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid #EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700 }}>Your Cart</div>
             <div style={{ fontSize: 12, color: '#9C7A63', marginTop: 2 }}>{isEmpty ? 'Empty' : `${items.reduce((s, i) => s + i.qty, 0) + boxes.length} items`}</div>
           </div>
-          <button onClick={() => dispatch(closeCart())} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          <button onClick={() => dispatch(closeCart())} aria-label="Close" style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 18, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
 
-        {/* Free delivery note */}
+        {/* Delivery threshold note — nudge below ₹999, confirmation at/above */}
         {!isEmpty && (
-          <div style={{ padding: '10px 24px', background: '#EAF2E8', fontSize: 12, color: '#4A8A3A', fontWeight: 600, flexShrink: 0 }}>✓ Free delivery on every order 🚚</div>
+          deliveryFee === 0
+            ? <div style={{ padding: '10px 24px', background: '#EAF2E8', fontSize: 12, color: '#4A8A3A', fontWeight: 600, flexShrink: 0 }}>✓ You've unlocked free delivery 🚚</div>
+            : <div style={{ padding: '10px 24px', background: '#FEF5E4', fontSize: 12, color: '#B07B2A', fontWeight: 600, flexShrink: 0 }}>Add ₹{(FREE_DELIVERY_THRESHOLD - discounted).toFixed(2)} more for free delivery 🚚</div>
         )}
 
         {/* Items */}
@@ -122,19 +130,19 @@ export default function CartDrawer() {
                 <div key={item.product.id} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', padding: '14px', background: 'white', borderRadius: 16, boxShadow: '0 2px 8px rgba(44,26,14,0.06)' }}>
                   <div style={{ width: 60, height: 60, borderRadius: 12, background: item.product.bg || '#EDE4D8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>{item.product.emoji}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>{item.product.category}</div>
+                    <div style={{ fontSize: 10, color: '#9C7A63', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>{item.product.categories?.[0]}</div>
                     <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 14, fontWeight: 600, lineHeight: 1.3, marginBottom: 8 }}>{item.product.name}</div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: '#F5EEE6', borderRadius: 99, overflow: 'hidden' }}>
-                        <button onClick={() => dispatch(updateLocal({ productId: item.product.id, qty: item.qty - 1 }))} style={{ width: 30, height: 30, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#2C1A0E', minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
-                        <button onClick={() => dispatch(updateLocal({ productId: item.product.id, qty: item.qty + 1 }))} style={{ width: 30, height: 30, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                        <button onClick={() => dispatch(updateLocal({ productId: item.product.id, qty: item.qty - 1 }))} aria-label={`Decrease quantity of ${item.product.name}`} style={{ width: 30, height: 30, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                        <span aria-live="polite" style={{ fontSize: 13, fontWeight: 700, color: '#2C1A0E', minWidth: 20, textAlign: 'center' }}>{item.qty}</span>
+                        <button onClick={() => dispatch(updateLocal({ productId: item.product.id, qty: item.qty + 1 }))} aria-label={`Increase quantity of ${item.product.name}`} style={{ width: 30, height: 30, border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6B4F3A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                       </div>
                       <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>₹{(item.product.price * item.qty).toFixed(2)}</div>
                     </div>
                     <button onClick={() => saveForLater(item.product.id)} style={{ marginTop: 7, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#9C7A63', padding: 0, fontWeight: 600 }}>Save for later</button>
                   </div>
-                  <button onClick={() => dispatch(removeLocal(item.product.id))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C5B5A5', fontSize: 18, padding: 4, flexShrink: 0, marginTop: -2, lineHeight: 1 }}>×</button>
+                  <button onClick={() => { analytics.removeFromCart(item.product); dispatch(removeLocal(item.product.id)) }} aria-label={`Remove ${item.product.name} from cart`} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C5B5A5', fontSize: 18, padding: 4, flexShrink: 0, marginTop: -2, lineHeight: 1 }}>×</button>
                 </div>
               ))}
 
@@ -148,7 +156,7 @@ export default function CartDrawer() {
                     {box.customMessage && <div style={{ fontSize: 11, color: '#9C7A63', fontStyle: 'italic', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{box.customMessage}"</div>}
                     <div style={{ fontWeight: 700, color: TC, fontSize: 15 }}>₹{Number(box.totalPrice).toFixed(2)}</div>
                   </div>
-                  <button onClick={() => removeGiftBox(box.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C5B5A5', fontSize: 18, padding: 4, flexShrink: 0, marginTop: -2, lineHeight: 1 }}>×</button>
+                  <button onClick={() => removeGiftBox(box.id)} aria-label="Remove gift box from cart" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C5B5A5', fontSize: 18, padding: 4, flexShrink: 0, marginTop: -2, lineHeight: 1 }}>×</button>
                 </div>
               ))}
             </div>
@@ -229,7 +237,9 @@ export default function CartDrawer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
               <Row label="Subtotal" value={`₹${subtotal.toFixed(2)}`} />
               {discount > 0 && <Row label={`Discount (${coupon.code})`} value={`−₹${discount.toFixed(2)}`} color="#7A9A6B" />}
-              <Row label="Delivery" value="FREE" color="#7A9A6B" />
+              {deliveryFee === 0
+                ? <Row label="Delivery" value="FREE" color="#7A9A6B" />
+                : <Row label="Delivery" value={`₹${deliveryFee.toFixed(2)}`} />}
               <div style={{ height: 1, background: '#EDE4D8', margin: '4px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'Playfair Display',serif", fontSize: 18, fontWeight: 700 }}>
                 <span>Total</span><span style={{ color: TC }}>₹{total.toFixed(2)}</span>

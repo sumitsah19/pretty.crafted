@@ -148,7 +148,7 @@ export default function BuildBoxesView({ onToast = () => {} }) {
           <div style={{ background: CREAM, borderRadius: 24, padding: '32px 28px', width: '100%', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(44,26,14,0.2)', animation: 'fadeUp 0.25s ease' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 700 }}>{editItem ? 'Edit Box' : 'Add Box'}</div>
-              <button onClick={() => { setShowForm(false); setEditItem(null) }} style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
+              <button onClick={() => { setShowForm(false); setEditItem(null) }} aria-label="Close" style={{ background: '#F5EEE6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: MID }}>×</button>
             </div>
 
             {/* Image upload */}
@@ -157,7 +157,7 @@ export default function BuildBoxesView({ onToast = () => {} }) {
               {form.imageUrl ? (
                 <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', height: 160 }}>
                   <img src={form.imageUrl} alt="Box" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                  <button onClick={() => setForm(f => ({ ...f, imageUrl: '' }))} style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(44,26,14,0.65)', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', color: 'white', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                  <button onClick={() => setForm(f => ({ ...f, imageUrl: '' }))} aria-label="Remove image" style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(44,26,14,0.65)', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', color: 'white', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
                 </div>
               ) : (
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 160, border: `2px dashed ${uploading ? BEIGE : TC}`, borderRadius: 12, cursor: uploading ? 'default' : 'pointer', background: '#FDF6F1', gap: 6 }}>

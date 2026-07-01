@@ -1,7 +1,9 @@
 package com.prettycrafted.giftbox.dto;
 
+import com.prettycrafted.giftbox.domain.Category;
 import com.prettycrafted.giftbox.domain.Product;
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 
 public record ProductDto(
@@ -16,19 +18,23 @@ public record ProductDto(
     Integer stock,
     String imageUrl,
     List<String> imageUrls,
-    Long categoryId,
-    String categoryName,
+    List<Long> categoryIds,
+    List<String> categoryNames,
     Integer popularityScore,
-    String recipient,
+    List<String> recipients,
     String tag,
     BigDecimal rating,
-    Integer reviewCount
+    Integer reviewCount,
+    String heroSlot
 ) {
     public static ProductDto from(Product p) {
         List<String> urls = p.getImages().stream()
             .map(img -> img.getImageUrl())
             .toList();
         String primary = urls.isEmpty() ? p.getImageUrl() : urls.get(0);
+        List<Category> sortedCategories = p.getCategories().stream()
+            .sorted(Comparator.comparing(Category::getName))
+            .toList();
         return new ProductDto(
             p.getId(),
             p.getName(),
@@ -41,13 +47,14 @@ public record ProductDto(
             p.getStock(),
             primary,
             urls,
-            p.getCategory().getId(),
-            p.getCategory().getName(),
+            sortedCategories.stream().map(Category::getId).toList(),
+            sortedCategories.stream().map(Category::getName).toList(),
             p.getPopularityScore(),
-            p.getRecipient(),
+            p.getRecipients().stream().sorted().toList(),
             p.getTag(),
             p.getRating(),
-            p.getReviewCount()
+            p.getReviewCount(),
+            p.getHeroSlot()
         );
     }
 }

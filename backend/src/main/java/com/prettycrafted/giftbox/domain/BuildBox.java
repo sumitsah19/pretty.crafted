@@ -16,7 +16,7 @@ import lombok.Setter;
 /**
  * An admin-curated box shown in the storefront "Build Your Own Box" CoverFlow carousel.
  * Each box is a single uploaded image with an optional caption. Clicking a box opens the
- * box builder, so — unlike a {@link HeroCard} — it carries no type or product deep-link.
+ * box builder directly, so it carries no type or product deep-link.
  */
 @Entity
 @Table(name = "build_boxes")
