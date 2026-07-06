@@ -8,8 +8,6 @@ Disallow: /account
 Disallow: /account/
 Disallow: /orders
 Disallow: /orders/
-Disallow: /verify-email
-Disallow: /reset-password
 
 # Sitemap location
 Sitemap: https://prettycrafted.com/sitemap.xml

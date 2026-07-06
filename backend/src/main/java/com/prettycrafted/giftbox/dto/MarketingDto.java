@@ -12,4 +12,7 @@ public class MarketingDto {
     // list or an overlong line can't break the marquee layout/animation.
     @Size(max = 20, message = "at most 20 banner lines")
     private List<@Size(max = 160, message = "each banner line must be 160 characters or fewer") String> bannerLines;
+
+    /** Storefront banner visibility; null on update is treated as enabled. */
+    private Boolean bannerEnabled;
 }

@@ -21,4 +21,11 @@ public class MarketingConfig {
     @Lob
     @Column(name = "banner_lines", columnDefinition = "text")
     private String bannerLines;
+
+    /**
+     * Whether the storefront shows the announcement banner at all.
+     * Null (rows from before the column existed) means enabled.
+     */
+    @Column(name = "banner_enabled")
+    private Boolean bannerEnabled;
 }

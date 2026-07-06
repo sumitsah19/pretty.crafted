@@ -1,15 +1,9 @@
 import { useState, useEffect } from 'react'
-import { couponAdminApi } from '../../api/services'
+import { couponAdminApi, marketingAdminApi } from '../../api/services'
 import { useWindowWidth } from '../../hooks/useWindowWidth'
 import { TC, DARK, MID, LIGHT, BEIGE, CREAM, SectionHeader } from './shared'
 
 // ─── MARKETING VIEW ────────────────────────────────────────────────
-// Evergreen brand lines always shown in the storefront banner, alongside active coupons.
-const BANNER_BASE_MESSAGES = [
-  '✦ Free delivery on every order',
-  '🎁 Handcrafted with love, delivered across India',
-  '✦ New arrivals every week',
-]
 
 export default function MarketingView({ onToast }) {
   const [coupons, setCoupons] = useState([])
@@ -20,17 +14,63 @@ export default function MarketingView({ onToast }) {
   const [form, setForm] = useState({ code: '', value: '', expires: '' })
   const isMobile = useWindowWidth() < 768
 
+  // Storefront banner config (admin-editable evergreen lines + visibility).
+  // `bannerText` is the textarea draft (one line per row); `savedLines` is what
+  // the server has, so we can tell when the draft is dirty.
+  const [bannerEnabled, setBannerEnabled] = useState(true)
+  const [bannerText, setBannerText] = useState('')
+  const [savedLines, setSavedLines] = useState([])
+  const [bannerId, setBannerId] = useState(null)
+  const [bannerSaving, setBannerSaving] = useState(false)
+
   useEffect(() => {
     couponAdminApi.list()
       .then(({ data }) => setCoupons(data || []))
       .catch(() => onToast('Failed to load coupons'))
       .finally(() => setLoading(false))
+    marketingAdminApi.get()
+      .then(({ data }) => {
+        const lines = data?.bannerLines || []
+        setSavedLines(lines)
+        setBannerText(lines.join('\n'))
+        setBannerEnabled(data?.bannerEnabled !== false)
+        setBannerId(data?.id ?? null)
+      })
+      .catch(() => onToast('Failed to load banner settings'))
   }, [onToast])
+
+  const draftLines = bannerText.split('\n').map(s => s.trim()).filter(Boolean)
+  const bannerDirty = draftLines.join('\n') !== savedLines.join('\n')
+
+  const saveBanner = async (nextEnabled = bannerEnabled) => {
+    if (draftLines.length === 0) { onToast('Add at least one banner line'); return }
+    if (draftLines.length > 20) { onToast('At most 20 banner lines'); return }
+    if (draftLines.some(l => l.length > 160)) { onToast('Each line must be 160 characters or fewer'); return }
+    setBannerSaving(true)
+    try {
+      const { data } = await marketingAdminApi.update({ id: bannerId, bannerLines: draftLines, bannerEnabled: nextEnabled })
+      setSavedLines(data.bannerLines || [])
+      setBannerText((data.bannerLines || []).join('\n'))
+      setBannerEnabled(data.bannerEnabled !== false)
+      setBannerId(data.id ?? bannerId)
+      onToast('Banner saved')
+    } catch (e) {
+      onToast(e.response?.data?.message || 'Could not save banner')
+    } finally { setBannerSaving(false) }
+  }
+
+  // The toggle persists immediately (like pausing a coupon) — it also saves any
+  // pending text edits so the storefront never shows a half-applied state.
+  const toggleBanner = () => {
+    const next = !bannerEnabled
+    setBannerEnabled(next)
+    saveBanner(next)
+  }
 
   const inp = { width: '100%', padding: '10px 14px', borderRadius: 12, border: `1.5px solid ${BEIGE}`, fontSize: 13, background: 'white', fontFamily: "'DM Sans',sans-serif", outline: 'none', color: DARK }
 
   const activeCoupons = coupons.filter(c => c.active)
-  const bannerLines = [...activeCoupons.map(c => `Use code ${c.code} for ${c.discountPercent}% off`), ...BANNER_BASE_MESSAGES]
+  const bannerLines = [...activeCoupons.map(c => `Use code ${c.code} for ${c.discountPercent}% off`), ...draftLines]
 
   const toggleCoupon = async (c) => {
     setBusyId(c.id)
@@ -74,13 +114,45 @@ export default function MarketingView({ onToast }) {
     <div>
       <SectionHeader title="Marketing" sub="Storefront banner & coupons" />
 
-      {/* Live banner preview — exactly what the storefront shows */}
+      {/* Storefront banner — editable evergreen lines + show/hide toggle.
+          Active coupons are appended automatically by the storefront. */}
       <div style={{ background: 'white', borderRadius: 20, padding: '24px 28px', border: `1px solid ${BEIGE}`, marginBottom: 24, boxShadow: '0 2px 12px rgba(44,26,14,0.05)' }}>
-        <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Storefront Banner</div>
-        <div style={{ fontSize: 12, color: LIGHT, marginBottom: 16 }}>Active coupons appear here automatically. Pause a coupon to remove its line.</div>
-        <div style={{ background: TC, borderRadius: 10, padding: '10px 16px', color: 'white', fontSize: 13, fontWeight: 500, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-          {bannerLines.join('     ✦     ')}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontFamily: "'Playfair Display',serif", fontSize: 16, fontWeight: 700 }}>Storefront Banner</div>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 99, background: bannerEnabled ? '#EBF7EC' : BEIGE, color: bannerEnabled ? '#2A7A3B' : LIGHT }}>
+              {bannerEnabled ? 'Visible' : 'Hidden'}
+            </span>
+          </div>
+          {/* Show/hide switch — persists immediately */}
+          <button type="button" role="switch" aria-checked={bannerEnabled} aria-label="Show storefront banner"
+            disabled={bannerSaving} onClick={toggleBanner}
+            style={{ width: 44, height: 26, borderRadius: 99, border: 'none', padding: 0, flexShrink: 0, background: bannerEnabled ? TC : '#D9CBBF', position: 'relative', cursor: bannerSaving ? 'default' : 'pointer', opacity: bannerSaving ? 0.6 : 1, transition: 'background 0.2s' }}>
+            <span style={{ position: 'absolute', top: 3, left: bannerEnabled ? 21 : 3, width: 20, height: 20, borderRadius: '50%', background: 'white', boxShadow: '0 1px 3px rgba(44,26,14,0.25)', transition: 'left 0.2s' }} />
+          </button>
         </div>
+        <div style={{ fontSize: 12, color: LIGHT, marginBottom: 14 }}>
+          One message per line (max 20 lines, 160 characters each). Active coupons are appended automatically — pause a coupon to remove its line.
+        </div>
+        <textarea
+          value={bannerText}
+          onChange={e => setBannerText(e.target.value)}
+          rows={4}
+          placeholder={'✦ Free delivery on orders above ₹999\n🎁 Handcrafted with love, delivered across India'}
+          style={{ ...inp, resize: 'vertical', lineHeight: 1.7, marginBottom: 12, boxSizing: 'border-box' }}
+          onFocus={e => e.target.style.borderColor = TC} onBlur={e => e.target.style.borderColor = BEIGE} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <button onClick={() => saveBanner()} disabled={bannerSaving || !bannerDirty}
+            style={{ padding: '9px 22px', borderRadius: 99, border: 'none', background: (bannerSaving || !bannerDirty) ? BEIGE : TC, color: (bannerSaving || !bannerDirty) ? LIGHT : 'white', fontSize: 12, fontWeight: 700, cursor: (bannerSaving || !bannerDirty) ? 'default' : 'pointer' }}>
+            {bannerSaving ? 'Saving…' : 'Save Banner'}
+          </button>
+          {bannerDirty && !bannerSaving && <span style={{ fontSize: 11, color: LIGHT }}>Unsaved changes</span>}
+        </div>
+        {/* Live preview — exactly what the storefront shows (dimmed when hidden) */}
+        <div style={{ background: TC, borderRadius: 10, padding: '10px 16px', color: 'white', fontSize: 13, fontWeight: 500, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', opacity: bannerEnabled ? 1 : 0.35 }}>
+          {bannerLines.length > 0 ? bannerLines.join('     ✦     ') : 'Banner is empty'}
+        </div>
+        {!bannerEnabled && <div style={{ fontSize: 11, color: LIGHT, marginTop: 8 }}>The banner is hidden — customers won't see it until you switch it back on.</div>}
       </div>
 
       {/* Coupons */}

@@ -6,7 +6,7 @@ import { fetchProducts, fetchHampers, selectProducts } from './store/slices/prod
 import { selectUI, selectCartOpen, selectWishlistOpen, openUserAccount, setActiveProduct } from './store/slices/uiSlice'
 import { useWindowWidth } from './hooks/useWindowWidth'
 import { useOnlineStatus } from './hooks/useOnlineStatus'
-import { promotionsApi } from './api/services'
+import { promotionsApi, marketingApi } from './api/services'
 import ErrorBoundary from './components/ErrorBoundary'
 
 import Nav from './components/Nav'
@@ -23,6 +23,7 @@ import AdminProtectedRoute from './components/AdminProtectedRoute'
 // actually reached.
 const AdminPage = lazy(() => import('./pages/AdminPage'))
 const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 const BuildBoxesView = lazy(() => import('./pages/admin/BuildBoxesView'))
 const LoginModal = lazy(() => import('./components/modals/LoginModal'))
 const CartDrawer = lazy(() => import('./components/modals/CartDrawer'))
@@ -38,7 +39,9 @@ const ShopModal = lazy(() => import('./components/modals/ShopModal'))
 
 const TC = '#C4704A'
 
-// Storefront announcement banner — evergreen brand lines, prepended with active coupons
+// Storefront announcement banner fallback, shown until /public/marketing loads
+// (and kept if it never does). The live lines + visibility are admin-managed
+// in Admin → Marketing → Storefront Banner; active coupons are prepended.
 const BANNER_BASE = [
   '✦ Free delivery on orders above ₹999',
   '🎁 Handcrafted with love, delivered across India',
@@ -79,6 +82,7 @@ export default function App() {
   const isAdmin = pathname.startsWith('/admin')
 
   const [bannerMessages, setBannerMessages] = useState(BANNER_BASE)
+  const [bannerEnabled, setBannerEnabled] = useState(true)
 
   useEffect(() => {
     dispatch(fetchMe())
@@ -88,12 +92,18 @@ export default function App() {
   }, [dispatch])
 
   useEffect(() => {
-    promotionsApi.list()
-      .then(({ data }) => {
-        const couponLines = (data || []).map(c => `Use code ${c.code} for ${c.discountPercent}% off`)
-        setBannerMessages([...couponLines, ...BANNER_BASE])
-      })
-      .catch(() => { /* keep base messages */ })
+    // Admin-managed banner lines + visibility, with active coupon lines
+    // prepended. Either request failing falls back gracefully (base lines,
+    // banner shown) rather than blanking the banner.
+    Promise.allSettled([marketingApi.get(), promotionsApi.list()]).then(([mk, promos]) => {
+      const cfg = mk.status === 'fulfilled' ? mk.value.data : null
+      if (cfg?.bannerEnabled === false) setBannerEnabled(false)
+      const base = cfg?.bannerLines?.length ? cfg.bannerLines : BANNER_BASE
+      const couponLines = promos.status === 'fulfilled'
+        ? (promos.value.data || []).map(c => `Use code ${c.code} for ${c.discountPercent}% off`)
+        : []
+      setBannerMessages([...couponLines, ...base])
+    })
   }, [])
 
   useEffect(() => {
@@ -268,19 +278,21 @@ export default function App() {
           </div>
         )}
 
-        {/* Announcement banner — scrolling marquee (active coupons + brand lines).
-            The moving track is decorative (aria-hidden); screen readers get the
-            same messages once, as static text. */}
-        <div style={{ background: TC, color: 'white', padding: isMobile ? '9px 0' : '10px 0', fontSize: isMobile ? 12 : 13, fontWeight: 500, overflow: 'hidden' }}>
-          <span className="sr-only">{bannerMessages.join('. ')}</span>
-          <div className="marquee-track" aria-hidden="true">
-            {Array.from({ length: 2 }).map((_, rep) => (
-              bannerMessages.map((msg, i) => (
-                <span key={`${rep}-${i}`} className="marquee-item">{msg}</span>
-              ))
-            ))}
+        {/* Announcement banner — scrolling marquee (active coupons + brand lines),
+            admin-toggleable via Admin → Marketing. The moving track is decorative
+            (aria-hidden); screen readers get the same messages once, as static text. */}
+        {bannerEnabled && bannerMessages.length > 0 && (
+          <div style={{ background: TC, color: 'white', padding: isMobile ? '9px 0' : '10px 0', fontSize: isMobile ? 12 : 13, fontWeight: 500, overflow: 'hidden' }}>
+            <span className="sr-only">{bannerMessages.join('. ')}</span>
+            <div className="marquee-track" aria-hidden="true">
+              {Array.from({ length: 2 }).map((_, rep) => (
+                bannerMessages.map((msg, i) => (
+                  <span key={`${rep}-${i}`} className="marquee-item">{msg}</span>
+                ))
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <Nav onScrollTo={scrollTo} />
 
@@ -331,6 +343,9 @@ export default function App() {
               <Route path="/__dev/admin/buildboxes" element={<BuildBoxesView />} />
             </>
           )}
+          {/* Catch-all 404 — unknown URLs previously rendered an empty storefront
+              shell (a soft-404 for crawlers). The page is noIndex'd via SEO. */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
         </Suspense>
 

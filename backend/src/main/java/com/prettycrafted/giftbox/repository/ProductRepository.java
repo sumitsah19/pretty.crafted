@@ -20,6 +20,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     long countByStockLessThanEqual(int threshold);
 
+    /** Just id + main image, for sitemap generation — avoids loading full
+     *  entities (with their EAGER categories/recipients) when only URLs and
+     *  image locations are built. imageUrl may be null. */
+    @Query("select p.id, p.imageUrl from Product p order by p.id asc")
+    List<Object[]> findAllIdsAndImageUrls();
+
     /** Used only to gate the one-time hero-slot starter seed — see
      *  DataSeeder.backfillHeroSlots(). True once any product has been curated
      *  into a homepage hero carousel slot, whether by that seed or an admin edit. */

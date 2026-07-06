@@ -85,6 +85,18 @@ export const newsletterApi = {
   subscribe: (email) => api.post('/public/newsletter', { email }),
 }
 
+// ── MARKETING (public read — announcement banner lines + visibility) ──
+export const marketingApi = {
+  get: () => api.get('/public/marketing'),
+}
+
+// ── MARKETING (admin write — Admin → Marketing → Storefront Banner) ──
+// update body: { id?, bannerLines: string[], bannerEnabled: boolean }
+export const marketingAdminApi = {
+  get:    ()     => api.get('/admin/marketing'),
+  update: (data) => api.put('/admin/marketing', data),
+}
+
 // ── FAQs (public read — Help Center accordion) ───────────────────
 export const faqApi = {
   list: () => api.get('/public/faqs'),
