@@ -110,7 +110,7 @@ export default function HomePage() {
   const isTablet = ww >= 640 && ww < 1024
   const px = isMobile ? '20px' : isTablet ? '32px' : '48px'
   // Shared sizing for the homepage's single-row product carousels
-  const rowCardW = isMobile ? 170 : 220
+  const rowCardW = isMobile ? 150 : 220
   const rowGap = isMobile ? 12 : 20
   const ROW_CAP = 10
   const [activeRecipient, setActiveRecipient] = useState('all')
